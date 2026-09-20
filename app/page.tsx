@@ -1,7 +1,7 @@
 "use client"
+import Footer from '@/section/Footer';
 import { AlertCircle, ArrowRight, Mail, Terminal, Lock } from 'lucide-react'
 import React, { useState } from 'react'
-import Footer from './sections/Footer';
 
 const Home = () => {
   const [email, setEmail] = useState('');
