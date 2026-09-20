@@ -1,113 +1,13 @@
-"use client"
-import Footer from '@/section/Footer';
-import { AlertCircle, ArrowRight, Mail, Terminal, Lock } from 'lucide-react'
-import React, { useState } from 'react'
+import { getSession } from '@/lib/nextauth';
+import LoginPage from '@/section/LoginPage';
+import { redirect } from 'next/navigation';
+export default async function Home() {
+  const session = await getSession();
+  const user = session?.user ?? null;
 
-const Home = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  if (user) {
+    redirect(`/dashboard`);
+  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-
-  };
-  return (
-    <div className="min-h-screen bg-[#09090b] flex flex-col justify-between items-center relative overflow-hidden font-sans">
-      {/* Background ambient elements */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="flex-1 flex flex-col items-center justify-center p-4 w-full">
-        <div className="w-full max-w-md bg-[#121214] border border-[#27272a] rounded-xl shadow-2xl p-6 sm:p-8 relative z-10 space-y-6">
-          {/* Brand & Connection Status */}
-          <div className="text-center space-y-2">
-            <div className="w-12 h-12 rounded-lg bg-blue-600/10 border border-blue-500/20 text-blue-400 mx-auto flex items-center justify-center mb-3">
-              <Terminal className="w-6 h-6" />
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-white font-mono">
-              Sage Trading Terminal
-            </h1>
-            <p className="text-xs text-zinc-400 font-mono">
-              Private Binance Futures Bot Control Node
-            </p>
-
-            <div className="pt-2 flex items-center justify-center">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-900/60 text-[11px] font-mono text-emerald-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>Express Backend: Online (Port 3000)</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Error Notification */}
-          {error && (
-            <div className="p-3 bg-rose-950/40 border border-rose-800/80 rounded-md text-rose-300 text-xs font-mono flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-mono text-zinc-400 block">Operator Email</label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="operator@sage.internal"
-                  className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded-md pl-9 pr-3 py-2 text-xs font-mono text-zinc-100 placeholder-zinc-600 outline-none transition-colors"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-mono text-zinc-400 block">Terminal Passphrase</label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded-md pl-9 pr-3 py-2 text-xs font-mono text-zinc-100 placeholder-zinc-600 outline-none transition-colors"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="cursor-pointer w-full py-2.5 px-4 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-semibold tracking-wide transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2"
-            >
-              {isLoading ? (
-                <span>Authenticating...</span>
-              ) : (
-                <>
-                  <span>Access Terminal</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-
-        <div className="mt-6 text-center text-xs font-mono text-zinc-600">
-          Personal & Family Private Deployment • Sage Automated Trading Systems
-        </div>
-      </div>
-
-      <Footer />
-    </div>
-  )
+  return <LoginPage />;
 }
-
-export default Home

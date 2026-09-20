@@ -5,6 +5,7 @@ import { connectDB } from "./mongoose";
 import { handleFailedAttempt } from "@/utils";
 import { SESSION_AGE } from "@/configs";
 import GoogleProvider from 'next-auth/providers/google';
+import CredentialsProvider from 'next-auth/providers/credentials';
 import { AuthorizeUser } from "./authorizer";
 import { AUTH_ERROR_MESSAGES } from "@/constants";
 
@@ -52,9 +53,7 @@ const authOptions: AuthOptions = {
                 return {
                     uid: user.UID,
                     name: user.Name,
-                    role: user.Role,
                     accountType: user.AccountType,
-                    image: user.Image
                 };
             },
         }),
@@ -114,9 +113,7 @@ const authOptions: AuthOptions = {
                 }
 
                 user.uid = existingUser.UID;
-                user.role = existingUser.Role;
                 user.accountType = existingUser.AccountType;
-                user.image = existingUser.Image;
                 user.name = existingUser.Name;
 
                 return true;
@@ -127,9 +124,8 @@ const authOptions: AuthOptions = {
         async session({ session, token }) {
             if (session.user) {
                 session.user.uid = token.uid as string;
-                session.user.role = token.role as string;
                 session.user.accountType = token.accountType as string;
-                session.user.image = token.image as string;
+                session.user.name = token.name as string;
             }
             return session;
         },
@@ -137,9 +133,7 @@ const authOptions: AuthOptions = {
             if (user) {
                 token.uid = user.uid;
                 token.name = user.name;
-                token.role = user.role;
                 token.accountType = user.accountType;
-                token.image = user.image;
             }
             return token;
         }
@@ -149,11 +143,3 @@ const authOptions: AuthOptions = {
 const getSession = async (): Promise<Session | null> => getServerSession(authOptions);
 
 export { authOptions, getSession }
-
-function CredentialsProvider(arg0: {
-    id: string; name: string;
-    //@ts-ignore
-    authorize(credentials: any): Promise<{ uid: any; name: any; role: any; accountType: any; image: any; }>;
-}): import("next-auth/providers/index").Provider {
-    throw new Error("Function not implemented.");
-}

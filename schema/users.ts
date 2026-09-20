@@ -13,23 +13,14 @@ export interface IUserInfo {
     UID: string;
     Name: string;
     Email: string;
-    Image: string;
-    Role: string;
-    SchoolID: string;
-    Gender: string;
-    ClassUID: string;
     PasswordHash: string;
-    Phone: string;
     AccountType: string;
-    CNIC: string;
-    Address: string;
-    ParentUID: string[];
-    DOB: Date;
     JoinedOn: Date;
     IsActive: boolean;
-    FeeOrSalary: number;
     LockUntil: Date | null;
     FailedAttempts: number;
+    BinanceAPIKey: string;
+    BinanceAPISecret: string;
     ConnectedAccounts: IConnectedAccount[];
 }
 
@@ -38,41 +29,17 @@ const Users = new Schema<IUserInfo>({
     UID: { type: String, required: true, unique: true },
     Name: { type: String, required: true },
     Email: { type: String, required: false },
-    Image: {
-        type: String,
-        default: 'default'
-    },
     AccountType: {
         type: String,
         default: 'regular'
     },
-    Address: {
-        type: String,
-        default: 'N/A'
-    },
-    ParentUID: {
-        type: [String],
-        default: []
-    },
-    DOB: { type: Date },
     JoinedOn: { type: Date, default: Date.now },
     IsActive: { type: Boolean, default: true },
-    FeeOrSalary: { type: Number },
     LockUntil: { type: Date, default: null },
     FailedAttempts: { type: Number, default: 0 },
-    CNIC: {
-        type: String,
-        default: '00000-0000000-0'
-    },
-    Gender: String,
-    ClassUID: { type: String, default: '' },
     PasswordHash: String,
-    Role: String,
-    SchoolID: String,
-    Phone: {
-        type: String,
-        default: '+920000000000'
-    },
+    BinanceAPIKey: { type: String, default: "" },
+    BinanceAPISecret: { type: String, default: "" },
     ConnectedAccounts: {
         type: [
             {
@@ -91,7 +58,7 @@ const Users = new Schema<IUserInfo>({
     }
 });
 
-Users.index({ UID: 1, SchoolID: 1 });
+Users.index({ UID: 1, BinanceAPIKey: 1 });
 
 const UserModel: Model<IUserInfo> = models.users || mongoose.model<IUserInfo>("users", Users);
 export default UserModel
