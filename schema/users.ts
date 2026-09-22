@@ -1,64 +1,53 @@
-import mongoose, { Model, models, Schema } from "mongoose";
-
-export interface IConnectedAccount {
-    platform: "google" | "github" | "facebook" | "twitter" | "linkedin";
-    url?: string;
-    email?: string;
-    providerAccountId?: string;
-    isVerified?: boolean;
-}
+import mongoose, { Model, Schema } from "mongoose";
 
 export interface IUserInfo {
-    _id?: mongoose.Types.ObjectId;
-    UID: string;
+    _id: mongoose.Types.ObjectId;
+    BotID: string;
+    AccountType: string;
+    StrategyName: string;
+    Leverage: number;
+    ApiKey: string;
+    ApiSecret: string;
+    Symbol: string;
+    IsActive: boolean;
+    PNL: number;
+    UnpaidFee: number,
+    IsHalted: boolean;
+    IsApproved: boolean;
+    Demo: boolean;
     Name: string;
     Email: string;
-    PasswordHash: string;
-    AccountType: string;
-    JoinedOn: Date;
-    IsActive: boolean;
-    LockUntil: Date | null;
-    FailedAttempts: number;
-    BinanceAPIKey: string;
-    BinanceAPISecret: string;
-    ConnectedAccounts: IConnectedAccount[];
+    Password: string;
+    AvoidLiquidation: boolean;
 }
 
-const Users = new Schema<IUserInfo>({
+const User = new Schema<IUserInfo>({
     _id: mongoose.Schema.Types.ObjectId,
-    UID: { type: String, required: true, unique: true },
-    Name: { type: String, required: true },
-    Email: { type: String, required: false },
-    AccountType: {
-        type: String,
-        default: 'regular'
-    },
-    JoinedOn: { type: Date, default: Date.now },
+    BotID: { type: String, required: true },
+    AccountType: { type: String, required: true },
+    StrategyName: { type: String, required: true, default: "EMA-RSI Momentum Scout" },
+    Leverage: { type: Number, required: true },
+    ApiKey: { type: String, required: true },
+    ApiSecret: { type: String, required: true },
+    Symbol: { type: String, required: true },
     IsActive: { type: Boolean, default: true },
-    LockUntil: { type: Date, default: null },
-    FailedAttempts: { type: Number, default: 0 },
-    PasswordHash: String,
-    BinanceAPIKey: { type: String, default: "" },
-    BinanceAPISecret: { type: String, default: "" },
-    ConnectedAccounts: {
-        type: [
-            {
-                platform: {
-                    type: String,
-                    enum: ["google", "github", "facebook", "twitter", "linkedin"],
-                    required: true
-                },
-                url: { type: String },
-                email: { type: String },
-                isVerified: { type: Boolean, default: false },
-                providerAccountId: { type: String, default: "" }
-            }
-        ],
-        default: []
-    }
+    PNL: { type: Number, default: 0 },
+    UnpaidFee: { type: Number, default: 0 },
+    IsHalted: { type: Boolean, default: true },
+    IsApproved: { type: Boolean, default: false },
+    Demo: { type: Boolean, default: false },
+    Email: { type: String, required: true },
+    Name: { type: String, required: true },
+    Password: { type: String, required: true },
+    AvoidLiquidation: {type: Boolean, default: true }
 });
 
-Users.index({ UID: 1, BinanceAPIKey: 1 });
+let UserModel: Model<IUserInfo>;
 
-const UserModel: Model<IUserInfo> = models.users || mongoose.model<IUserInfo>("users", Users);
-export default UserModel
+try {
+    UserModel = mongoose.model<IUserInfo>("user");
+} catch {
+    UserModel = mongoose.model<IUserInfo>("user", User, "Users");
+}
+
+export default UserModel;
