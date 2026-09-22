@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import Footer from '@/section/Footer';
 import { Activity, ArrowDownRight, ArrowUpRight, Calendar, CheckCircle, ChevronDown, DollarSign, Layers, LogOut, Pause, Play, RefreshCw, RotateCcw, Sliders, TrendingUp, UserPlus, XCircle } from 'lucide-react';
-import CustomLineChart from '@/Charts/CustomLineChart';
-import CustomBarChart from '@/Charts/CustomBarChart';
+import CustomLineChart from '@/components/CustomLineChart';
+import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
 import { IUserInfo } from '@/schema/users';
 import { TERMINAL_VER } from '@/configs';
