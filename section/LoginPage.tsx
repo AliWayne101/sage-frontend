@@ -2,20 +2,52 @@
 import React, { useState } from 'react'
 import Footer from './Footer'
 import { AlertCircle, Mail, Terminal, Lock, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 
 const LoginPage = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [loginDetails, setLoginDetails] = useState({
+        email: "",
+        password: ""
+    });
+
+    const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError(null);
 
+        try {
+            const loginResponse = await signIn('credentials', {
+                redirect: false,
+                email: loginDetails.email,
+                password: loginDetails.password
+            })
 
+            if (!loginResponse?.ok) {
+                setIsLoading(false);
+                setError(loginResponse?.error || "An unexpect error occured");
+                return;
+            }
+        } catch (err) {
+            setIsLoading(false);
+            setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+        } finally {
+            setError(null);
+            router.push('/dashboard');
+        }
     };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setLoginDetails({
+            ...loginDetails,
+            [e.target.name]: e.target.value
+        });
+    }
+
     return (
         <div className="min-h-screen bg-[#09090b] flex flex-col justify-between items-center relative overflow-hidden font-sans">
             {/* Background ambient elements */}
@@ -60,8 +92,9 @@ const LoginPage = () => {
                                 <input
                                     type="email"
                                     required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    value={loginDetails.email}
+                                    name="email"
+                                    onChange={handleChange}
                                     placeholder="operator@sage.internal"
                                     className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded-md pl-9 pr-3 py-2 text-xs font-mono text-zinc-100 placeholder-zinc-600 outline-none transition-colors"
                                 />
@@ -74,9 +107,10 @@ const LoginPage = () => {
                                 <Lock className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
                                 <input
                                     type="password"
+                                    name="password"
                                     required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    value={loginDetails.password}
+                                    onChange={handleChange}
                                     placeholder="••••••••"
                                     className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded-md pl-9 pr-3 py-2 text-xs font-mono text-zinc-100 placeholder-zinc-600 outline-none transition-colors"
                                 />
