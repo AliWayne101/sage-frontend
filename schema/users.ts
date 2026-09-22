@@ -1,7 +1,7 @@
 import mongoose, { Model, Schema } from "mongoose";
 
 export interface IUserInfo {
-    _id: mongoose.Types.ObjectId;
+    _id?: mongoose.Types.ObjectId;
     BotID: string;
     AccountType: string;
     StrategyName: string;
