@@ -1,9 +1,10 @@
+import { IUserInfo } from "./schema/users";
+
 export interface SessionUser {
     name: string;
     uid: string;
-    role: string;
     accountType: string;
-    image: string;
+    email: string;
 }
 
 export interface LineChartData {
@@ -96,4 +97,9 @@ export interface Strategy {
         slPerc?: number;
         slCondition: SLCondition;
     }
+}
+
+export interface IUserInfoRuntime extends IUserInfo {
+    DecryptedKey: string;
+    DecryptedSecret: string;
 }

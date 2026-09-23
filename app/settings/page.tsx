@@ -4,8 +4,10 @@ import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../AuthProvider';
 import Footer from '@/section/Footer';
-import { Strategy } from '@/interfaces';
-import { formatCurrency, IUserInfoRuntime } from '@/utils';
+import { IUserInfoRuntime, Strategy } from '@/interfaces';
+import { formatCurrency } from '@/utils';
+import { getUserByEmail, updateUser } from '../actions/user.actions';
+import { server } from '../actions/server.actions';
 
 const Settings = () => {
     const [saveSuccess, setSaveSuccess] = useState(false);
@@ -16,10 +18,8 @@ const Settings = () => {
     const [strategies, setStrategies] = useState<Strategy[]>([]);
     const [selectedStrategy, setSelectedStrategy] = useState<Strategy | undefined>(undefined);
 
-
     const router = useRouter();
     const { user } = useAuth();
-
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,17 +28,13 @@ const Settings = () => {
         setSaveSuccess(false);
 
         try {
-            // const updated = await updateUserSettings(botID, {
-            //     ApiKey: apiKey,
-            //     ApiSecret: apiSecret,
-            //     Symbol: symbol,
-            //     Leverage: leverage,
-            //     AvoidLiquidation: avoidLiquidation,
-            //     Demo: demo,
-            //     StrategyName: strategyName,
-            // });
-
-            // setUserData(updated);
+            if (!userData) return;
+            const updatedUser = await updateUser(userData);
+            if (!updatedUser) {
+                setErrorMessage('Failed to save settings to backend');
+                return;
+            }
+            setUserData(updatedUser);
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 3000);
         } catch (err: any) {
@@ -66,8 +62,24 @@ const Settings = () => {
 
     useEffect(() => {
         if (!user) return;
-        //Load user data
-        //Load the strategies from backend
+        const loadUser = async () => {
+            try {
+                const data = await getUserByEmail(user.email);
+                if (!data) {
+                    setErrorMessage("Unable to load the user data");
+                    return;
+                }
+
+                setUserData(data);
+
+                const strategies = await server<Strategy[]>({ request: "getStrategies" });
+                setStrategies(strategies);
+            } catch (error) {
+                console.error("Failed to load user:", error);
+                setErrorMessage("Failed to load user data");
+            }
+        }
+        loadUser();
     }, [user])
 
     return (
@@ -160,7 +172,7 @@ const Settings = () => {
                                 </label>
                                 <div className="relative">
                                     <input
-                                        type={'password'}
+                                        type={userData?.DecryptedSecret.length! > 0 ? "password" : "text"}
                                         name="apiSecret"
                                         disabled={userData?.DecryptedSecret.length! > 0}
                                         value={userData?.DecryptedSecret}

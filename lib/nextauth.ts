@@ -29,7 +29,7 @@ const authOptions: AuthOptions = {
 
                 const isValid = await bcrypt.compare(
                     credentials.password,
-                    user.PasswordHash
+                    user.Password
                 );
 
                 if (!isValid) {
@@ -54,6 +54,7 @@ const authOptions: AuthOptions = {
                     uid: user.UID,
                     name: user.Name,
                     accountType: user.AccountType,
+                    email: user.Email
                 };
             },
         }),
@@ -115,7 +116,7 @@ const authOptions: AuthOptions = {
                 user.uid = existingUser.UID;
                 user.accountType = existingUser.AccountType;
                 user.name = existingUser.Name;
-
+                user.email = existingUser.Email;
                 return true;
             }
 
@@ -126,6 +127,7 @@ const authOptions: AuthOptions = {
                 session.user.uid = token.uid as string;
                 session.user.accountType = token.accountType as string;
                 session.user.name = token.name as string;
+                session.user.email = token.email as string;
             }
             return session;
         },
@@ -134,6 +136,7 @@ const authOptions: AuthOptions = {
                 token.uid = user.uid;
                 token.name = user.name;
                 token.accountType = user.accountType;
+                token.email = user.email;
             }
             return token;
         }

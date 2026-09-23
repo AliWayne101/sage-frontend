@@ -15,3 +15,7 @@ export const AUTH_ERROR_MESSAGES: Record<AuthErrorCode, string> = {
     LINKED: "Account is already linked",
     GLINK: "Google account has been linked",
 };
+
+export const SECRET_PLACEHOLDER = "********";
+export const SUPER_USER_ROLE = "SUPER";
+export const SERVER_ADDRESS = "http://localhost:3000";
