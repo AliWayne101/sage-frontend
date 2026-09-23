@@ -43,6 +43,7 @@ export interface IUserInfo {
     Email: string;
     Password: string;
     AvoidLiquidation: boolean;
+    LockUntil: Date | null;
     ConnectedAccounts: IConnectedAccount[];
 }
 
@@ -68,6 +69,7 @@ const User = new Schema<IUserInfo>({
     IsHalted: { type: Boolean, default: true },
     IsApproved: { type: Boolean, default: false },
     Demo: { type: Boolean, default: false },
+    LockUntil: { type: Date, default: null },
     Email: { type: String, required: true },
     Name: { type: String, required: true },
     Password: { type: String, required: true },
