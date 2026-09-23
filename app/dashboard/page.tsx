@@ -1,20 +1,22 @@
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import Footer from '@/section/Footer';
 import { Activity, ArrowDownRight, ArrowUpRight, Calendar, CheckCircle, ChevronDown, DollarSign, Layers, LogOut, Pause, Play, RefreshCw, RotateCcw, Sliders, TrendingUp, UserPlus, XCircle } from 'lucide-react';
 import CustomLineChart from '@/components/CustomLineChart';
 import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
-import { IUserInfo } from '@/schema/users';
 import { TERMINAL_VER } from '@/configs';
-import { BotHeartbeat, Direction } from '@/interfaces';
+import { BotHeartbeat, Direction, IUserInfoRuntime } from '@/interfaces';
 import { useRouter } from 'next/navigation';
 import { ITrades } from '@/schema/trades';
 import LogTerminal from '@/components/LogTerminal';
 import { useAuth } from '../AuthProvider';
+import { getUserByEmail } from '../actions/user.actions';
+import { server } from '../actions/server.actions';
+import { LOAD_INTERVAL } from '@/constants';
 
 const Dashboard = () => {
     const [actionNotice, setActionNotice] = useState<string | null>(null);
-    const [User, setUser] = useState<IUserInfo | undefined>(undefined);
+    const [User, setUser] = useState<IUserInfoRuntime | undefined>(undefined);
     const [refreshing, setRefreshing] = useState(false);
     const [heartbeatData, setHeartbeatData] = useState<BotHeartbeat | undefined>(undefined);
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -25,11 +27,20 @@ const Dashboard = () => {
     const { user } = useAuth();
     const router = useRouter();
 
-    const fetchData = async () => {
-
+    const fetchData = useCallback(async () => {
         //activate the loading button
-        setIsActionLoading(false);
-    }
+        setIsActionLoading(true);
+        try {
+            const _hData = await server<BotHeartbeat>({ request: "heartbeat" });
+            if (!_hData) {
+                setActionNotice("Unable to load the heartbeat data");
+            }
+            setHeartbeatData(_hData);
+        } catch (error) {
+        } finally {
+            setIsActionLoading(false);
+        }
+    }, [])
 
     const onLogout = () => {
 
@@ -62,6 +73,22 @@ const Dashboard = () => {
     const sendRequest = async () => {
 
     }
+
+    useEffect(() => {
+        if (!user) return;
+        const loadUser = async () => {
+            const _user = await getUserByEmail(user.email);
+            if (!_user) return;
+            setUser(_user);
+        }
+        loadUser();
+    }, [user])
+
+    useEffect(() => {
+        fetchData();
+        const interval = setInterval(fetchData, LOAD_INTERVAL);
+        return () => clearInterval(interval);
+    }, [fetchData])
 
     return (
         <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans">

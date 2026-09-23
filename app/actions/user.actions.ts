@@ -52,6 +52,8 @@ export const updateUser = async (data: IUserInfoRuntime): Promise<IUserInfoRunti
         }
     }
 
+
+    //Work on partial class to update and deconstruct the ApiKey and ApiSecret using { ... } to update everything else
     if (data.Symbol) user.Symbol = data.Symbol;
     if (data.Leverage) user.Leverage = data.Leverage;
     if (data.AvoidLiquidation !== undefined) user.AvoidLiquidation = data.AvoidLiquidation;
