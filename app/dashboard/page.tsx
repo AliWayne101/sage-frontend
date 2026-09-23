@@ -5,7 +5,7 @@ import CustomLineChart from '@/components/CustomLineChart';
 import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
 import { TERMINAL_VER } from '@/configs';
-import { BotHeartbeat, Direction, IUserInfoRuntime } from '@/interfaces';
+import { BotHeartbeat, ConfirmModalProps, Direction, IUserInfoRuntime } from '@/interfaces';
 import { useRouter } from 'next/navigation';
 import { ITrades } from '@/schema/trades';
 import LogTerminal from '@/components/LogTerminal';
@@ -14,6 +14,7 @@ import { getUserByEmail } from '../actions/user.actions';
 import { server } from '../actions/server.actions';
 import { LOAD_INTERVAL } from '@/constants';
 import { getRecentTrades } from '../actions/trades.actions';
+import { signOut } from 'next-auth/react';
 
 const Dashboard = () => {
     const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -21,50 +22,125 @@ const Dashboard = () => {
     const [refreshing, setRefreshing] = useState(false);
     const [heartbeatData, setHeartbeatData] = useState<BotHeartbeat | undefined>(undefined);
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-    const [isActionLoading, setIsActionLoading] = useState(false);
     const [loadingAction, setLoadingAction] = useState("null");
     const [lastTrades, setLastTrades] = useState<ITrades[]>([]);
+    const [confirmModal, setConfirmModal] = useState<ConfirmModalProps>({
+        isOpen: false,
+        message: '',
+        onConfirm: () => { }
+    });
 
     const { user } = useAuth();
     const router = useRouter();
 
     const fetchData = useCallback(async () => {
-        //activate the loading button
-        setIsActionLoading(true);
+        setRefreshing(true);
         try {
             const _hData = await server<BotHeartbeat>({ request: "heartbeat" });
             if (!_hData) {
                 setActionNotice("Unable to load the heartbeat data");
             }
             setHeartbeatData(_hData);
+
+            if (!user) return;
+            const trades = await getRecentTrades(user.email, 10);
+            if (!trades)
+                setActionNotice("There seems to be an issue loading user trades");
+            else
+                setLastTrades(trades);
         } catch (error) {
+            setActionNotice("Seems to be an error refreshing");
+            console.log(error);
         } finally {
-            setIsActionLoading(false);
+            setRefreshing(false);
         }
     }, [])
 
-    const onLogout = () => {
+    const handleForceClose = () => {
+        if (!heartbeatData?.ActiveTrade) return;
+        const position = heartbeatData.ActiveTrade;
+        setConfirmModal({
+            isOpen: true,
+            title: 'Force Close Position',
+            message: 'Do you want to force close the position?',
+            description: 'This will trigger an immediate Binance market liquidation order to close out the active trade and cancel connected limit orders.',
+            confirmText: 'Yes, Force Close Position',
+            cancelText: 'Cancel',
+            variant: 'danger',
+            details: [
+                { label: 'Target Bot ID', value: User?.BotID },
+                {
+                    label: 'Symbol & Side',
+                    value: (
+                        <span className="flex items-center gap-1.5">
+                            <span>{position.symbol.toUpperCase()}</span>
+                            <span
+                                className={`text-[9px] px-1 py-0.5 rounded border font-mono font-bold ${position.side === "long"
+                                    ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
+                                    : 'text-rose-400 bg-rose-950/60 border-rose-800'
+                                    }`}
+                            >
+                                {position.side.toUpperCase()}
+                            </span>
+                        </span>
+                    ),
+                },
+                {
+                    label: 'Size / Notional',
+                    value: `${position.size} ($${formatCurrency(position.notional, 2)})`,
+                },
+                { label: 'Entry Price', value: `$${formatCurrency(position.entryPrice, 2)}` },
+                { label: 'Mark Price', value: `$${formatCurrency(position.markPrice, 2)}` },
+                {
+                    label: 'Est. Unrealized PnL',
+                    value: (
+                        <span className={`font-bold ${position.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {position.unrealizedPnl}
+                        </span>
+                    ),
+                },
+            ],
+            onConfirm: executeForceClosePosition,
+        });
+    }
 
+    const executeForceClosePosition = () => {
+        handleButtonEvents("forceClose");
+    }
+
+    const handleButtonEvents = async (actionState: string) => {
+        setLoadingAction(actionState);
+        try {
+            const serverResponse = await server({ request: actionState });
+            if (!serverResponse.success) {
+                setActionNotice(serverResponse.message!);
+                return;
+            }
+        } catch (error) {
+            setActionNotice("Error: Unable to send request to server");
+        } finally {
+            setLoadingAction("null");
+        }
     }
 
     const handleToggleTrading = async () => {
+        if (!User) return;
         setLoadingAction("trading");
-        setIsActionLoading(true);
-
-        //Send request -> must await here
-        fetchData();
-    }
-
-    const handleForceClosePosition = () => {
-        setLoadingAction("forceClose");
-    }
-
-    const handleRestart = () => {
-        setLoadingAction("restart");
-    }
-
-    const handleSyncPosition = () => {
-        setLoadingAction("syncPosition");
+        try {
+            const newTradingState = !User.IsHalted;
+            const serverResponse = await server({ request: "halt", value: newTradingState });
+            if (serverResponse.success) {
+                setUser({
+                    ...User,
+                    ["IsHalted"]: newTradingState
+                });
+            } else
+                setActionNotice(serverResponse.message!);
+        } catch (error) {
+            setActionNotice("Error: Unable to send request to server");
+        } finally {
+            setLoadingAction("null");
+        }
     }
 
     const handleClearLogs = () => {
@@ -77,12 +153,6 @@ const Dashboard = () => {
             const _user = await getUserByEmail(user.email);
             if (!_user) return;
             setUser(_user);
-
-            const trades = await getRecentTrades(user.email, 10);
-            if (!trades)
-                setActionNotice("There seems to be an issue loading user trades");
-            else
-                setLastTrades(trades);
         }
         loadUser();
     }, [user])
@@ -239,7 +309,7 @@ const Dashboard = () => {
                                 <button
                                     onClick={() => {
                                         setUserDropdownOpen(false);
-                                        onLogout();
+                                        signOut();
                                     }}
                                     className="w-full text-left px-3 py-2 hover:bg-rose-950/40 text-rose-400 flex items-center gap-2 border-t border-zinc-800/60"
                                 >
@@ -260,13 +330,13 @@ const Dashboard = () => {
                         {/* Start / Stop Trading Button */}
                         <button
                             onClick={handleToggleTrading}
-                            disabled={isActionLoading}
-                            className={`flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-2 rounded-md font-mono text-xs font-semibold uppercase tracking-wider transition-all shadow-sm col-span-2 sm:col-span-1 md:w-auto ${heartbeatData?.Trading
+                            disabled={loadingAction === "trading"}
+                            className={`flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 sm:py-2 rounded-md font-mono text-xs font-semibold uppercase tracking-wider transition-all shadow-sm col-span-2 sm:col-span-1 md:w-auto ${!User?.IsHalted
                                 ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/30'
                                 : 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-900/30'
                                 }`}
                         >
-                            {heartbeatData?.Trading ? (
+                            {!User?.IsHalted ? (
                                 <>
                                     <span className="relative flex h-2 w-2">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
@@ -285,19 +355,19 @@ const Dashboard = () => {
 
                         {/* Restart Engine Button */}
                         <button
-                            onClick={handleRestart}
-                            disabled={isActionLoading}
+                            onClick={() => handleButtonEvents("restart")}
+                            disabled={loadingAction === "restart"}
                             className="flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md font-mono text-xs text-zinc-300 bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 hover:text-white transition-colors"
                             title="Restart Bot Engine"
                         >
-                            <RotateCcw className={`w-3.5 h-3.5 shrink-0 ${isActionLoading && loadingAction === 'restart' ? 'animate-spin' : ''}`} />
+                            <RotateCcw className={`w-3.5 h-3.5 shrink-0 ${loadingAction === 'restart' ? 'animate-spin' : ''}`} />
                             <span>Restart Engine</span>
                         </button>
 
                         {/* UTILITY BUTTON 1: Force Close Position */}
                         <button
-                            onClick={handleForceClosePosition}
-                            disabled={isActionLoading || heartbeatData?.ActiveTrade === null}
+                            onClick={handleForceClose}
+                            disabled={loadingAction === "forceClose" || heartbeatData?.ActiveTrade === null}
                             className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md font-mono text-xs border transition-all ${heartbeatData?.ActiveTrade !== null
                                 ? 'bg-rose-950/40 text-rose-300 border-rose-800/80 hover:bg-rose-900/50 hover:text-white'
                                 : 'bg-zinc-900/50 text-zinc-500 border-zinc-800 cursor-not-allowed opacity-60'
@@ -321,7 +391,7 @@ const Dashboard = () => {
 
                         {/* UTILITY BUTTON 3: Sync Exchange Risk */}
                         <button
-                            onClick={handleSyncPosition}
+                            onClick={() => handleButtonEvents("syncPosition")}
                             disabled={loadingAction === 'syncPosition'}
                             className="flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md font-mono text-xs text-zinc-300 bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 hover:text-white transition-colors"
                             title="Synchronize margin buffer and mark price from Binance"
@@ -350,14 +420,12 @@ const Dashboard = () => {
                         <span className="text-[11px] font-mono text-zinc-500 uppercase">Engine Status:</span>
                         <span className="text-xs font-mono font-semibold text-zinc-200 flex items-center gap-1.5">
                             <span
-                                className={`w-2 h-2 rounded-full shrink-0 ${status.toLowerCase().includes('position')
+                                className={`w-2 h-2 rounded-full shrink-0 ${heartbeatData?.ActiveTrade
                                     ? 'bg-emerald-400'
-                                    : status.toLowerCase().includes('error') || status.toLowerCase().includes('flag') || status.toLowerCase().includes('halt')
-                                        ? 'bg-rose-500 animate-pulse'
-                                        : 'bg-blue-400 animate-pulse'
-                                    }`}
+                                    : 'bg-blue-400 animate-pulse'}
+                                `}
                             />
-                            <span className="truncate">{status}</span>
+                            <span className="truncate">{heartbeatData ? heartbeatData.Status : "Loading.."}</span>
                         </span>
                     </div>
                 </section>
@@ -377,7 +445,7 @@ const Dashboard = () => {
                                     Order ID: {heartbeatData.ActiveTrade.orderId}
                                 </span>
                                 <button
-                                    onClick={handleForceClosePosition}
+                                    onClick={handleForceClose}
                                     disabled={loadingAction === 'forceClose'}
                                     className="px-2.5 py-1 rounded bg-rose-950/60 border border-rose-800 text-rose-300 hover:bg-rose-900/80 text-[10px] font-mono transition-colors"
                                 >

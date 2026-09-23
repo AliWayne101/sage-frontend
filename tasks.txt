@@ -1,0 +1,1 @@
+Upon bot loading i want to check the state of user profile if bot is able to trade or no

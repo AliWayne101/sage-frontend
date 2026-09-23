@@ -17,9 +17,9 @@ export interface LineChartData {
 export interface BotHeartbeat {
     Balance: number;
     Demo: boolean;
-    Trading: boolean;
+    Status: string;
     Logs: Log[];
-    ActiveTrade: {
+    ActiveTrade?: {
         orderId: string;
         symbol: string;
         side: string;
@@ -102,4 +102,22 @@ export interface Strategy {
 export interface IUserInfoRuntime extends IUserInfo {
     DecryptedKey: string;
     DecryptedSecret: string;
+}
+
+export interface ConfirmModalProps {
+    isOpen: boolean;
+    title?: string;
+    message: string;
+    description?: string;
+    confirmText?: string;
+    cancelText?: string;
+    variant?: ConfirmationVariant;
+    isLoading?: boolean;
+    details?: ConfirmationModalDetail[];
+    onConfirm: () => void | Promise<void>;
+}
+export type ConfirmationVariant = 'danger' | 'warning' | 'info' | 'primary';
+export interface ConfirmationModalDetail {
+    label: string;
+    value: React.ReactNode;
 }

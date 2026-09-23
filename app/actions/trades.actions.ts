@@ -16,7 +16,7 @@ export const getRecentTrades = async (targetEmail: string, limit: number = 10): 
         return null;
 
     const trades = await TradesModel
-        .find({ BotID: user.BotID })
+        .find({ BotID: user.BotID, isFilled: true })
         .sort({ Timestamp: -1 })
         .limit(limit)
         .lean();
