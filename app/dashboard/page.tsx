@@ -13,6 +13,7 @@ import { useAuth } from '../AuthProvider';
 import { getUserByEmail } from '../actions/user.actions';
 import { server } from '../actions/server.actions';
 import { LOAD_INTERVAL } from '@/constants';
+import { getRecentTrades } from '../actions/trades.actions';
 
 const Dashboard = () => {
     const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -70,16 +71,18 @@ const Dashboard = () => {
 
     }
 
-    const sendRequest = async () => {
-
-    }
-
     useEffect(() => {
         if (!user) return;
         const loadUser = async () => {
             const _user = await getUserByEmail(user.email);
             if (!_user) return;
             setUser(_user);
+
+            const trades = await getRecentTrades(user.email, 10);
+            if (!trades)
+                setActionNotice("There seems to be an issue loading user trades");
+            else
+                setLastTrades(trades);
         }
         loadUser();
     }, [user])

@@ -5,7 +5,7 @@ import { IUserInfoRuntime } from "@/interfaces"
 import { decrypt, encrypt } from "@/lib/encryption"
 import { connectDB } from "@/lib/mongoose"
 import { getSession } from "@/lib/nextauth"
-import UserModel from "@/schema/users"
+import UserModel, { IUserInfo } from "@/schema/users"
 
 export const getUserByEmail = async (email: string): Promise<IUserInfoRuntime | null> => {
     await connectDB();
@@ -18,15 +18,8 @@ export const getUserByEmail = async (email: string): Promise<IUserInfoRuntime | 
     const user = await UserModel.findOne({ Email: email }).select("-Password").lean();
     if (!user) return null;
 
-    const { ApiKey, ApiSecret, ...plainUser } = user;
-
-    const decKey = ApiKey ? decrypt(ApiKey) : "";
-    const decSec = ApiSecret ? SECRET_PLACEHOLDER : "";
-    return {
-        ...plainUser,
-        DecryptedKey: decKey,
-        DecryptedSecret: decSec
-    }
+    const returnObj = PlainUser(user);
+    return JSON.parse(JSON.stringify(returnObj));
 }
 
 export const updateUser = async (data: IUserInfoRuntime): Promise<IUserInfoRuntime | null> => {
@@ -40,27 +33,59 @@ export const updateUser = async (data: IUserInfoRuntime): Promise<IUserInfoRunti
     const user = await UserModel.findOne({ Email: data.Email });
     if (!user) return null;
 
-    if (!user.ApiKey && !user.ApiSecret) {
-        if (data.DecryptedKey.length > 0) {
-            const encKey = encrypt(data.DecryptedKey);
-            user.ApiKey = encKey;
-        }
+    // Remove runtime-only fields and prevent client-supplied
+    const {
+        DecryptedKey,
+        DecryptedSecret,
+        BotID,
+        UID,
+        AccountType,
+        PNL,
+        UnpaidFee,
+        IsApproved,
+        IsActive,
+        Password,
+        ConnectedAccounts,
+        ApiKey: _ApiKey,
+        ApiSecret: _ApiSecret,
+        ...rest
+    } = data;
 
-        if (data.DecryptedSecret.length > 0 && data.DecryptedSecret !== SECRET_PLACEHOLDER) {
-            const decSec = encrypt(data.DecryptedSecret);
-            user.ApiSecret = decSec;
-        }
+    const updateData: Partial<IUserInfo> = {
+        ...rest
+    };
+
+    // Only populate credentials if they are missing from the database.
+    if (!user.ApiKey?.encrypted && DecryptedKey.length > 0) {
+        updateData.ApiKey = encrypt(DecryptedKey);
     }
 
+    if (!user.ApiSecret?.encrypted && DecryptedSecret.length > 0 && DecryptedSecret !== SECRET_PLACEHOLDER) {
+        updateData.ApiSecret = encrypt(DecryptedSecret);
+    }
 
-    //Work on partial class to update and deconstruct the ApiKey and ApiSecret using { ... } to update everything else
-    if (data.Symbol) user.Symbol = data.Symbol;
-    if (data.Leverage) user.Leverage = data.Leverage;
-    if (data.AvoidLiquidation !== undefined) user.AvoidLiquidation = data.AvoidLiquidation;
-    if (data.Demo !== undefined) user.Demo = data.Demo;
-    if (data.StrategyName) user.StrategyName = data.StrategyName;
+    const updatedUser = await UserModel.findOneAndUpdate(
+        { Email: data.Email },
+        { $set: updateData },
+        { returnDocument: "after" }
+    ).select("-Password").lean();
 
-    await user.save();
-    const updatedUser = await getUserByEmail(data.Email);
-    return updatedUser
+    if (!updatedUser) return null;
+
+    const plainUser = PlainUser(updatedUser);
+    return JSON.parse(JSON.stringify(plainUser));
+};
+
+const PlainUser = (userData: IUserInfo): IUserInfoRuntime => {
+    const { ApiKey, ApiSecret, ...plainUser } = userData;
+
+    const decKey = ApiKey?.encrypted ? decrypt(ApiKey) : "";
+    const decSec = ApiSecret?.encrypted ? SECRET_PLACEHOLDER : "";
+
+    const returnObj = {
+        ...plainUser,
+        DecryptedKey: decKey,
+        DecryptedSecret: decSec
+    }
+    return returnObj
 }
