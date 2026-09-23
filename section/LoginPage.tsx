@@ -70,7 +70,7 @@ const LoginPage = () => {
                         <div className="pt-2 flex items-center justify-center">
                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-900/60 text-[11px] font-mono text-emerald-400">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                <span>Express Backend: Online (Port 3000)</span>
+                                <span>Express Backend: Online</span>
                             </div>
                         </div>
                     </div>

@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import UserModel from "./schema/users";
+import UserModel, { IUserInfo } from "./schema/users";
 import { ACCOUNT_LOCK_RETRIES } from "./configs";
 
 export function formatCurrency(amount: number, decimals: number = 2): string {
@@ -53,4 +53,9 @@ export async function handleFailedAttempt(uid: string) {
             updatePipeline: true
         }
     );
+}
+
+export interface IUserInfoRuntime extends IUserInfo {
+    DecryptedKey: string;
+    DecryptedSecret: string;
 }

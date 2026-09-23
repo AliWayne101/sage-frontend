@@ -10,6 +10,7 @@ import { BotHeartbeat, Direction } from '@/interfaces';
 import { useRouter } from 'next/navigation';
 import { ITrades } from '@/schema/trades';
 import LogTerminal from '@/components/LogTerminal';
+import { useAuth } from '../AuthProvider';
 
 const Dashboard = () => {
     const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -21,6 +22,7 @@ const Dashboard = () => {
     const [loadingAction, setLoadingAction] = useState("null");
     const [lastTrades, setLastTrades] = useState<ITrades[]>([]);
 
+    const { user } = useAuth();
     const router = useRouter();
 
     const fetchData = async () => {

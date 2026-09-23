@@ -3,16 +3,15 @@ import { Lock, AlertTriangle, ArrowLeft, CheckCircle2, Compass, Eye, EyeOff, Key
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../AuthProvider';
-import { IUserInfo } from '@/schema/users';
 import Footer from '@/section/Footer';
 import { Strategy } from '@/interfaces';
-import { formatCurrency } from '@/utils';
+import { formatCurrency, IUserInfoRuntime } from '@/utils';
 
 const Settings = () => {
     const [saveSuccess, setSaveSuccess] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
-    const [userData, setUserData] = useState<IUserInfo | undefined>(undefined);
+    const [userData, setUserData] = useState<IUserInfoRuntime | undefined>(undefined);
     const [showKey, setShowKey] = useState(false);
     const [strategies, setStrategies] = useState<Strategy[]>([]);
     const [selectedStrategy, setSelectedStrategy] = useState<Strategy | undefined>(undefined);
@@ -137,8 +136,8 @@ const Settings = () => {
                                     <input
                                         type={showKey ? 'text' : 'password'}
                                         name='apiKey'
-                                        disabled={userData?.ApiKey.length! > 0}
-                                        value={userData?.ApiKey}
+                                        disabled={userData?.DecryptedKey.length! > 0}
+                                        value={userData?.DecryptedKey}
                                         onChange={handleChange}
                                         placeholder="Enter 64-char Binance API Key"
                                         className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-200 outline-none pr-10"
@@ -163,8 +162,8 @@ const Settings = () => {
                                     <input
                                         type={'password'}
                                         name="apiSecret"
-                                        disabled={userData?.ApiSecret.length! > 0}
-                                        value={userData?.ApiSecret}
+                                        disabled={userData?.DecryptedSecret.length! > 0}
+                                        value={userData?.DecryptedSecret}
                                         onChange={handleChange}
                                         placeholder="Enter Binance Secret Key"
                                         className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-200 outline-none pr-10"
