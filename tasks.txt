@@ -2,3 +2,6 @@ Upon bot loading i want to check the state of user profile if bot is able to tra
 
 1. For Dashboard connectivity add the specific commands to bots
     clearLogs, syncPosition, trading, restart, forceClose
+
+2. For Settings and Create user
+    getStrategies

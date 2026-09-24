@@ -24,7 +24,7 @@ const authOptions: AuthOptions = {
 
                 if (!user) {
                     await bcrypt.compare(credentials.password, "$2b$10$invalidinvalidinvalidinvalidinv");
-                    throw new Error("Invalid credentials.");
+                    throw new Error("Invalid credentials");
                 }
 
                 const isValid = await bcrypt.compare(
@@ -34,7 +34,7 @@ const authOptions: AuthOptions = {
 
                 if (!isValid) {
                     await handleFailedAttempt(user.UID);
-                    throw new Error("Invalid credentials.");
+                    throw new Error("Invalid credentials");
                 }
 
                 //Check activity status and lockout
@@ -110,7 +110,7 @@ const authOptions: AuthOptions = {
                 const authError = await AuthorizeUser(existingUser);
 
                 if (authError) {
-                    return `/auth/callback?msg=${authError}&page=signin`;
+                    return `/auth/callback?msg=${authError}`;
                 }
 
                 user.uid = existingUser.UID;

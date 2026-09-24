@@ -1,15 +1,19 @@
 "use client"
 import { SECRET_PLACEHOLDER } from '@/constants';
-import { IUserInfoRuntime } from '@/interfaces';
+import { IUserInfoRuntime, Strategy } from '@/interfaces';
 import Footer from '@/section/Footer';
-import { Lock, AlertCircle, ArrowLeft, Bot, Check, CheckCircle2, Copy, ExternalLink, Mail, ShieldCheck, Sliders, UserIcon, Sparkles, EyeOff, Eye, Shield, X, Key } from 'lucide-react';
+import { Lock, AlertCircle, ArrowLeft, Bot, Check, CheckCircle2, Copy, ExternalLink, Mail, ShieldCheck, Sliders, UserIcon, Sparkles, EyeOff, Eye, X, Key, Layers, Power, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { useAuth } from '../AuthProvider';
+import { generateSageID, getTradingSymbols } from '@/utils';
+import { server } from '../actions/server.actions';
+import { createUser } from '../actions/user.actions';
 
 const CreateUser = () => {
   const [createdItem, setCreatedItem] = useState<IUserInfoRuntime | null>(null);
   const [copiedCredentials, setCopiedCredentials] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showBotSliders, setShowBotSliders] = useState(false);
   const [userInfo, setUserInfo] = useState<Partial<IUserInfoRuntime>>({
     Name: "",
@@ -29,21 +33,94 @@ const CreateUser = () => {
   const [enableBinanceApi, setEnableBinanceApi] = useState(false);
   const [strategyEngineOn, setStrategyEngineOn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [assetPairs, setAssetPairs] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const router = useRouter();
+  const { user } = useAuth();
 
   const handleGeneratePassword = () => {
-
-  }
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+    let res = '';
+    for (let i = 0; i < 12; i++) {
+      res += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setUserInfo({
+      ...setUserInfo, Password: res
+    });
+    setShowPassword(true);
+  };
 
   const handleCopyCredentials = () => {
+    if (!createdItem) return;
+    const text = `SAGE TRADING TERMINAL - OPERATOR CREDENTIALS\n` +
+      `-------------------------------------------\n` +
+      `Operator Name: ${createdItem.Name}\n` +
+      `Email / Login: ${createdItem.Email}\n` +
+      `Password: ${userInfo.Password}\n` +
+      `Trading Pair: ${createdItem.Symbol} (${createdItem.Leverage}x)\n` +
+      `Strategy: ${createdItem.StrategyName ?? "NONE"}\n` +
+      `Mode: ${createdItem.Demo ? 'DEMO' : 'LIVE'}\n`;
 
-  }
+    navigator.clipboard.writeText(text);
+    setCopiedCredentials(true);
+    setTimeout(() => setCopiedCredentials(false), 3000);
+  };
 
   const handleResetForAnother = () => {
-
+    setUserInfo({
+      Name: "",
+      Email: "",
+      BotID: generateSageID(),
+      UID: "",
+      AccountType: "USER",
+      Password: "",
+      StrategyName: "",
+      Leverage: 1,
+      Symbol: "",
+      DecryptedKey: "",
+      DecryptedSecret: "",
+      AvoidLiquidation: true,
+      Demo: false
+    });
+    setCreatedItem(null);
+    setErrorMessage(null);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    if (!userInfo.Name) {
+      setErrorMessage('Full Name is required.');
+      return;
+    }
+    if (!userInfo.Email || !userInfo.Email.includes('@')) {
+      setErrorMessage('A valid Email address is required.');
+      return;
+    }
+    if (!userInfo.Password || userInfo.Password.length < 3) {
+      setErrorMessage('Password must be at least 3 characters.');
+      return;
+    }
 
+    setIsSubmitting(true);
+
+    try {
+      const createdUser = await createUser(userInfo);
+      if (!createdUser) {
+        setErrorMessage("There seems to be an error creating a user");
+        return;
+      }
+      console.log(createdItem);
+      setCreatedItem(createdUser);
+    } catch (error) {
+      console.log(error);
+      setErrorMessage(`There seems to be an error creating the user`);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,7 +131,24 @@ const CreateUser = () => {
     })
   }
 
-  const router = useRouter();
+  useEffect(() => {
+    const getPairs = async () => {
+      const pairs = await getTradingSymbols();
+      setAssetPairs(pairs);
+
+      const strategies = await server<Strategy[]>({ request: "getStrategies" });
+      setStrategies(strategies);
+    }
+
+    setUserInfo((prev) => ({
+      ...prev,
+      BotID: generateSageID(10)
+    }));
+
+    getPairs();
+  }, [user])
+
+
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans">
       {/* Header Bar */}
@@ -392,7 +486,7 @@ const CreateUser = () => {
 
                   </div>
 
-                  
+
                 </div>
 
                 {/* MASTER SLIDER: SHOW 2. BINANCE API CONFIGURATION AND 3. STRATEGY ENGINE */}
@@ -508,38 +602,7 @@ const CreateUser = () => {
                       {enableBinanceApi ? (
                         <div className="space-y-4 text-xs font-mono animate-in fade-in">
                           {/* Bot ID selection */}
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <label className="text-zinc-400 font-medium flex items-center gap-1.5">
-                                <Bot className="w-3.5 h-3.5 text-zinc-500" />
-                                Bot Identifier (BotID)
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => setUseCustomBotID(!useCustomBotID)}
-                                className="text-[10px] text-zinc-400 hover:text-zinc-200 underline"
-                              >
-                                {useCustomBotID ? 'Use Auto-Generated ID' : 'Specify Custom ID'}
-                              </button>
-                            </div>
 
-                            {useCustomBotID ? (
-                              <input
-                                type="text"
-                                placeholder="e.g. SAGE-408, ALPHA-01"
-                                value={customBotID}
-                                onChange={(e) => setCustomBotID(e.target.value.toUpperCase())}
-                                className="w-full bg-[#09090b] border border-[#27272a] focus:border-purple-500 rounded px-3 py-2 text-zinc-100 outline-none text-xs uppercase"
-                              />
-                            ) : (
-                              <div className="p-2.5 rounded bg-[#09090b] border border-[#27272a] text-zinc-400 flex items-center justify-between">
-                                <span className="text-zinc-300">Auto-generated upon creation (e.g. SAGE-###)</span>
-                                <span className="text-[10px] text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
-                                  Unique Guaranteed
-                                </span>
-                              </div>
-                            )}
-                          </div>
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
@@ -547,8 +610,9 @@ const CreateUser = () => {
                               <input
                                 type="text"
                                 placeholder="vmQ4P892..."
-                                value={apiKey}
-                                onChange={(e) => setApiKey(e.target.value)}
+                                name='DecryptedKey'
+                                value={userInfo.DecryptedKey}
+                                onChange={handleChange}
                                 className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-zinc-100 outline-none text-xs"
                               />
                             </div>
@@ -568,8 +632,9 @@ const CreateUser = () => {
                                 <input
                                   type={showSecret ? 'text' : 'password'}
                                   placeholder="sJ9914710..."
-                                  value={apiSecret}
-                                  onChange={(e) => setApiSecret(e.target.value)}
+                                  name='DecryptedSecret'
+                                  value={userInfo.DecryptedSecret}
+                                  onChange={handleChange}
                                   className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 pr-10 py-2 text-zinc-100 outline-none text-xs"
                                 />
                               </div>
@@ -588,12 +653,12 @@ const CreateUser = () => {
                             </div>
                             <button
                               type="button"
-                              onClick={() => setAvoidLiquidation(!avoidLiquidation)}
-                              className={`w-11 h-6 rounded-full transition-colors relative shrink-0 p-0.5 ${avoidLiquidation ? 'bg-emerald-600' : 'bg-zinc-800'
+                              onClick={() => setUserInfo({ ...userInfo, AvoidLiquidation: !userInfo.AvoidLiquidation })}
+                              className={`w-11 h-6 rounded-full transition-colors relative shrink-0 p-0.5 ${userInfo.AvoidLiquidation ? 'bg-emerald-600' : 'bg-zinc-800'
                                 }`}
                             >
                               <div
-                                className={`w-5 h-5 rounded-full bg-white transition-transform ${avoidLiquidation ? 'translate-x-5' : 'translate-x-0'
+                                className={`w-5 h-5 rounded-full bg-white transition-transform ${userInfo.AvoidLiquidation ? 'translate-x-5' : 'translate-x-0'
                                   }`}
                               />
                             </button>
@@ -668,11 +733,13 @@ const CreateUser = () => {
                             <div className="space-y-1.5">
                               <label className="text-zinc-400 font-medium">Trading Asset Pair</label>
                               <select
-                                value={symbol}
-                                onChange={(e) => setSymbol(e.target.value)}
+                                value={userInfo.Symbol}
+                                name='Symbol'
+                                onChange={(e) => setUserInfo({ ...userInfo, Symbol: e.target.value })}
                                 className="w-full bg-[#09090b] border border-[#27272a] focus:border-purple-500 rounded px-3 py-2 text-zinc-100 outline-none text-xs font-bold"
                               >
-                                {ASSET_PAIRS.map((p) => (
+                                <option value="">Select symbol..</option>
+                                {assetPairs.map((p) => (
                                   <option key={p} value={p}>
                                     {p}
                                   </option>
@@ -681,18 +748,18 @@ const CreateUser = () => {
                             </div>
 
                             <div className="space-y-1.5">
-                              <label className="text-zinc-400 font-medium">Margin Leverage ({leverage}x)</label>
+                              <label className="text-zinc-400 font-medium">Margin Leverage ({userInfo.Leverage}x)</label>
                               <div className="flex items-center gap-2">
                                 <input
                                   type="range"
                                   min="1"
-                                  max="50"
-                                  value={leverage}
-                                  onChange={(e) => setLeverage(Number(e.target.value))}
+                                  max="120"
+                                  value={userInfo.Leverage}
+                                  onChange={(e) => setUserInfo({ ...userInfo, Leverage: Number(e.target.value) })}
                                   className="w-full accent-purple-500 cursor-pointer"
                                 />
                                 <span className="font-bold text-white px-2 py-1 bg-[#09090b] border border-[#27272a] rounded shrink-0">
-                                  {leverage}x
+                                  {userInfo.Leverage}x
                                 </span>
                               </div>
                             </div>
@@ -702,8 +769,8 @@ const CreateUser = () => {
                               <div className="flex rounded border border-[#27272a] overflow-hidden">
                                 <button
                                   type="button"
-                                  onClick={() => setDemo(false)}
-                                  className={`flex-1 py-1.5 text-center text-xs font-semibold transition-colors ${!demo
+                                  onClick={() => setUserInfo({ ...userInfo, Demo: false })}
+                                  className={`flex-1 py-1.5 text-center text-xs font-semibold transition-colors ${!userInfo.Demo
                                     ? 'bg-emerald-950/90 text-emerald-300 font-bold'
                                     : 'bg-[#09090b] text-zinc-400 hover:text-zinc-200'
                                     }`}
@@ -712,8 +779,8 @@ const CreateUser = () => {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setDemo(true)}
-                                  className={`flex-1 py-1.5 text-center text-xs font-semibold transition-colors ${demo
+                                  onClick={() => setUserInfo({ ...userInfo, Demo: true })}
+                                  className={`flex-1 py-1.5 text-center text-xs font-semibold transition-colors ${userInfo.Demo
                                     ? 'bg-amber-950/90 text-amber-300 font-bold'
                                     : 'bg-[#09090b] text-zinc-400 hover:text-zinc-200'
                                     }`}
@@ -731,8 +798,9 @@ const CreateUser = () => {
                               Algorithmic Trading Strategy
                             </label>
                             <select
-                              value={strategyName}
-                              onChange={(e) => setStrategyName(e.target.value)}
+                              value={userInfo.StrategyName}
+                              name='StrategyName'
+                              onChange={(e) => setUserInfo({ ...userInfo, StrategyName: e.target.value })}
                               className="w-full bg-[#09090b] border border-[#27272a] focus:border-purple-500 rounded px-3 py-2 text-zinc-100 outline-none text-xs"
                             >
                               {strategies.map((s) => (
@@ -743,7 +811,7 @@ const CreateUser = () => {
                             </select>
 
                             <div className="p-3 bg-[#09090b] border border-[#27272a] rounded text-[11px] text-zinc-400 leading-relaxed">
-                              {strategies.find((s) => s.name === strategyName)?.description ||
+                              {strategies.find((s) => s.name === userInfo.StrategyName)?.description ||
                                 'Algorithmic momentum and execution rules for high-efficiency futures scalping.'}
                             </div>
                           </div>
@@ -802,41 +870,33 @@ const CreateUser = () => {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <span className="text-[10px] text-purple-400 font-bold block">
-                          {useCustomBotID && customBotID ? customBotID : 'SAGE-NEW'}
+                          {userInfo.BotID || "SAGE-NEW"}
                         </span>
                         <h4 className="text-sm font-bold text-white truncate max-w-[170px]">
-                          {name.trim() || 'New Operator'}
+                          {userInfo.Name || 'New Operator'}
                         </h4>
                         <p className="text-[10px] text-zinc-400 truncate max-w-[170px]">
-                          {email.trim() || 'operator@domain.com'}
+                          {userInfo.Email || 'operator@domain.com'}
                         </p>
                       </div>
                       <div className="text-right">
                         <span
                           className={`text-[9px] px-2 py-0.5 rounded font-bold uppercase border ${showBotSliders && strategyEngineOn
-                            ? demo
+                            ? userInfo.Demo
                               ? 'bg-amber-950/60 text-amber-300 border-amber-800'
                               : 'bg-emerald-950/60 text-emerald-300 border-emerald-800'
                             : 'bg-zinc-900 text-zinc-400 border-zinc-700'
                             }`}
                         >
-                          {showBotSliders && strategyEngineOn ? (demo ? 'DEMO' : 'LIVE') : 'STANDBY'}
+                          {showBotSliders && strategyEngineOn ? (userInfo.Demo ? 'DEMO' : 'LIVE') : 'STANDBY'}
                         </span>
                         <div className="mt-1 text-[11px] text-zinc-400">
-                          {showBotSliders && strategyEngineOn ? `${symbol} ${leverage}x` : 'Engine OFF'}
+                          {showBotSliders && strategyEngineOn ? `${userInfo.Symbol} ${userInfo.Leverage}x` : 'Engine OFF'}
                         </div>
                       </div>
                     </div>
 
                     <div className="pt-2 border-t border-zinc-800/80 space-y-1.5 text-[11px]">
-                      <div className="flex items-center justify-between text-zinc-400">
-                        <span>Assigned Role:</span>
-                        <span className="text-zinc-200 font-medium">{role}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-zinc-400">
-                        <span>Starting Margin:</span>
-                        <span className="text-emerald-400 font-medium">${initialBalance.toLocaleString()} USDT</span>
-                      </div>
                       <div className="flex items-center justify-between text-zinc-400">
                         <span>Binance API:</span>
                         <span
@@ -847,9 +907,9 @@ const CreateUser = () => {
                           }
                         >
                           {showBotSliders && enableBinanceApi
-                            ? apiKey
+                            ? userInfo.DecryptedKey
                               ? 'Configured (Live)'
-                              : 'Configured (Test)'
+                              : 'Not Configured'
                             : 'Inactive / Standby'}
                         </span>
                       </div>
@@ -859,19 +919,19 @@ const CreateUser = () => {
                           className={`font-medium truncate max-w-[140px] ${showBotSliders && strategyEngineOn ? 'text-zinc-200' : 'text-amber-400/90'
                             }`}
                         >
-                          {showBotSliders && strategyEngineOn ? strategyName : 'Engine OFF (Standby)'}
+                          {showBotSliders && strategyEngineOn ? userInfo.StrategyName : 'Engine OFF (Standby)'}
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-zinc-400">
                         <span>Liquidation Guard:</span>
                         <span
                           className={
-                            showBotSliders && enableBinanceApi && avoidLiquidation
+                            showBotSliders && enableBinanceApi && userInfo.AvoidLiquidation
                               ? 'text-emerald-400'
                               : 'text-zinc-500'
                           }
                         >
-                          {showBotSliders && enableBinanceApi && avoidLiquidation ? '90% Buffer ON' : 'Disabled'}
+                          {showBotSliders && enableBinanceApi && userInfo.AvoidLiquidation ? '90% Buffer ON' : 'Disabled'}
                         </span>
                       </div>
                     </div>
@@ -885,14 +945,6 @@ const CreateUser = () => {
                     >
                       <UserPlus className="w-4 h-4" />
                       <span>{isSubmitting ? 'Provisioning User & Bot...' : 'Provision User & Deploy Bot'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={onNavigateFleet}
-                      className="w-full py-2.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-[#27272a] text-zinc-400 hover:text-zinc-200 font-mono text-xs transition-colors text-center"
-                    >
-                      Cancel & Return
                     </button>
                   </div>
 

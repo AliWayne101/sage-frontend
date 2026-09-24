@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react'
 import { useAuth } from '../AuthProvider';
 import Footer from '@/section/Footer';
 import { IUserInfoRuntime, Strategy } from '@/interfaces';
-import { formatCurrency } from '@/utils';
+import { formatCurrency, getTradingSymbols } from '@/utils';
 import { getUserByEmail, updateUser } from '../actions/user.actions';
 import { server } from '../actions/server.actions';
 
@@ -17,6 +17,7 @@ const Settings = () => {
     const [showKey, setShowKey] = useState(false);
     const [strategies, setStrategies] = useState<Strategy[]>([]);
     const [selectedStrategy, setSelectedStrategy] = useState<Strategy | undefined>(undefined);
+    const [assetPairs, setAssetPairs] = useState<string[]>([]);
 
     const router = useRouter();
     const { user } = useAuth();
@@ -78,6 +79,9 @@ const Settings = () => {
                 console.error("Failed to load user:", error);
                 setErrorMessage("Failed to load user data");
             }
+
+            const pairs = await getTradingSymbols();
+            setAssetPairs(pairs);
         }
         loadUser();
     }, [user])
@@ -215,10 +219,11 @@ const Settings = () => {
                                     className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-200 outline-none cursor-pointer"
                                 >
                                     <option value="">Select symbol..</option>
-                                    <option value="ETHUSDT">ETHUSDT (Ethereum Perpetual)</option>
-                                    <option value="BTCUSDT">BTCUSDT (Bitcoin Perpetual)</option>
-                                    <option value="SOLUSDT">SOLUSDT (Solana Perpetual)</option>
-                                    <option value="BNBUSDT">BNBUSDT (BNB Perpetual)</option>
+                                    {assetPairs.map((p) => (
+                                        <option key={p} value={p}>
+                                            {p}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 

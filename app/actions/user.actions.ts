@@ -5,7 +5,9 @@ import { IUserInfoRuntime } from "@/interfaces"
 import { decrypt, encrypt } from "@/lib/encryption"
 import { connectDB } from "@/lib/mongoose"
 import { getSession } from "@/lib/nextauth"
+import { HashPassword } from "@/lib/serverUtils"
 import UserModel, { IUserInfo } from "@/schema/users"
+import mongoose from "mongoose"
 
 export const getUserByEmail = async (email: string): Promise<IUserInfoRuntime | null> => {
     await connectDB();
@@ -75,6 +77,36 @@ export const updateUser = async (data: IUserInfoRuntime): Promise<IUserInfoRunti
     const plainUser = PlainUser(updatedUser);
     return JSON.parse(JSON.stringify(plainUser));
 };
+
+export const createUser = async (userData: Partial<IUserInfoRuntime>): Promise<IUserInfoRuntime | null> => {
+    const session = await getSession();
+    await connectDB();
+    if (!session) return null;
+
+    if (session.user.accountType !== SUPER_USER_ROLE) return null;
+
+    const { DecryptedKey, DecryptedSecret, Password, ...rest } = userData;
+    if (!Password) return null;
+    const hashedPassword = await HashPassword(Password);
+
+    const newUser: Partial<IUserInfo> = {
+        ...rest,
+        _id: new mongoose.Types.ObjectId(),
+        UID: rest.BotID,
+        Password: hashedPassword
+    }
+
+    if (DecryptedKey && DecryptedKey.length > 0) {
+        newUser.ApiKey = encrypt(DecryptedKey);
+    }
+
+    if (DecryptedSecret && DecryptedSecret.length > 0 && DecryptedSecret !== SECRET_PLACEHOLDER) {
+        newUser.ApiSecret = encrypt(DecryptedSecret);
+    }
+
+    const createdUser = await UserModel.create(newUser);
+    return JSON.parse(JSON.stringify(PlainUser(createdUser)))
+}
 
 const PlainUser = (userData: IUserInfo): IUserInfoRuntime => {
     const { ApiKey, ApiSecret, ...plainUser } = userData;

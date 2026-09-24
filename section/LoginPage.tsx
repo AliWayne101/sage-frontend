@@ -1,9 +1,10 @@
 "use client"
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Footer from './Footer'
 import { AlertCircle, Mail, Terminal, Lock, ArrowRight } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
+import { AUTH_ERROR_MESSAGES, AuthErrorCode } from '@/constants';
 
 const LoginPage = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -14,6 +15,18 @@ const LoginPage = () => {
     });
 
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // Check for callback status messages in URL from Google OAuth
+    useEffect(() => {
+        const msgCode = searchParams.get('msg') || searchParams.get('error');
+        if (msgCode && AUTH_ERROR_MESSAGES[msgCode as AuthErrorCode]) {
+            const feedback = AUTH_ERROR_MESSAGES[msgCode as AuthErrorCode];
+            setError(feedback);
+        } else if (msgCode) {
+            setError(msgCode);
+        }
+    }, [searchParams]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -32,14 +45,14 @@ const LoginPage = () => {
                 setError(loginResponse?.error || "An unexpect error occured");
                 return;
             }
+
+            setError(null);
+            router.push('/dashboard');
         } catch (err) {
             setIsLoading(false);
             setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-        } finally {
-            setError(null);
-            router.push('/dashboard');
         }
-    };
+    }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setLoginDetails({
