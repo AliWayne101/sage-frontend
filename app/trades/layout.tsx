@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import React from 'react'
 import AuthProvider from '../AuthProvider';
 
-const SettingsLayout = async ({ children }: { children: React.ReactNode }) => {
+const TradesLayout = async ({ children }: { children: React.ReactNode }) => {
     const session = await getSession();
     const user = session?.user ?? null;
     if (!user) {
@@ -16,4 +16,4 @@ const SettingsLayout = async ({ children }: { children: React.ReactNode }) => {
     )
 }
 
-export default SettingsLayout
+export default TradesLayout
