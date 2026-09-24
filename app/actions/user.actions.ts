@@ -105,7 +105,9 @@ export const createUser = async (userData: Partial<IUserInfoRuntime>): Promise<I
     }
 
     const createdUser = await UserModel.create(newUser);
-    return JSON.parse(JSON.stringify(PlainUser(createdUser)))
+    const plainUser = PlainUser(createdUser.toObject());
+    console.log(plainUser);
+    return JSON.parse(JSON.stringify(plainUser))
 }
 
 const PlainUser = (userData: IUserInfo): IUserInfoRuntime => {

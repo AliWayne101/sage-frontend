@@ -5,3 +5,6 @@ Upon bot loading i want to check the state of user profile if bot is able to tra
 
 2. For Settings and Create user
     getStrategies
+
+3. Bot.ts (server)
+    If margin is 0 then set it to 1x

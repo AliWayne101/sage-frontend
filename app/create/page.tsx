@@ -23,7 +23,7 @@ const CreateUser = () => {
     AccountType: "USER",
     Password: "",
     StrategyName: "",
-    Leverage: 1,
+    Leverage: 0,
     Symbol: "",
     DecryptedKey: "",
     DecryptedSecret: "",
@@ -78,7 +78,7 @@ const CreateUser = () => {
       AccountType: "USER",
       Password: "",
       StrategyName: "",
-      Leverage: 1,
+      Leverage: 0,
       Symbol: "",
       DecryptedKey: "",
       DecryptedSecret: "",
@@ -113,7 +113,6 @@ const CreateUser = () => {
         setErrorMessage("There seems to be an error creating a user");
         return;
       }
-      console.log(createdItem);
       setCreatedItem(createdUser);
     } catch (error) {
       console.log(error);
@@ -181,7 +180,7 @@ const CreateUser = () => {
 
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push('/')}
             className="px-2.5 py-1.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-[#27272a] text-zinc-300 text-xs font-mono transition-colors"
           >
             Dashboard
@@ -252,13 +251,13 @@ const CreateUser = () => {
                   <span className="text-zinc-500 text-[10px] uppercase block">Assigned Password</span>
                   <span className="text-emerald-400 font-mono font-bold">{SECRET_PLACEHOLDER}</span>
                 </div>
-                {createdItem.Symbol ?? (
+                {(createdItem.Symbol && createdItem.Symbol.trim()) && (
                   <div>
                     <span className="text-zinc-500 text-[10px] uppercase block">Trading Asset</span>
                     <span className="text-blue-400 font-medium">{createdItem.Symbol} ({createdItem.Leverage}x)</span>
                   </div>
                 )}
-                {createdItem.StrategyName && (
+                {(createdItem.StrategyName && createdItem.StrategyName.trim()) && (
                   <>
                     <div>
                       <span className="text-zinc-500 text-[10px] uppercase block">Strategy Algorithm</span>
@@ -752,8 +751,9 @@ const CreateUser = () => {
                               <div className="flex items-center gap-2">
                                 <input
                                   type="range"
-                                  min="1"
+                                  min="0"
                                   max="120"
+                                  step={5}
                                   value={userInfo.Leverage}
                                   onChange={(e) => setUserInfo({ ...userInfo, Leverage: Number(e.target.value) })}
                                   className="w-full accent-purple-500 cursor-pointer"
