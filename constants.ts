@@ -18,5 +18,5 @@ export const AUTH_ERROR_MESSAGES: Record<AuthErrorCode, string> = {
 
 export const SECRET_PLACEHOLDER = "********";
 export const SUPER_USER_ROLE = "SUPER";
-export const SERVER_ADDRESS = "http://localhost:3000";
+export const SERVER_ADDRESS = "http://localhost:4000";
 export const LOAD_INTERVAL = 4000; //4 seconds

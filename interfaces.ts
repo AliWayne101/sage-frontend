@@ -1,3 +1,4 @@
+import { CustomLineChartInsideData } from "./components/CustomLineChart";
 import { IUserInfo } from "./schema/users";
 
 export interface SessionUser {
@@ -120,4 +121,13 @@ export type ConfirmationVariant = 'danger' | 'warning' | 'info' | 'primary';
 export interface ConfirmationModalDetail {
     label: string;
     value: React.ReactNode;
+}
+
+export interface TradeAnalytics {
+    cumulativePnlData: CustomLineChartInsideData[];
+    breakdownData: {
+        chartData: { day: string; fee: number; pnl: number }[];
+        totalNetPnl: number;
+        totalFees: number;
+    };
 }

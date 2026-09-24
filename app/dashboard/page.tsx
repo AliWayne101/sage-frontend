@@ -7,14 +7,14 @@ import CustomLineChart from '@/components/CustomLineChart';
 import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
 import { TERMINAL_VER } from '@/configs';
-import { BotHeartbeat, ConfirmModalProps, Direction, IUserInfoRuntime } from '@/interfaces';
+import { BotHeartbeat, ConfirmModalProps, Direction, IUserInfoRuntime, TradeAnalytics } from '@/interfaces';
 import { useRouter } from 'next/navigation';
 import { ITrades } from '@/schema/trades';
 import LogTerminal from '@/components/LogTerminal';
 import { useAuth } from '../AuthProvider';
 import { getUserByEmail } from '../actions/user.actions';
 import { server } from '../actions/server.actions';
-import { getRecentTrades } from '../actions/trades.actions';
+import { generateDailyTradeAnalytics, getRecentTrades } from '../actions/trades.actions';
 import { LOAD_INTERVAL } from '@/constants';
 import { signOut } from 'next-auth/react';
 import ConfirmationModal from '@/components/ConfirmationModal';
@@ -27,6 +27,7 @@ const Dashboard = () => {
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
     const [loadingAction, setLoadingAction] = useState("null");
     const [lastTrades, setLastTrades] = useState<ITrades[]>([]);
+    const [tradeAnalytics, setTradeAnalytics] = useState<TradeAnalytics | null>(null);
     const [confirmModal, setConfirmModal] = useState<ConfirmModalProps>({
         isOpen: false,
         message: '',
@@ -44,18 +45,23 @@ const Dashboard = () => {
                 setActionNotice("Unable to load the heartbeat data");
             }
             setHeartbeatData(_hData);
-
-            if (!user) return;
-            const trades = await getRecentTrades(user.email, 10);
-            if (!trades)
-                setActionNotice("There seems to be an issue loading user trades");
-            else
-                setLastTrades(trades);
         } catch (error) {
             setActionNotice("Seems to be an error refreshing");
             console.log(error);
         } finally {
             setRefreshing(false);
+        }
+
+        if (user) {
+            const trades = await getRecentTrades(user.email, 10);
+            if (!trades)
+                setActionNotice("There seems to be an issue loading user trades");
+            else
+                setLastTrades(trades);
+
+            const _tradeAnalytics = await generateDailyTradeAnalytics(user.email, 7);
+            if (_tradeAnalytics)
+                setTradeAnalytics(_tradeAnalytics);
         }
     }, [])
 
@@ -184,7 +190,7 @@ const Dashboard = () => {
     useEffect(() => {
         //This is to clear the action notice after some delay
         if (!actionNotice) return;
-        setTimeout(() => setActionNotice(null), 4000);
+        setTimeout(() => setActionNotice(null), 3500);
     }, [actionNotice])
 
     return (
@@ -593,9 +599,14 @@ const Dashboard = () => {
                                 <p className="text-sm font-mono text-zinc-300 font-semibold">
                                     No Open Position - Engine Scanning Market
                                 </p>
-                                <p className="text-xs text-zinc-500 font-mono mt-0.5">
-                                    Listening to Binance {User?.Symbol || 'BTCUSDT'} candles. Strategy: {User?.StrategyName}
-                                </p>
+                                {!User?.IsHalted && (
+                                    <p className="text-xs text-zinc-500 font-mono mt-0.5">
+                                        Listening to Binance {User?.Symbol || 'BTCUSDT'} candles.
+                                        {User?.StrategyName && (
+                                            <>Strategy: {User?.StrategyName}</>
+                                        )}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     )}
@@ -608,8 +619,8 @@ const Dashboard = () => {
                         title="Cumulative Realized PnL"
                         description="Net profit curve across closed futures trades"
                         overviewTitle="Total Net:"
-                        overviewData={`+$${formatCurrency(100, 2)} USDT`}
-                        data={[]}
+                        overviewData={`+$${formatCurrency(tradeAnalytics?.cumulativePnlData.reduce((acc, item) => acc + (item.value2 ?? 0), 0) ?? 0, 2)} USDT`}
+                        data={tradeAnalytics?.cumulativePnlData ?? []}
                         valueLabel="Cumulative PnL"
                         valueFormatter={(value) => `$${value} USDT`}
                     />
@@ -617,31 +628,29 @@ const Dashboard = () => {
                     {/* Chart 2: Binance Commission Breakdown with PnL and Fee switcher */}
                     <CustomBarChart
                         title="Binance Commission Breakdown"
-                        overviewTitle="Total Net:"
-                        overviewData={`+$${formatCurrency(100, 2)} USDT`}
-                        data={[]}
+                        data={tradeAnalytics?.breakdownData.chartData ?? []}
                         metrics={[{
                             key: 'pnl',
                             text: 'PnL',
                             color: '#10b981',
                             icon: TrendingUp,
-                            description:
-                                'Daily realized net profit & loss recorded from executed futures orders',
+                            description: 'Daily realized net profit & loss recorded from executed futures orders',
                         },
                         {
                             key: 'fee',
                             text: 'Fee',
                             color: '#3b82f6',
                             icon: DollarSign,
-                            description:
-                                'Daily exchange commission & service fees incurred on order execution',
+                            description: 'Daily exchange commission & service fees incurred on order execution',
                         },]}
-                        defaultMetric="pnl"
-                        xDataKey="day"
-                        valueFormatter={(value) => `$${value} USDT`}
-                        cellColor={(value) =>
-                            value >= 0 ? '#10b981' : '#f43f5e'
+                        overviewTitle={(active) => active === 'pnl' ? 'Total Net PnL:' : 'Total Fees Paid:'}
+                        overviewData={(active) =>
+                            active === 'pnl'
+                                ? `${(tradeAnalytics?.breakdownData.totalNetPnl ?? 0) >= 0 ? '+' : ''}$${formatCurrency((tradeAnalytics?.breakdownData.totalNetPnl ?? 0), 2)} USDT`
+                                : `$${formatCurrency((tradeAnalytics?.breakdownData.totalFees ?? 0), 2)} USDT`
                         }
+                        valueFormatter={(val) => `$${val} USDT`}
+                        cellColor={(val, entry, active) => active === 'pnl' ? (val >= 0 ? '#10b981' : '#f43f5e') : '#3b82f6'}
                     />
                 </section>
 
@@ -718,7 +727,7 @@ const Dashboard = () => {
                                                             : 'text-rose-400 bg-rose-950/60 border-rose-800'
                                                             }`}
                                                     >
-                                                        {t.side.toString()}
+                                                        {Direction[t.side]}
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-300 font-mono">
