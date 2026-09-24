@@ -692,7 +692,7 @@ const Dashboard = () => {
                                     <th className="py-2.5 px-3">Date / Time</th>
                                     <th className="py-2.5 px-3">Symbol</th>
                                     <th className="py-2.5 px-3">Side</th>
-                                    <th className="py-2.5 px-3 text-right">Entry Price</th>
+                                    <th className="py-2.5 px-3 text-right">Profit %</th>
                                     <th className="py-2.5 px-3 text-right">Qty</th>
                                     <th className="py-2.5 px-3 text-right">Gross PnL</th>
                                     <th className="py-2.5 px-3 text-right text-amber-400">Fee (Service)</th>
@@ -731,14 +731,14 @@ const Dashboard = () => {
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-300 font-mono">
-                                                    ${formatCurrency(t.entryPrice, 2)}
+                                                    {(((t.realizedProfit + t.commission) / t.notional) * 100) > 0 ? "+" : "-"}{(((t.realizedProfit + t.commission) / t.notional) * 100).toFixed(2)}%
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-400 font-mono">
                                                     {t.quantity}
                                                 </td>
                                                 <td className="py-3 px-3 text-right font-semibold font-mono">
                                                     <span className={t.realizedProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                                        {t.realizedProfit >= 0 ? '+' : ''}${formatCurrency(t.realizedProfit, 2)}
+                                                        {t.realizedProfit >= 0 ? '+' : ''}${formatCurrency((t.realizedProfit + t.commission), 2)}
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-amber-400 font-mono">
