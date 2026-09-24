@@ -2,12 +2,12 @@ import UserModel from "@/schema/users";
 import { AuthOptions, getServerSession, Session } from "next-auth";
 import bcrypt from "bcrypt";
 import { connectDB } from "./mongoose";
-import { handleFailedAttempt } from "@/utils";
 import { SESSION_AGE } from "@/configs";
 import GoogleProvider from 'next-auth/providers/google';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { AuthorizeUser } from "./authorizer";
 import { AUTH_ERROR_MESSAGES } from "@/constants";
+import { handleFailedAttempt } from "./serverUtils";
 
 const authOptions: AuthOptions = {
     providers: [

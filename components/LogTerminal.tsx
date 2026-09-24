@@ -115,6 +115,7 @@ const LogTerminal = ({ logs, onClear }: LogTerminalProps) => {
                             onClick={onClear}
                             className="flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 hover:border-rose-900/60 text-zinc-400 hover:text-rose-400 transition-colors"
                             title="Clear Terminal View"
+                            disabled={logs.length === 0}
                         >
                             <Trash2 className="w-3 h-3" />
                             <span>Clear</span>

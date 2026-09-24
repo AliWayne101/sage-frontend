@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useCallback, useEffect, useState } from 'react'
 import Footer from '@/section/Footer';
 import { Activity, ArrowDownRight, ArrowUpRight, Calendar, CheckCircle, ChevronDown, DollarSign, Layers, LogOut, Pause, Play, RefreshCw, RotateCcw, Sliders, TrendingUp, UserPlus, XCircle } from 'lucide-react';
@@ -12,9 +14,10 @@ import LogTerminal from '@/components/LogTerminal';
 import { useAuth } from '../AuthProvider';
 import { getUserByEmail } from '../actions/user.actions';
 import { server } from '../actions/server.actions';
-import { LOAD_INTERVAL } from '@/constants';
 import { getRecentTrades } from '../actions/trades.actions';
+import { LOAD_INTERVAL } from '@/constants';
 import { signOut } from 'next-auth/react';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 const Dashboard = () => {
     const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -55,6 +58,11 @@ const Dashboard = () => {
             setRefreshing(false);
         }
     }, [])
+
+
+    const closeConfirmModal = () => {
+        setConfirmModal({ isOpen: false, message: "", onConfirm: () => { } });
+    };
 
     const handleForceClose = () => {
         if (!heartbeatData?.ActiveTrade) return;
@@ -105,6 +113,7 @@ const Dashboard = () => {
     }
 
     const executeForceClosePosition = () => {
+        setConfirmModal((prev) => ({ ...prev, isLoading: true }));
         handleButtonEvents("forceClose");
     }
 
@@ -144,7 +153,16 @@ const Dashboard = () => {
     }
 
     const handleClearLogs = () => {
-
+        setConfirmModal({
+            isOpen: true,
+            title: 'Clear Logs',
+            message: 'Do you want to clear the logs?',
+            description: 'This will clear all logs from server and bots immediately, Do you still want to remove the logs?',
+            confirmText: 'Yes, Clear Logs',
+            cancelText: 'Cancel',
+            variant: 'danger',
+            onConfirm: () => handleButtonEvents("clearLogs"),
+        });
     }
 
     useEffect(() => {
@@ -162,6 +180,12 @@ const Dashboard = () => {
         const interval = setInterval(fetchData, LOAD_INTERVAL);
         return () => clearInterval(interval);
     }, [fetchData])
+
+    useEffect(() => {
+        //This is to clear the action notice after some delay
+        if (!actionNotice) return;
+        setTimeout(() => setActionNotice(null), 4000);
+    }, [actionNotice])
 
     return (
         <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans">
@@ -515,7 +539,7 @@ const Dashboard = () => {
                                 <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Margin Buffer</span>
                                 <div className="flex items-center gap-1">
                                     <span className="font-mono text-sm font-semibold text-emerald-400">
-                                        {`${heartbeatData.ActiveTrade.marginBuffer.toFixed(1)}%`}
+                                        {`${(heartbeatData.ActiveTrade.marginBuffer ?? 0).toFixed(1)}%`}
                                     </span>
                                     {User?.AvoidLiquidation && (
                                         <span className="text-[9px] px-1 bg-blue-950 text-blue-400 border border-blue-800 rounded">
@@ -734,6 +758,19 @@ const Dashboard = () => {
                 </section>
             </main>
 
+            <ConfirmationModal
+                isOpen={confirmModal.isOpen}
+                onClose={closeConfirmModal}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                description={confirmModal.description}
+                confirmText={confirmModal.confirmText}
+                cancelText={confirmModal.cancelText}
+                variant={confirmModal.variant}
+                isLoading={confirmModal.isLoading}
+                details={confirmModal.details}
+            />
             <Footer />
         </div>
     )

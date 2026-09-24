@@ -1,3 +1,4 @@
+"use client"
 import { SessionUser } from "@/interfaces";
 import { createContext, useContext, useMemo } from "react";
 
