@@ -28,11 +28,11 @@ export interface IUserInfo {
     UID: string;
     BotID: string;
     AccountType: string;
-    StrategyName: string;
+    StrategyName?: string;
     Leverage: number;
     ApiKey?: IEncryptedCredential;
     ApiSecret?: IEncryptedCredential;
-    Symbol: string;
+    Symbol?: string;
     IsActive: boolean;
     PNL: number;
     UnpaidFee: number,

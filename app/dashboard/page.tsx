@@ -323,7 +323,7 @@ const Dashboard = () => {
                                     <button
                                         onClick={() => {
                                             setUserDropdownOpen(false);
-                                            router.push('/create-user');
+                                            router.push('/create');
                                         }}
                                         className="w-full text-left px-3 py-2 hover:bg-zinc-800/80 text-zinc-300 flex items-center justify-between group"
                                     >
