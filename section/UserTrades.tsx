@@ -79,8 +79,8 @@ const Trades = ({ targetUser }: UserTradesProps) => {
         document.body.removeChild(link);
     };
 
-    const handleSetPreset = (preset: string) => {
-
+    const handleSetPreset = (preset: 'today' | 'yesterday' | '7days' | 'all') => {
+        setActivePreset(preset);
     }
 
     const handleApplyFilter = (e?: React.FormEvent) => {
@@ -125,7 +125,7 @@ const Trades = ({ targetUser }: UserTradesProps) => {
                     <button
                         onClick={handleExportCsv}
                         disabled={userTrades.length === 0}
-                        className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs font-mono transition-colors disabled:opacity-40"
+                        className="flex cursor-pointer items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 text-zinc-300 hover:text-white text-xs font-mono transition-colors disabled:opacity-40"
                         title="Download CSV report"
                     >
                         <Download className="w-3.5 h-3.5 text-blue-400" />
