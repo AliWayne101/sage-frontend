@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react'
 import Footer from '@/section/Footer';
-import { Activity, ArrowDownRight, ArrowUpRight, Calendar, CheckCircle, ChevronDown, DollarSign, Layers, LogOut, Pause, Play, RefreshCw, RotateCcw, Sliders, TrendingUp, UserPlus, XCircle } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowUpRight, Calendar, CheckCircle, ChevronDown, DollarSign, Layers, LogOut, Pause, Play, RefreshCw, RotateCcw, Sliders, TrendingUp, UserPlus, Users, XCircle } from 'lucide-react';
 import CustomLineChart from '@/components/CustomLineChart';
 import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
@@ -319,7 +319,22 @@ const Dashboard = () => {
                                     <Sliders className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
                                     <span>Bot Engine Configuration</span>
                                 </button>
-                                {User?.AccountType === "SUPER" && (
+                                {User?.AccountType === "SUPER" && (<>
+                                    <button
+                                        onClick={() => {
+                                            setUserDropdownOpen(false);
+                                            router.push('/fleet');
+                                        }}
+                                        className="w-full text-left px-3 py-2 hover:bg-zinc-800/80 text-zinc-300 flex items-center justify-between group"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Users className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                                            <span>All Bots & User Profiles</span>
+                                        </div>
+                                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-800/80">
+                                            SUPER
+                                        </span>
+                                    </button>
                                     <button
                                         onClick={() => {
                                             setUserDropdownOpen(false);
@@ -335,7 +350,7 @@ const Dashboard = () => {
                                             SUPER
                                         </span>
                                     </button>
-                                )}
+                                </>)}
                                 <button
                                     onClick={() => {
                                         setUserDropdownOpen(false);
