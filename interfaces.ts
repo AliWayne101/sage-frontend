@@ -131,3 +131,11 @@ export interface TradeAnalytics {
         totalFees: number;
     };
 }
+
+export interface TradeMetrics {
+    winRate: number,
+    totalGrossProfit: number,
+    totalCommission: number,
+    totalNetProfit: number,
+    totalFees: number
+}

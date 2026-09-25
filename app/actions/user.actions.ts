@@ -24,6 +24,21 @@ export const getUserByEmail = async (email: string): Promise<IUserInfoRuntime | 
     return JSON.parse(JSON.stringify(returnObj));
 }
 
+export const getUserByBotID = async (botID: string): Promise<IUserInfoRuntime | null> => {
+    await connectDB();
+    const session = await getSession();
+    if (!session) return null;
+
+    const user = await UserModel.findOne({ BotID: botID }).select("-Password").lean();
+    if (!user) return null;
+
+    if (session.user.email !== user.Email && session.user.accountType !== SUPER_USER_ROLE)
+        return null;
+
+    const returnObj = PlainUser(user);
+    return JSON.parse(JSON.stringify(returnObj));
+}
+
 export const updateUser = async (data: IUserInfoRuntime): Promise<IUserInfoRuntime | null> => {
     await connectDB();
     const session = await getSession();
