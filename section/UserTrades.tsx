@@ -34,17 +34,24 @@ const Trades = ({ targetUser }: UserTradesProps) => {
                 totalFees: 0
             }
 
+        let totalCommission = userTrades.reduce((acc, item) => (acc + item.commission), 0);
+        let GrossProfit = userTrades.reduce((acc, item) => (acc + item.realizedProfit), 0);
+        let totalFee = userTrades.reduce((acc, item) => (acc + item.serviceFee), 0);
+        const totalLosingTrades = userTrades.filter((e) => e.realizedProfit < 0);
+        const winRate = ((userTrades.length - totalLosingTrades.length) / userTrades.length) * 100;
+
         return {
-            totalCommission: 0,
-            totalGrossProfit: 0,
-            totalNetProfit: 0,
-            winRate: 0,
-            totalFees: 0
+            totalCommission: totalCommission,
+            totalGrossProfit: (GrossProfit + totalCommission),
+            totalNetProfit: (GrossProfit - totalFee),
+            winRate: winRate,
+            totalFees: totalFee
         }
     }, [userTrades])
 
     const handleExportCsv = () => {
-        if (userTrades.length === 0) return;
+        if (!userTrades || userTrades.length === 0) return;
+
         const headers = [
             'Date & Time',
             'Symbol',
@@ -58,29 +65,48 @@ const Trades = ({ targetUser }: UserTradesProps) => {
             'Net Profit',
             'Exit Reason',
         ];
-        const rows = userTrades.map((t) => [
-            t.closeTime ? new Date(t.closeTime).toISOString() : '',
-            t.symbol,
-            (t.side === Direction.Long) ? 'LONG' : 'SHORT',
-            t.entryPrice,
-            t.quantity,
-            t.notional,
-            t.realizedProfit,
-            t.serviceFee,
-            t.commission,
-            t.realizedProfit,
-            `"${t.Reason || 'Exit'}"`,
-        ]);
 
-        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
-        const encodedUri = encodeURI(csvContent);
+        const escapeCsvCell = (val: any) => {
+            if (val === null || val === undefined) return '""';
+            const stringVal = String(val).replace(/"/g, '""');
+            return `"${stringVal}"`;
+        };
+
+        const rows = userTrades.map((t) => {
+            const grossPnL = Number(t.realizedProfit) || 0;
+            const serviceFee = Number(t.serviceFee) || 0;
+            const commission = Number(t.commission) || 0;
+            const netProfit = grossPnL - serviceFee;
+
+            return [
+                t.closeTime ? new Date(t.closeTime).toISOString() : '',
+                t.symbol || '',
+                t.side === Direction.Long ? 'LONG' : 'SHORT',
+                t.entryPrice ?? '',
+                t.quantity ?? '',
+                t.notional ?? '',
+                grossPnL,
+                serviceFee,
+                commission,
+                netProfit,
+                t.Reason || 'Exit',
+            ].map(escapeCsvCell);
+        });
+
+        const csvContent = [headers.map(escapeCsvCell).join(','), ...rows.map((row) => row.join(','))].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
         const link = document.createElement('a');
-        link.setAttribute('href', encodedUri);
-        link.setAttribute('download', `sage_trades_${targetDates.fromDate || 'all'}_to_${targetDates.toDate || 'all'}.csv`);
+        link.href = url;
+        link.setAttribute('download', `sage_trades_${targetDates?.fromDate || 'all'}_to_${targetDates?.toDate || 'all'}.csv`);
         document.body.appendChild(link);
         link.click();
+
         document.body.removeChild(link);
-    };
+        URL.revokeObjectURL(url);
+    }
 
     const handleSetPreset = (preset: 'today' | 'yesterday' | '7days' | 'all') => {
         const now = new Date();
@@ -372,7 +398,7 @@ const Trades = ({ targetUser }: UserTradesProps) => {
                                     <th className="py-2.5 px-3">Date / Time</th>
                                     <th className="py-2.5 px-3">Symbol</th>
                                     <th className="py-2.5 px-3">Side</th>
-                                    <th className="py-2.5 px-3 text-right">Entry Price</th>
+                                    <th className="py-2.5 px-3 text-right">Profit %</th>
                                     <th className="py-2.5 px-3 text-right">Qty</th>
                                     <th className="py-2.5 px-3 text-right">Gross PnL</th>
                                     <th className="py-2.5 px-3 text-right text-amber-400">Fee (Service)</th>
@@ -425,7 +451,7 @@ const Trades = ({ targetUser }: UserTradesProps) => {
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-300 font-mono">
-                                                    ${formatCurrency(t.entryPrice, 2)}
+                                                    {(((t.realizedProfit + t.commission) / t.notional) * 100) > 0 ? "+" : "-"}{((Math.abs(t.realizedProfit + t.commission) / t.notional) * 100).toFixed(2)}%
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-400 font-mono">
                                                     {t.quantity}

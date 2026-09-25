@@ -711,7 +711,7 @@ const Dashboard = () => {
                                 ) : (
                                     lastTrades.map((t, id) => {
                                         return (
-                                            <tr key={t.orderId} className="hover:bg-zinc-900/50 transition-colors">
+                                            <tr key={t.orderId + id} className="hover:bg-zinc-900/50 transition-colors">
                                                 <td className="py-3 px-3 text-zinc-400 text-[11px] whitespace-nowrap">{(new Date(t.Timestamp).toLocaleString('en-US', {
                                                     month: 'short',
                                                     day: 'numeric',
@@ -731,7 +731,7 @@ const Dashboard = () => {
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-300 font-mono">
-                                                    {(((t.realizedProfit + t.commission) / t.notional) * 100) > 0 ? "+" : "-"}{(((t.realizedProfit + t.commission) / t.notional) * 100).toFixed(2)}%
+                                                    {(((t.realizedProfit + t.commission) / t.notional) * 100) > 0 ? "+" : "-"}{((Math.abs(t.realizedProfit + t.commission) / t.notional) * 100).toFixed(2)}%
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-400 font-mono">
                                                     {t.quantity}
