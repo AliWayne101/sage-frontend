@@ -122,3 +122,34 @@ export const generateDailyTradeAnalytics = async (
         }
     };
 };
+
+export const getUserTrades = async (botID: string, targetDates: { fromDate: string, toDate: string }): Promise<ITrades[]> => {
+    if (!botID.trim()) return [];
+
+    let query: any = {
+        BotID: botID,
+        isFilled: true,
+    };
+
+    const _timestamp: Record<string, number> = {};
+    if (targetDates?.fromDate?.trim()) {
+        const startTimestamp = new Date(`${targetDates.fromDate.trim()}T00:00:00.000Z`).getTime();
+        if (!isNaN(startTimestamp)) {
+            _timestamp.$gte = startTimestamp;
+        }
+    }
+
+    if (targetDates?.toDate?.trim()) {
+        const endTimestamp = new Date(`${targetDates.toDate.trim()}T23:59:59.999Z`).getTime();
+        if (!isNaN(endTimestamp)) {
+            _timestamp.$lte = endTimestamp;
+        }
+    }
+
+    if (Object.keys(_timestamp).length > 0) {
+        query.Timestamp = _timestamp;
+    }
+
+    const trades = await TradesModel.find(query).sort({ Timestamp: -1 }).lean();
+    return JSON.parse(JSON.stringify(trades))
+}

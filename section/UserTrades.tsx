@@ -6,19 +6,22 @@ import { Direction, IUserInfoRuntime, TradeMetrics } from '@/interfaces';
 import { ITrades } from '@/schema/trades';
 import { formatCurrency } from '@/utils';
 import Footer from './Footer';
+import { getUserTrades } from '@/app/actions/trades.actions';
 
 export interface UserTradesProps {
     targetUser: IUserInfoRuntime | null
 }
 
 const Trades = ({ targetUser }: UserTradesProps) => {
+    const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
     const [userTrades, setUserTrades] = useState<ITrades[]>([]);
     const [activePreset, setActivePreset] = useState<'today' | 'yesterday' | '7days' | 'all'>("today");
     const [loading, setLoading] = useState(false);
     const [targetDates, setTargetDates] = useState({
-        fromDate: "",
-        toDate: ""
+        fromDate: todayStr,
+        toDate: todayStr
     });
+
     const router = useRouter();
 
     const metrics = useMemo<TradeMetrics>(() => {
@@ -80,11 +83,47 @@ const Trades = ({ targetUser }: UserTradesProps) => {
     };
 
     const handleSetPreset = (preset: 'today' | 'yesterday' | '7days' | 'all') => {
+        const now = new Date();
+        let from = todayStr;
+        let to = todayStr;
+
+        if (preset === 'today') {
+            from = todayStr;
+            to = todayStr;
+        } else if (preset === 'yesterday') {
+            const yest = new Date(now.getTime() - 86400000);
+            from = yest.toISOString().split('T')[0];
+            to = from;
+        } else if (preset === '7days') {
+            const past = new Date(now.getTime() - 7 * 86400000);
+            from = past.toISOString().split('T')[0];
+            to = todayStr;
+        } else if (preset === 'all') {
+            from = '';
+            to = '';
+        }
+
+        setTargetDates({
+            fromDate: from,
+            toDate: to
+        });
         setActivePreset(preset);
     }
 
-    const handleApplyFilter = (e?: React.FormEvent) => {
+    useEffect(() => {
+        fetchTrades();
+    }, [activePreset])
 
+    const fetchTrades = async () => {
+        setLoading(true);
+        const _trades = await getUserTrades(targetUser?.BotID || "", targetDates);
+        setUserTrades(_trades);
+        setLoading(false);
+    }
+
+    const handleApplyFilter = (e?: React.FormEvent) => {
+        e?.preventDefault();
+        fetchTrades();
     }
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -372,7 +411,7 @@ const Trades = ({ targetUser }: UserTradesProps) => {
                                             : 'N/A';
 
                                         return (
-                                            <tr key={t.uid || t.orderId} className="hover:bg-zinc-900/50 transition-colors">
+                                            <tr key={t.uid + t.orderId} className="hover:bg-zinc-900/50 transition-colors">
                                                 <td className="py-3 px-3 text-zinc-400 text-[11px] whitespace-nowrap">{formattedDate}</td>
                                                 <td className="py-3 px-3 font-semibold text-white">{t.symbol}</td>
                                                 <td className="py-3 px-3">
