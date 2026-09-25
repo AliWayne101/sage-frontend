@@ -21,7 +21,7 @@ const Footer = () => {
                 </div>
 
                 <div className="text-[11px] text-zinc-400 flex items-center gap-2">
-                    <span>&copy; {new Date().getFullYear()} Wayne Development. All rights reserved.</span>
+                    <span>&copy; {new Date().getFullYear()} SAGE. All rights reserved.</span>
                 </div>
             </div>
         </footer>

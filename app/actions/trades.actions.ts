@@ -39,20 +39,17 @@ export const generateDailyTradeAnalytics = async (
     if (targetEmail !== session.user.email && session.user.accountType !== SUPER_USER_ROLE)
         return null;
 
-    // 1. Calculate start boundary based on dynamic `days` parameter
     const now = new Date();
     const startDate = new Date(now);
     startDate.setDate(now.getDate() - (days - 1));
     startDate.setHours(0, 0, 0, 0);
 
-    // 2. Fetch trades matching user, status, and Timestamp strictly
     const trades = await TradesModel.find({
         BotID: user.BotID,
         isFilled: true,
         Timestamp: { $gte: startDate }
     }).sort({ Timestamp: 1 }).lean();
 
-    // 3. Map structure for daily tracking
     const dailyMap = new Map<string, { fee: number; pnl: number }>();
 
     for (let i = 0; i < days; i++) {
@@ -63,7 +60,6 @@ export const generateDailyTradeAnalytics = async (
         dailyMap.set(dateKey, { fee: 0, pnl: 0 });
     }
 
-    // 4. Process all trades strictly using `Timestamp`
     trades.forEach((t) => {
         const tradeDate = new Date(t.Timestamp);
         const dateKey = `${tradeDate.getFullYear()}-${String(tradeDate.getMonth() + 1).padStart(2, '0')}-${String(tradeDate.getDate()).padStart(2, '0')}`;
@@ -80,7 +76,6 @@ export const generateDailyTradeAnalytics = async (
         }
     });
 
-    // 5. Construct both datasets in a single loop
     let runningPnl = 0;
     let totalFees = 0;
 
@@ -97,7 +92,6 @@ export const generateDailyTradeAnalytics = async (
             day: 'numeric',
         });
 
-        // Dataset 1: Cumulative PnL Line Chart
         cumulativePnlData.push({
             id: idx + 1,
             date: formattedDate,
@@ -105,7 +99,6 @@ export const generateDailyTradeAnalytics = async (
             value2: parseFloat(metrics.pnl.toFixed(2))
         });
 
-        // Dataset 2: Fee & PnL Breakdown Bar Chart
         breakdownChartData.push({
             day: formattedDate,
             fee: parseFloat(metrics.fee.toFixed(3)),
