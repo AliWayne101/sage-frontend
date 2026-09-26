@@ -20,6 +20,7 @@ export const SECRET_PLACEHOLDER = "********";
 export const SUPER_USER_ROLE = "SUPER";
 export const SERVER_ADDRESS = "http://localhost:4000";
 export const LOAD_INTERVAL = 4000; //4 seconds
+export const SAGE_FEE_PERCENTAGE = 40; //40%
 export const DEFAULT_ASSET_PAIRS = [
     'ETHUSDT',
     'BTCUSDT',

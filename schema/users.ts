@@ -45,6 +45,7 @@ export interface IUserInfo {
     AvoidLiquidation: boolean;
     LockUntil: Date | null;
     ConnectedAccounts: IConnectedAccount[];
+    SUKillSwitch: boolean;
 }
 
 const User = new Schema<IUserInfo>({
@@ -89,7 +90,8 @@ const User = new Schema<IUserInfo>({
             }
         ],
         default: []
-    }
+    },
+    SUKillSwitch: { type: Boolean, deault: false }
 });
 
 let UserModel: Model<IUserInfo>;

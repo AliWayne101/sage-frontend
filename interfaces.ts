@@ -16,6 +16,7 @@ export interface LineChartData {
 }
 
 export interface BotHeartbeat {
+    BotID: string;
     Balance: number;
     Demo: boolean;
     Status: string;
@@ -77,14 +78,22 @@ interface ConditionsProps {
     }
 }
 
+export interface SetupTrackerConfig {
+    enableStructuralReversal?: boolean;
+    requireBBReentry?: boolean;
+    requireStructureBreak?: boolean;
+    bbReentryWindow?: number;
+    structureBreakWindow?: number;
+    invalidateNewExtreme?: boolean;
+}
+
 export interface Strategy {
     name: string;
-    TriggerWindowBars?: number;
     description?: string;
     MaxCandlesHistory: number;
     MinBalanceRequired?: number;
     KLine?: string;
-    InvalidateNewExtreme?: boolean;
+    setup?: SetupTrackerConfig;
     entry: {
         direction: {
             long: ConditionsProps;
@@ -138,4 +147,11 @@ export interface TradeMetrics {
     totalCommission: number,
     totalNetProfit: number,
     totalFees: number
+}
+
+export interface TradesStatsResults {
+  _id: null;
+  totalRealizedProfit: number;
+  count: number;
+  avgProfitPerc: number;
 }

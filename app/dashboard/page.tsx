@@ -329,7 +329,7 @@ const Dashboard = () => {
                                     >
                                         <div className="flex items-center gap-2">
                                             <Users className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                                            <span>All Bots & User Profiles</span>
+                                            <span>User Profiles</span>
                                         </div>
                                         <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-800/80">
                                             SUPER

@@ -39,6 +39,21 @@ export const getUserByBotID = async (botID: string): Promise<IUserInfoRuntime | 
     return JSON.parse(JSON.stringify(returnObj));
 }
 
+export const getAllUsers = async (): Promise<IUserInfoRuntime[]> => {
+    await connectDB();
+    const session = await getSession();
+    if (!session) return [];
+
+    const users = await UserModel.find({}).select("-Password").lean();
+    if (!users || users.length === 0) return [];
+
+    if (session.user.accountType !== SUPER_USER_ROLE)
+        return [];
+
+    const returnObj = users.map((user) => PlainUser(user));
+    return JSON.parse(JSON.stringify(returnObj));
+}
+
 export const updateUser = async (data: IUserInfoRuntime): Promise<IUserInfoRuntime | null> => {
     await connectDB();
     const session = await getSession();
@@ -137,4 +152,20 @@ const PlainUser = (userData: IUserInfo): IUserInfoRuntime => {
         DecryptedSecret: decSec
     }
     return returnObj
+}
+
+export const updateKillSwich = async (BotID: string, currentState: boolean): Promise<IUserInfoRuntime | null> => {
+    await connectDB();
+    const session = await getSession();
+    if (!session || session.user.accountType !== SUPER_USER_ROLE) return null;
+
+    const updatedUser = await UserModel.findOneAndUpdate(
+        { BotID: BotID },
+        { $set: { SUKillSwitch: !currentState } },
+        { new: true }
+    ).select("-Password").lean();
+
+    if (!updatedUser) return null;
+    const returnObj = PlainUser(updatedUser);
+    return JSON.parse(JSON.stringify(returnObj));
 }

@@ -43,7 +43,7 @@ const Trades = new Schema<ITrades>({
     Reason: { type: String, default: "" },
     Demo: { type: Boolean, required: true }
 });
-
+Trades.index({ BotID: 1, Demo: 1 });
 let TradesModel: Model<ITrades>;
 try {
     TradesModel = mongoose.model<ITrades>("trades");
