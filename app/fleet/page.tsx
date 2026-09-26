@@ -1,7 +1,8 @@
 "use client"
+import ConfirmationModal from '@/components/ConfirmationModal';
 import { IUserInfoRuntime } from '@/interfaces';
 import Footer from '@/section/Footer';
-import { ArrowLeft, RefreshCw, ShieldCheck, Sparkles, UserPlus } from 'lucide-react';
+import { Activity, ArrowLeft, CheckCircle2, ChevronRight, DollarSign, ExternalLink, Key, Layers, Power, RefreshCw, ShieldCheck, Sliders, Sparkles, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useState } from 'react'
 
