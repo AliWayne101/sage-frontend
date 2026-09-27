@@ -1,14 +1,15 @@
 "use server"
 
 import { SECRET_PLACEHOLDER, SUPER_USER_ROLE } from "@/constants"
-import { IUserInfoRuntime } from "@/interfaces"
+import { IDecryptedKeys, IUserInfoRuntime } from "@/interfaces"
 import { decrypt, encrypt } from "@/lib/encryption"
 import { connectDB } from "@/lib/mongoose"
 import { getSession } from "@/lib/nextauth"
 import { HashPassword } from "@/lib/serverUtils"
-import UserModel, { IUserInfo } from "@/schema/users"
+import UserModel, { IBinanceAPIKey, IUserInfo } from "@/schema/users"
 import mongoose from "mongoose"
 import { server } from "./server.actions"
+import { generateID } from "@/utils"
 
 export const getUserByEmail = async (email: string): Promise<IUserInfoRuntime | null> => {
     await connectDB();
@@ -90,13 +91,57 @@ export const updateUser = async (data: IUserInfoRuntime): Promise<IUserInfoRunti
         ...rest
     };
 
-    // Only populate credentials if they are missing from the database.
-    if (!user.ApiKey?.encrypted && DecryptedKey.length > 0) {
-        updateData.ApiKey = encrypt(DecryptedKey);
-    }
+    const newKeys = DecryptedAPIKeys.filter((e) => e.id === "new");
 
-    if (!user.ApiSecret?.encrypted && DecryptedSecret.length > 0 && DecryptedSecret !== SECRET_PLACEHOLDER) {
-        updateData.ApiSecret = encrypt(DecryptedSecret);
+    if (newKeys.length > 0) {
+        const existingAPIKeys = user.APIKeys ?? [];
+
+        const existingDecryptedKeys = existingAPIKeys
+            .filter((key) => key.apiKey)
+            .map((key) => ({
+                apiKey: decrypt(key.apiKey!),
+                isDemo: key.isDemo
+            }));
+
+        const constructedKeys: IBinanceAPIKey[] = [];
+
+        for (const newKey of newKeys) {
+            if (!newKey.DecryptedKey || !newKey.DecryptedSecret) continue;
+
+            const keyAlreadyExists = existingDecryptedKeys.some(
+                (existingKey) =>
+                    existingKey.apiKey === newKey.DecryptedKey
+            );
+
+            if (keyAlreadyExists) continue;
+
+            const sideAlreadyExists = [
+                ...existingDecryptedKeys,
+                ...constructedKeys
+            ].some(
+                (existingKey) =>
+                    existingKey.isDemo === newKey.isDemo
+            );
+
+            if (sideAlreadyExists) {
+                continue;
+            }
+
+            constructedKeys.push({
+                id: `SAGE-API-${generateID()}`,
+                isDemo: newKey.isDemo,
+                label: newKey.label,
+                apiKey: encrypt(newKey.DecryptedKey),
+                apiSecret: encrypt(newKey.DecryptedSecret)
+            });
+        }
+
+        if (constructedKeys.length > 0) {
+            updateData.APIKeys = [
+                ...existingAPIKeys,
+                ...constructedKeys
+            ];
+        }
     }
 
     const updatedUser = await UserModel.findOneAndUpdate(
@@ -118,7 +163,7 @@ export const createUser = async (userData: Partial<IUserInfoRuntime>): Promise<I
 
     if (session.user.accountType !== SUPER_USER_ROLE) return null;
 
-    const { DecryptedKey, DecryptedSecret, DecryptedAPIKeys, Password, ...rest } = userData;
+    const { DecryptedAPIKeys, Password, ...rest } = userData;
     if (!Password) return null;
     const hashedPassword = await HashPassword(Password);
 
@@ -129,13 +174,17 @@ export const createUser = async (userData: Partial<IUserInfoRuntime>): Promise<I
         Password: hashedPassword
     }
 
-    if (DecryptedKey && DecryptedKey.length > 0) {
-        newUser.ApiKey = encrypt(DecryptedKey);
-    }
+    const constructedKeys: IBinanceAPIKey[] = DecryptedAPIKeys?.map((key) => {
+        return {
+            id: `SAGE-API-${generateID()}`,
+            isDemo: key.isDemo,
+            label: key.label,
+            apiKey: encrypt(key.DecryptedKey),
+            apiSecret: encrypt(key.DecryptedSecret)
+        }
+    }) || [];
 
-    if (DecryptedSecret && DecryptedSecret.length > 0 && DecryptedSecret !== SECRET_PLACEHOLDER) {
-        newUser.ApiSecret = encrypt(DecryptedSecret);
-    }
+    newUser.APIKeys = constructedKeys;
 
     const createdUser = await UserModel.create(newUser);
     const plainUser = PlainUser(createdUser.toObject());
@@ -144,15 +193,21 @@ export const createUser = async (userData: Partial<IUserInfoRuntime>): Promise<I
 }
 
 const PlainUser = (userData: IUserInfo): IUserInfoRuntime => {
-    const { ApiKey, ApiSecret, ...plainUser } = userData;
+    const { APIKeys, ...plainUser } = userData;
 
-    const decKey = ApiKey?.encrypted ? decrypt(ApiKey) : "";
-    const decSec = ApiSecret?.encrypted ? SECRET_PLACEHOLDER : "";
-
+    const dec: IDecryptedKeys[] = APIKeys.map((e) => {
+        return {
+            id: e.id,
+            isDemo: e.isDemo,
+            label: e.label,
+            DecryptedKey: e.apiKey?.encrypted ? decrypt(e.apiKey!) : "",
+            DecryptedSecret: e.apiSecret?.encrypted ? "*".repeat(decrypt(e.apiSecret).length) : SECRET_PLACEHOLDER,
+            createdAt: e.createdAt
+        }
+    })
     const returnObj = {
         ...plainUser,
-        DecryptedKey: decKey,
-        DecryptedSecret: decSec
+        DecryptedAPIKeys: dec
     }
     return returnObj
 }

@@ -38,3 +38,16 @@ export function generateSageID(totalLength: number = 6): string {
 
     return `${PREFIX}${randomString}`;
 }
+
+export function generateID(totalLength: number = 12): string {
+    const charset = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz";
+
+    const randomBytes = crypto.randomBytes(totalLength);
+    let randomString = "";
+
+    for (let i = 0; i < totalLength; i++) {
+        randomString += charset[randomBytes[i] % charset.length];
+    }
+
+    return randomString;
+}

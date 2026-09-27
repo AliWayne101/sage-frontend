@@ -10,9 +10,9 @@ export interface IBinanceAPIKey {
     id: string;
     label: string;
     isDemo: boolean;
-    apiKey: IEncryptedCredential;
-    apiSecret: IEncryptedCredential;
-    createdAt: Date;
+    apiKey?: IEncryptedCredential;
+    apiSecret?: IEncryptedCredential;
+    createdAt?: Date;
 }
 
 const EncryptedCredentialSchema = new Schema<IEncryptedCredential>(
