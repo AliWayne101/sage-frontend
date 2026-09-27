@@ -494,7 +494,7 @@ const Fleet = () => {
                                         <span className="text-[10px] text-zinc-500 uppercase block">System Status</span>
                                         <span className="text-emerald-400 font-medium flex items-center gap-1">
                                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                            Under Development
+                                            {heartBeats.find((e) => e.BotID === selectedBot.BotID)?.Status || "Loading.."}
                                         </span>
                                     </div>
                                     <div className="bg-[#09090b] border border-[#27272a] p-2.5 rounded">
