@@ -1,5 +1,5 @@
 import { CustomLineChartInsideData } from "./components/CustomLineChart";
-import { IUserInfo } from "./schema/users";
+import { IBinanceAPIKey, IUserInfo } from "./schema/users";
 
 export interface SessionUser {
     name: string;
@@ -110,6 +110,12 @@ export interface Strategy {
 }
 
 export interface IUserInfoRuntime extends IUserInfo {
+    DecryptedKey: string;
+    DecryptedSecret: string;
+    DecryptedAPIKeys: IDecryptedKeys[];
+}
+
+export interface IDecryptedKeys extends IBinanceAPIKey {
     DecryptedKey: string;
     DecryptedSecret: string;
 }
