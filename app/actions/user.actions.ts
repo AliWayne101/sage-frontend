@@ -68,8 +68,10 @@ export const updateUser = async (data: IUserInfoRuntime): Promise<IUserInfoRunti
 
     // Remove runtime-only fields and prevent client-supplied
     const {
+        _id,
         DecryptedKey,
         DecryptedSecret,
+        DecryptedAPIKeys,
         BotID,
         UID,
         AccountType,
@@ -79,8 +81,8 @@ export const updateUser = async (data: IUserInfoRuntime): Promise<IUserInfoRunti
         IsActive,
         Password,
         ConnectedAccounts,
-        ApiKey: _ApiKey,
-        ApiSecret: _ApiSecret,
+        APIKeys,
+        LockUntil,
         ...rest
     } = data;
 
@@ -116,7 +118,7 @@ export const createUser = async (userData: Partial<IUserInfoRuntime>): Promise<I
 
     if (session.user.accountType !== SUPER_USER_ROLE) return null;
 
-    const { DecryptedKey, DecryptedSecret, Password, ...rest } = userData;
+    const { DecryptedKey, DecryptedSecret, DecryptedAPIKeys, Password, ...rest } = userData;
     if (!Password) return null;
     const hashedPassword = await HashPassword(Password);
 
