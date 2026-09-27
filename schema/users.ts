@@ -51,8 +51,6 @@ export interface IUserInfo {
     AccountType: string;
     StrategyName?: string;
     Leverage: number;
-    ApiKey?: IEncryptedCredential;
-    ApiSecret?: IEncryptedCredential;
     Symbol?: string;
     IsActive: boolean;
     PNL: number;
@@ -77,14 +75,6 @@ const User = new Schema<IUserInfo>({
     AccountType: { type: String, default: 'USER' },
     StrategyName: { type: String, default: "" },
     Leverage: { type: Number, default: 1 },
-    ApiKey: {
-        type: EncryptedCredentialSchema,
-        required: false,
-    },
-    ApiSecret: {
-        type: EncryptedCredentialSchema,
-        required: false,
-    },
     Symbol: { type: String, default: '' },
     IsActive: { type: Boolean, default: true },
     PNL: { type: Number, default: 0 },
@@ -113,7 +103,7 @@ const User = new Schema<IUserInfo>({
         ],
         default: []
     },
-    SUKillSwitch: { type: Boolean, deault: false },
+    SUKillSwitch: { type: Boolean, default: false },
     APIKeys: { type: [BinanceAPIKeySchema], default: [] }
 });
 
