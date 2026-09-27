@@ -8,6 +8,7 @@ import { getSession } from "@/lib/nextauth"
 import { HashPassword } from "@/lib/serverUtils"
 import UserModel, { IUserInfo } from "@/schema/users"
 import mongoose from "mongoose"
+import { server } from "./server.actions"
 
 export const getUserByEmail = async (email: string): Promise<IUserInfoRuntime | null> => {
     await connectDB();
@@ -168,4 +169,35 @@ export const updateKillSwich = async (BotID: string, currentState: boolean): Pro
     if (!updatedUser) return null;
     const returnObj = PlainUser(updatedUser);
     return JSON.parse(JSON.stringify(returnObj));
+}
+
+export const updateUserDemoMode = async (targetEmail: string, isDemo: boolean): Promise<IUserInfoRuntime | null> => {
+    await connectDB();
+    if (targetEmail.length === 0) return null;
+    const session = await getSession();
+    if (!session) return null;
+
+    if (session.user.email !== targetEmail && session.user.accountType !== SUPER_USER_ROLE)
+        return null;
+
+    const updatedUser = await UserModel.findOneAndUpdate(
+        { Email: targetEmail },
+        { $set: { Demo: isDemo } },
+        { new: true }
+    ).select("-Password").lean();
+
+    if (!updatedUser) return null;
+
+    const response = await server({ request: "forceClose" });
+    if (!response.success) {
+        const fallbackUpdate = await UserModel.findOneAndUpdate(
+            { Email: targetEmail },
+            { $set: { Demo: !isDemo } },
+            { new: true }
+        ).select("-Password").lean();
+        return null;
+    }
+
+    const plainUser = PlainUser(updatedUser);
+    return JSON.parse(JSON.stringify(plainUser))
 }

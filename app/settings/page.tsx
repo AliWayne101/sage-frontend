@@ -1,13 +1,14 @@
 "use client"
-import { Lock, AlertTriangle, ArrowLeft, CheckCircle2, Compass, Eye, EyeOff, Key, Radio, Scale, Shield, Sliders, DollarSign, RefreshCw, Save } from 'lucide-react'
+import { Lock, AlertTriangle, ArrowLeft, CheckCircle2, Compass, Eye, EyeOff, Key, Radio, Scale, Shield, Sliders, DollarSign, RefreshCw, Save, AlertOctagon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../AuthProvider';
 import Footer from '@/section/Footer';
 import { IUserInfoRuntime, Strategy } from '@/interfaces';
 import { formatCurrency, getTradingSymbols } from '@/utils';
-import { getUserByEmail, updateUser } from '../actions/user.actions';
+import { getUserByEmail, updateUser, updateUserDemoMode } from '../actions/user.actions';
 import { server } from '../actions/server.actions';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 const Settings = () => {
     const [saveSuccess, setSaveSuccess] = useState(false);
@@ -18,6 +19,8 @@ const Settings = () => {
     const [strategies, setStrategies] = useState<Strategy[]>([]);
     const [selectedStrategy, setSelectedStrategy] = useState<Strategy | undefined>(undefined);
     const [assetPairs, setAssetPairs] = useState<string[]>([]);
+    const [isModeModalOpen, setIsModeModalOpen] = useState(false);
+    const [isChangingMode, setIsChangingMode] = useState(false);
 
     const router = useRouter();
     const { user } = useAuth();
@@ -70,7 +73,6 @@ const Settings = () => {
                     setErrorMessage("Unable to load the user data");
                     return;
                 }
-
                 setUserData(data);
             } catch (error) {
                 console.error("Failed to load user:", error);
@@ -85,6 +87,33 @@ const Settings = () => {
         }
         loadUser();
     }, [user])
+
+    const handleRequestModeChange = async (targetDemo: boolean) => {
+        if (targetDemo === userData?.Demo) return;
+        setIsModeModalOpen(true);
+    };
+
+    const handleConfirmModeChange = async () => {
+        setIsChangingMode(true);
+        setErrorMessage(null);
+
+        try {
+            const updated = await updateUserDemoMode(user?.email || "", !userData?.Demo);
+            if (!updated) {
+                setErrorMessage("There seems to be an error updating execution mode");
+                return;
+            }
+            setUserData({
+                ...userData,
+                Demo: updated.Demo,
+            } as IUserInfoRuntime);
+            setIsModeModalOpen(false);
+        } catch (err: any) {
+            setErrorMessage(err.message || 'Failed to switch Execution Mode Protocol');
+        } finally {
+            setIsChangingMode(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans">
@@ -152,7 +181,6 @@ const Settings = () => {
                                     <input
                                         type={showKey ? 'text' : 'password'}
                                         name='DecryptedKey'
-                                        disabled={userData?.ApiKey !== null || undefined ? false : true}
                                         value={userData?.DecryptedKey}
                                         onChange={handleChange}
                                         placeholder="Enter 64-char Binance API Key"
@@ -178,7 +206,6 @@ const Settings = () => {
                                     <input
                                         type={userData?.ApiSecret !== null || undefined ? "password" : "text"}
                                         name="DecryptedSecret"
-                                        disabled={userData?.ApiSecret !== null || undefined ? false : true}
                                         value={userData?.DecryptedSecret}
                                         onChange={handleChange}
                                         placeholder="Enter Binance Secret Key"
@@ -319,48 +346,65 @@ const Settings = () => {
                         </div>
 
                         <div className="space-y-4 sm:space-y-5 pt-1">
-                            {/* Demo / Live Switch Toggle (Requested in Engine Config) */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-[#09090b] border border-[#27272a] rounded gap-3">
-                                <div className="space-y-1 sm:pr-4">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <Radio className={`w-3.5 h-3.5 shrink-0 ${userData?.Demo ? 'text-amber-400' : 'text-emerald-400'}`} />
-                                        <span className="text-xs font-mono font-medium text-zinc-200">
-                                            Execution Mode Protocol
-                                        </span>
-                                        <span
-                                            className={`text-[9.5px] sm:text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${userData?.Demo
-                                                ? 'bg-amber-950/60 text-amber-400 border-amber-800'
-                                                : 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
-                                                }`}
-                                        >
-                                            {userData?.Demo ? 'DEMO MODE' : 'LIVE TRADING'}
-                                        </span>
+
+                            <div className="p-3.5 sm:p-4 bg-[#09090b] border border-[#27272a] rounded-lg space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="space-y-1 sm:pr-4">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Radio className={`w-3.5 h-3.5 shrink-0 ${userData?.Demo ? 'text-amber-400' : 'text-emerald-400'}`} />
+                                            <span className="text-xs font-mono font-medium text-zinc-200">
+                                                Execution Mode Protocol
+                                            </span>
+                                            <span
+                                                className={`text-[9.5px] sm:text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${userData?.Demo
+                                                    ? 'bg-amber-950/60 text-amber-400 border-amber-800'
+                                                    : 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                                                    }`}
+                                            >
+                                                {userData?.Demo ? 'DEMO MODE (SANDBOX)' : 'LIVE TRADING'}
+                                            </span>
+                                        </div>
+                                        <p className="text-[10.5px] sm:text-[11px] text-zinc-500 font-mono leading-relaxed">
+                                            {userData?.Demo
+                                                ? 'Paper trading sandbox: simulated order fills and margin tracking without risking real capital.'
+                                                : 'Live execution: places real USDT-Margined perpetual futures contracts directly on Binance.'}
+                                        </p>
                                     </div>
-                                    <p className="text-[10.5px] sm:text-[11px] text-zinc-500 font-mono leading-relaxed">
-                                        {userData?.Demo
-                                            ? 'Paper trading sandbox: simulated order fills and margin tracking without risking real capital.'
-                                            : 'Live execution: places real USDT-Margined perpetual futures contracts directly on Binance.'}
-                                    </p>
+
+                                    <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-center">
+                                        {/* Explicit protocol pills */}
+                                        <div className="inline-flex rounded p-0.5 bg-zinc-900 border border-zinc-800">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRequestModeChange(true)}
+                                                className={`px-2.5 py-1 text-[10.5px] font-mono rounded transition-colors ${userData?.Demo
+                                                    ? 'bg-amber-600 text-white font-semibold shadow-sm'
+                                                    : 'text-zinc-400 hover:text-zinc-200'
+                                                    }`}
+                                            >
+                                                DEMO
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRequestModeChange(false)}
+                                                className={`px-2.5 py-1 text-[10.5px] font-mono rounded transition-colors ${!userData?.Demo
+                                                    ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+                                                    : 'text-zinc-400 hover:text-zinc-200'
+                                                    }`}
+                                            >
+                                                LIVE
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setUserData({
-                                            ...userData!,
-                                            Demo: !userData?.Demo
-                                        })
-                                    }}
-                                    className={`w-12 h-6 rounded-full transition-colors relative p-0.5 border shrink-0 ${!userData?.Demo
-                                        ? 'bg-emerald-600 border-emerald-500'
-                                        : 'bg-amber-600 border-amber-500'
-                                        }`}
-                                    title="Toggle Live / Demo execution"
-                                >
-                                    <span
-                                        className={`block w-5 h-5 rounded-full bg-white transition-transform ${!userData?.Demo ? 'translate-x-6' : 'translate-x-0.5'}`}
-                                    />
-                                </button>
+                                {/* Safety Warning Note */}
+                                <div className="flex items-start gap-2 pt-2 border-t border-zinc-800/80 text-[10.5px] font-mono text-zinc-400">
+                                    <AlertOctagon className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                                    <span>
+                                        <strong className="text-zinc-300">Safety Protocol Gate:</strong> Switching Execution Mode Protocol requires confirmation. All active positions will be closed on current market.
+                                    </span>
+                                </div>
                             </div>
 
                             {/* Strategy Dropdown */}
@@ -538,6 +582,69 @@ const Settings = () => {
                         </button>
                     </div>
                 </form>
+
+                <ConfirmationModal
+                    isOpen={isModeModalOpen}
+                    onClose={() => setIsModeModalOpen(false)}
+                    onConfirm={handleConfirmModeChange}
+                    title={
+                        !userData?.Demo
+                            ? 'Switch Execution Mode to DEMO'
+                            : 'Switch Execution Mode to LIVE'
+                    }
+                    message="All the active positions will be closed on current market."
+                    description={
+                        userData?.Demo
+                            ? 'Switching from Live Trading to Demo Paper Trading terminates all active Binance perpetual futures contracts at the prevailing market price. Simulated sandbox paper funds will take effect.'
+                            : 'Switching from Demo Paper Sandbox to Live Trading terminates all active paper positions at the prevailing market price. Real Binance futures balance and live exchange API order routing will be activated.'
+                    }
+                    variant={userData?.Demo === false ? 'danger' : 'warning'}
+                    confirmText={
+                        !userData?.Demo
+                            ? 'Confirm Switch to DEMO (Close Active Positions)'
+                            : 'Confirm Switch to LIVE (Close Active Positions)'
+                    }
+                    cancelText="Cancel & Keep Current Mode"
+                    isLoading={isChangingMode}
+                    details={[
+                        {
+                            label: 'Target Bot ID',
+                            value: <span className="font-mono text-zinc-200">{userData?.BotID}</span>,
+                        },
+                        {
+                            label: 'Current Protocol',
+                            value: (
+                                <span
+                                    className={`font-mono font-bold ${userData?.Demo ? 'text-amber-400' : 'text-emerald-400'
+                                        }`}
+                                >
+                                    {userData?.Demo ? 'DEMO PAPER MODE' : 'LIVE TRADING'}
+                                </span>
+                            ),
+                        },
+                        {
+                            label: 'Requested Protocol',
+                            value: (
+                                <span
+                                    className={`font-mono font-bold ${!userData?.Demo ? 'text-amber-400' : 'text-emerald-400'
+                                        }`}
+                                >
+                                    {!userData?.Demo ? 'DEMO PAPER MODE' : 'LIVE TRADING'}
+                                </span>
+                            ),
+                        },
+                        {
+                            label: 'Market Action',
+                            value: (
+                                <span className="font-mono font-semibold text-rose-400">
+                                    All active positions will be closed on current market
+                                </span>
+                            ),
+                        },
+                    ]}
+                />
+
+
             </main>
 
             <Footer />
