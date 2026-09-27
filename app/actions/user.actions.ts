@@ -189,6 +189,7 @@ export const updateUserDemoMode = async (targetEmail: string, isDemo: boolean): 
     if (!updatedUser) return null;
 
     const response = await server({ request: "forceClose" });
+    const restart = await server({ request: "restart" });
     if (!response.success) {
         const fallbackUpdate = await UserModel.findOneAndUpdate(
             { Email: targetEmail },
