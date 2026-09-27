@@ -6,6 +6,15 @@ export interface IEncryptedCredential {
     authTag: string;
 }
 
+export interface IBinanceAPIKey {
+    id: string;
+    label: string;
+    isDemo: boolean;
+    apiKey: IEncryptedCredential;
+    apiSecret: IEncryptedCredential;
+    createdAt: Date;
+}
+
 const EncryptedCredentialSchema = new Schema<IEncryptedCredential>(
     {
         encrypted: { type: String, required: true },
@@ -14,6 +23,18 @@ const EncryptedCredentialSchema = new Schema<IEncryptedCredential>(
     },
     { _id: false }
 );
+
+const BinanceAPIKeySchema = new Schema<IBinanceAPIKey>(
+    {
+        id: { type: String, required: true },
+        label: { type: String, required: true },
+        isDemo: { type: Boolean, required: true },
+        apiKey: { type: EncryptedCredentialSchema, required: true },
+        apiSecret: { type: EncryptedCredentialSchema, required: true },
+        createdAt: { type: Date, default: Date.now, required: true },
+    },
+    { _id: false }
+)
 
 export interface IConnectedAccount {
     platform: "google" | "github" | "facebook" | "twitter" | "linkedin";
@@ -45,6 +66,7 @@ export interface IUserInfo {
     AvoidLiquidation: boolean;
     LockUntil: Date | null;
     ConnectedAccounts: IConnectedAccount[];
+    APIKeys: IBinanceAPIKey[];
     SUKillSwitch: boolean;
 }
 
@@ -91,7 +113,8 @@ const User = new Schema<IUserInfo>({
         ],
         default: []
     },
-    SUKillSwitch: { type: Boolean, deault: false }
+    SUKillSwitch: { type: Boolean, deault: false },
+    APIKeys: { type: [BinanceAPIKeySchema], default: [] }
 });
 
 let UserModel: Model<IUserInfo>;

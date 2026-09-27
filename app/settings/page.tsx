@@ -157,7 +157,7 @@ const Settings = () => {
 
                 <form onSubmit={handleSave} className="space-y-4 sm:space-y-6">
                     {/* Section 1: Binance API Configuration */}
-                    <section className="bg-[#121214] border border-[#27272a] rounded-lg p-3.5 sm:p-5 space-y-4">
+                    {/* <section className="bg-[#121214] border border-[#27272a] rounded-lg p-3.5 sm:p-5 space-y-4">
                         <div className="flex items-center gap-2 border-b border-[#27272a] pb-3">
                             <Key className="w-4 h-4 text-blue-400 shrink-0" />
                             <div>
@@ -171,7 +171,6 @@ const Settings = () => {
                         </div>
 
                         <div className="space-y-4 pt-1">
-                            {/* API Key */}
                             <div className="space-y-1.5">
                                 <label className="text-xs font-mono text-zinc-400 flex items-center justify-between">
                                     <span>API Key</span>
@@ -195,8 +194,6 @@ const Settings = () => {
                                     </button>
                                 </div>
                             </div>
-
-                            {/* API Secret */}
                             <div className="space-y-1.5">
                                 <label className="text-xs font-mono text-zinc-400 flex items-center justify-between">
                                     <span>API Secret</span>
@@ -213,6 +210,296 @@ const Settings = () => {
                                     />
                                 </div>
                             </div>
+                        </div>
+                    </section> */}
+
+                    <section className="bg-[#121214] border border-[#27272a] rounded-lg p-3.5 sm:p-5 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#27272a] pb-3">
+                            <div className="flex items-center gap-2">
+                                <Key className="w-4 h-4 text-blue-400 shrink-0" />
+                                <div>
+                                    <h2 className="text-xs font-mono uppercase tracking-wider font-semibold text-zinc-200">
+                                        Binance API Configuration
+                                    </h2>
+                                    <p className="text-[11px] text-zinc-500 font-mono">
+                                        Multi-key repository with labeled Live & Demo execution protocols
+                                    </p>
+                                </div>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={handleOpenAddKeyModal}
+                                className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-medium transition-colors shadow-sm"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add API Key</span>
+                            </button>
+                        </div>
+
+                        {/* Active Execution Mode Key Routing Status Banner */}
+                        <div className="p-3 bg-[#09090b] border border-zinc-800 rounded-lg space-y-1.5 text-xs font-mono">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Activity className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                    <span className="text-zinc-400">Current Execution Binding:</span>
+                                    <span
+                                        className={`font-bold px-1.5 py-0.5 rounded text-[10px] border ${demo
+                                                ? 'bg-amber-950/60 text-amber-400 border-amber-800'
+                                                : 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                                            }`}
+                                    >
+                                        {demo ? 'DEMO PAPER MODE' : 'LIVE TRADING'}
+                                    </span>
+                                </div>
+
+                                {(() => {
+                                    const activeKey = binanceKeys.find(
+                                        (k) => k.type === (demo ? 'demo' : 'live') && k.isActive
+                                    ) || binanceKeys.find((k) => k.type === (demo ? 'demo' : 'live'));
+
+                                    if (activeKey) {
+                                        return (
+                                            <div className="flex items-center gap-1.5 text-zinc-300 text-[11px]">
+                                                <span className="text-zinc-500">Routing orders to:</span>
+                                                <span className="text-zinc-100 font-semibold">{activeKey.label}</span>
+                                                <span className="text-zinc-500">
+                                                    ({activeKey.apiKey ? `${activeKey.apiKey.slice(0, 6)}...${activeKey.apiKey.slice(-4)}` : 'No Key'})
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <span className="text-amber-400 text-[10.5px]">
+                                            ⚠️ No active {demo ? 'Demo' : 'Live'} key configured. Add one below.
+                                        </span>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+
+                        {/* Filter Pills */}
+                        <div className="flex items-center gap-1.5 pt-1">
+                            <button
+                                type="button"
+                                onClick={() => setKeyFilter('all')}
+                                className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors ${keyFilter === 'all'
+                                        ? 'bg-zinc-800 text-white font-medium border border-zinc-700'
+                                        : 'text-zinc-400 hover:text-zinc-200'
+                                    }`}
+                            >
+                                All Keys ({binanceKeys.length})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setKeyFilter('live')}
+                                className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors flex items-center gap-1.5 ${keyFilter === 'live'
+                                        ? 'bg-emerald-950/80 text-emerald-300 font-medium border border-emerald-800'
+                                        : 'text-zinc-400 hover:text-zinc-200'
+                                    }`}
+                            >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                Live Keys ({binanceKeys.filter((k) => k.type === 'live').length})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setKeyFilter('demo')}
+                                className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors flex items-center gap-1.5 ${keyFilter === 'demo'
+                                        ? 'bg-amber-950/80 text-amber-300 font-medium border border-amber-800'
+                                        : 'text-zinc-400 hover:text-zinc-200'
+                                    }`}
+                            >
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                Demo Keys ({binanceKeys.filter((k) => k.type === 'demo').length})
+                            </button>
+                        </div>
+
+                        {/* Keys List */}
+                        <div className="space-y-3 pt-1">
+                            {(() => {
+                                const filteredKeys = binanceKeys.filter((k) => {
+                                    if (keyFilter === 'live') return k.type === 'live';
+                                    if (keyFilter === 'demo') return k.type === 'demo';
+                                    return true;
+                                });
+
+                                if (filteredKeys.length === 0) {
+                                    return (
+                                        <div className="p-6 text-center border border-dashed border-[#27272a] rounded-lg bg-[#09090b]/50 space-y-2">
+                                            <Key className="w-6 h-6 text-zinc-600 mx-auto" />
+                                            <p className="text-xs font-mono text-zinc-400">
+                                                {keyFilter === 'all'
+                                                    ? 'No Binance API keys configured yet.'
+                                                    : `No ${keyFilter === 'live' ? 'Live' : 'Demo'} API keys found.`}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={handleOpenAddKeyModal}
+                                                className="text-xs font-mono text-blue-400 hover:text-blue-300 underline"
+                                            >
+                                                + Add a new {keyFilter !== 'all' ? keyFilter : ''} Binance Key
+                                            </button>
+                                        </div>
+                                    );
+                                }
+
+                                return filteredKeys.map((item) => {
+                                    const isCurrentEngineMode = (demo && item.type === 'demo') || (!demo && item.type === 'live');
+                                    const isSecretRevealed = Boolean(revealedSecrets[item.id]);
+
+                                    return (
+                                        <div
+                                            key={item.id}
+                                            className={`bg-[#09090b] border rounded-lg p-3.5 sm:p-4 space-y-3 transition-colors ${item.isActive
+                                                    ? item.type === 'live'
+                                                        ? 'border-emerald-800/80 bg-emerald-950/10'
+                                                        : 'border-amber-800/80 bg-amber-950/10'
+                                                    : 'border-[#27272a] hover:border-zinc-700'
+                                                }`}
+                                        >
+                                            {/* Key Header */}
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <Tag className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                                                    <span className="font-mono text-xs font-semibold text-zinc-100">
+                                                        {item.label}
+                                                    </span>
+
+                                                    {/* Label Badge */}
+                                                    <span
+                                                        className={`text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${item.type === 'live'
+                                                                ? 'bg-emerald-950/70 text-emerald-400 border-emerald-800'
+                                                                : 'bg-amber-950/70 text-amber-400 border-amber-800'
+                                                            }`}
+                                                    >
+                                                        {item.type === 'live' ? 'LIVE TRADING' : 'DEMO SANDBOX'}
+                                                    </span>
+
+                                                    {/* Active Badge */}
+                                                    {item.isActive ? (
+                                                        <span className="flex items-center gap-1 text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border bg-blue-950/70 text-blue-400 border-blue-800">
+                                                            <CheckCircle className="w-3 h-3" />
+                                                            <span>ACTIVE FOR {item.type.toUpperCase()}</span>
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[9.5px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded">
+                                                            STANDBY
+                                                        </span>
+                                                    )}
+
+                                                    {isCurrentEngineMode && item.isActive && (
+                                                        <span className="text-[9.5px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-1.5 py-0.5 rounded">
+                                                            ● CURRENTLY IN USE
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Actions */}
+                                                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                                    {!item.isActive && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleSetActiveKey(item.id)}
+                                                            className="px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-[11px] font-mono transition-colors"
+                                                            title={`Set ${item.label} as active key for ${item.type} mode`}
+                                                        >
+                                                            Set Active
+                                                        </button>
+                                                    )}
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleOpenEditKeyModal(item)}
+                                                        className="p-1.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors"
+                                                        title="Edit key label or credentials"
+                                                    >
+                                                        <Edit3 className="w-3.5 h-3.5" />
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setKeyToDelete(item)}
+                                                        className="p-1.5 rounded bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/60 text-rose-300 hover:text-rose-200 transition-colors"
+                                                        title="Delete this API Key"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {/* Credentials Display */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs font-mono pt-1">
+                                                {/* API Key */}
+                                                <div className="bg-[#121214] border border-[#27272a] rounded p-2.5 space-y-1">
+                                                    <div className="flex items-center justify-between text-zinc-400 text-[10.5px]">
+                                                        <span>API KEY</span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleCopy(`key_${item.id}`, item.apiKey)}
+                                                            className="text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
+                                                            title="Copy API Key"
+                                                        >
+                                                            {copiedKeyId === `key_${item.id}` ? (
+                                                                <span className="text-emerald-400 flex items-center gap-0.5">
+                                                                    <Check className="w-3 h-3" /> Copied
+                                                                </span>
+                                                            ) : (
+                                                                <span className="flex items-center gap-0.5">
+                                                                    <Copy className="w-3 h-3" /> Copy
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                    <div className="font-mono text-zinc-200 break-all text-[11px]">
+                                                        {item.apiKey
+                                                            ? `${item.apiKey.slice(0, 12)}••••••••••••••••••••••••••••${item.apiKey.slice(-6)}`
+                                                            : 'None configured'}
+                                                    </div>
+                                                </div>
+
+                                                {/* API Secret */}
+                                                <div className="bg-[#121214] border border-[#27272a] rounded p-2.5 space-y-1">
+                                                    <div className="flex items-center justify-between text-zinc-400 text-[10.5px]">
+                                                        <span>API SECRET</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => toggleRevealSecret(item.id)}
+                                                                className="text-zinc-500 hover:text-zinc-300 flex items-center gap-0.5"
+                                                                title={isSecretRevealed ? 'Hide secret' : 'Reveal secret'}
+                                                            >
+                                                                {isSecretRevealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                                                <span>{isSecretRevealed ? 'Hide' : 'Show'}</span>
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleCopy(`secret_${item.id}`, item.apiSecret)}
+                                                                className="text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
+                                                                title="Copy API Secret"
+                                                            >
+                                                                {copiedKeyId === `secret_${item.id}` ? (
+                                                                    <span className="text-emerald-400 flex items-center gap-0.5">
+                                                                        <Check className="w-3 h-3" /> Copied
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="flex items-center gap-0.5">
+                                                                        <Copy className="w-3 h-3" /> Copy
+                                                                    </span>
+                                                                )}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="font-mono text-zinc-200 break-all text-[11px]">
+                                                        {isSecretRevealed
+                                                            ? item.apiSecret
+                                                            : '••••••••••••••••••••••••••••••••••••••••'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()}
                         </div>
                     </section>
 
