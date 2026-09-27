@@ -96,12 +96,11 @@ const Fleet = () => {
 
     const fetchFleet = async () => {
         setIsLoading(true);
+        const users = await getAllUsers();
+        setFleetData(users);
         try {
             const _hData = await server<BotHeartbeat[]>({ request: "allHeartbeats" });
             setHeartBeats(_hData);
-
-            const users = await getAllUsers();
-            setFleetData(users);
         } catch (error) {
             setActionMessage("There seems to be an error loading fleet data");
         } finally {

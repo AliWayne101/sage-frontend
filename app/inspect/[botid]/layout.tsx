@@ -5,12 +5,12 @@ import { getSession } from '@/lib/nextauth'
 import { redirect } from 'next/navigation';
 import React from 'react'
 
-interface TargetUserTradesProps {
+interface InspectUserLayoutProps {
     children: React.ReactNode,
     params: Promise<{ botid: string }>
 }
 
-const TargetUserTrades = async ({ children, params }: TargetUserTradesProps) => {
+const InspectUserLayout = async ({ children, params }: InspectUserLayoutProps) => {
     const session = await getSession();
     const user = session?.user ?? null;
     const { botid } = await params;
@@ -34,4 +34,4 @@ const TargetUserTrades = async ({ children, params }: TargetUserTradesProps) => 
     )
 }
 
-export default TargetUserTrades
+export default InspectUserLayout

@@ -72,9 +72,6 @@ const Settings = () => {
                 }
 
                 setUserData(data);
-
-                const strategies = await server<Strategy[]>({ request: "getStrategies" });
-                setStrategies(strategies);
             } catch (error) {
                 console.error("Failed to load user:", error);
                 setErrorMessage("Failed to load user data");
@@ -82,6 +79,9 @@ const Settings = () => {
 
             const pairs = await getTradingSymbols();
             setAssetPairs(pairs);
+
+            const strategies = await server<Strategy[]>({ request: "getStrategies" });
+            setStrategies(strategies);
         }
         loadUser();
     }, [user])
@@ -152,7 +152,7 @@ const Settings = () => {
                                     <input
                                         type={showKey ? 'text' : 'password'}
                                         name='apiKey'
-                                        disabled={userData?.DecryptedKey.length! > 0}
+                                        disabled={!userData?.DecryptedKey.trim() || false}
                                         value={userData?.DecryptedKey}
                                         onChange={handleChange}
                                         placeholder="Enter 64-char Binance API Key"
@@ -461,8 +461,8 @@ const Settings = () => {
                                             {selectedStrategy?.MaxCandlesHistory ?? 20} candles
                                         </span>
                                         <span className="text-[9px] sm:text-[9.5px] font-mono text-zinc-500 truncate block">
-                                            {selectedStrategy?.TriggerWindowBars
-                                                ? `Trigger: ${selectedStrategy.TriggerWindowBars} bars`
+                                            {selectedStrategy?.setup?.bbReentryWindow
+                                                ? `Trigger: ${selectedStrategy.setup?.bbReentryWindow} bars`
                                                 : 'Instant trigger'}
                                         </span>
                                     </div>
@@ -489,7 +489,7 @@ const Settings = () => {
                             <div className="bg-[#09090b] border border-[#27272a] p-3.5 sm:p-4 rounded space-y-1">
                                 <span className="text-[10.5px] sm:text-[11px] font-mono text-zinc-500 uppercase">Lifetime Realized PnL</span>
                                 <p className="text-lg sm:text-xl font-mono font-bold text-emerald-400">
-                                    +${formatCurrency(userData?.PNL ?? 0, 2)} USDT
+                                    +{formatCurrency(userData?.PNL ?? 0, 2)} USDT
                                 </p>
                                 <span className="text-[10px] sm:text-[10.5px] font-mono text-zinc-500 block">
                                     Aggregate profit across all closed positions
