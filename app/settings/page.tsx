@@ -151,8 +151,8 @@ const Settings = () => {
                                 <div className="relative">
                                     <input
                                         type={showKey ? 'text' : 'password'}
-                                        name='apiKey'
-                                        disabled={!userData?.DecryptedKey.trim() || false}
+                                        name='DecryptedKey'
+                                        disabled={userData?.ApiKey !== null || undefined ? false : true}
                                         value={userData?.DecryptedKey}
                                         onChange={handleChange}
                                         placeholder="Enter 64-char Binance API Key"
@@ -176,9 +176,9 @@ const Settings = () => {
                                 </label>
                                 <div className="relative">
                                     <input
-                                        type={userData?.DecryptedSecret.length! > 0 ? "password" : "text"}
-                                        name="apiSecret"
-                                        disabled={userData?.DecryptedSecret.length! > 0}
+                                        type={userData?.ApiSecret !== null || undefined ? "password" : "text"}
+                                        name="DecryptedSecret"
+                                        disabled={userData?.ApiSecret !== null || undefined ? false : true}
                                         value={userData?.DecryptedSecret}
                                         onChange={handleChange}
                                         placeholder="Enter Binance Secret Key"

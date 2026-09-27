@@ -59,14 +59,14 @@ const Fleet = () => {
     }, [statusFilter, fleetData])
 
     const filteredFleet = useMemo(() => {
-        if (!searchQuery.trim()) return filteredBots;
+        if (searchQuery.length < 1) return filteredBots;
         const query = searchQuery.toLowerCase();
         return filteredBots.filter((e) =>
             e.Name.toLowerCase().includes(query) ||
             e.Email.toLowerCase().includes(query) ||
             e.BotID.toLowerCase().includes(query)
         );
-    }, [filteredBots])
+    }, [filteredBots, searchQuery])
 
     useEffect(() => {
         const LoadData = async () => {
@@ -102,7 +102,7 @@ const Fleet = () => {
             const _hData = await server<BotHeartbeat[]>({ request: "allHeartbeats" });
             setHeartBeats(_hData);
         } catch (error) {
-            setActionMessage("There seems to be an error loading fleet data");
+            setActionMessage("There seems to be an error loading fleet heartbeat data");
         } finally {
             setIsLoading(false);
         }
