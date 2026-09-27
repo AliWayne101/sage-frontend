@@ -20,7 +20,7 @@ export const getRecentTrades = async (targetEmail: string, limit: number = 10): 
         return null;
 
     const trades = await TradesModel
-        .find({ BotID: user.BotID, isFilled: true })
+        .find({ BotID: user.BotID, isFilled: true, Demo: user.Demo })
         .sort({ Timestamp: -1 })
         .limit(limit)
         .lean();
@@ -36,7 +36,7 @@ export const generateDailyTradeAnalytics = async (
     const session = await getSession();
     if (!session) return null;
 
-    const user = await UserModel.findOne({ Email: session.user.email }).lean();
+    const user = await UserModel.findOne({ Email: targetEmail }).lean();
     if (!user) return null;
 
     if (targetEmail !== session.user.email && session.user.accountType !== SUPER_USER_ROLE)
@@ -50,6 +50,7 @@ export const generateDailyTradeAnalytics = async (
     const trades = await TradesModel.find({
         BotID: user.BotID,
         isFilled: true,
+        Demo: user.Demo,
         Timestamp: { $gte: startDate }
     }).sort({ Timestamp: 1 }).lean();
 
@@ -123,9 +124,19 @@ export const getUserTrades = async (botID: string, targetDates: { fromDate: stri
     await connectDB();
     if (!botID.trim()) return [];
 
+    const session = await getSession();
+    if (!session) return [];
+
+    const user = await UserModel.findOne({ BotID: botID }).lean();
+    if (!user) return [];
+
+    if (botID !== session.user.uid && session.user.accountType !== SUPER_USER_ROLE)
+        return [];
+
     let query: any = {
         BotID: botID,
         isFilled: true,
+        Demo: user.Demo
     };
 
     const _timestamp: Record<string, number> = {};
