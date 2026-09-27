@@ -64,7 +64,7 @@ export interface IUserInfo {
     AvoidLiquidation: boolean;
     LockUntil: Date | null;
     ConnectedAccounts: IConnectedAccount[];
-    APIKeys: IBinanceAPIKey[];
+    APIKeys?: IBinanceAPIKey[];
     SUKillSwitch: boolean;
 }
 

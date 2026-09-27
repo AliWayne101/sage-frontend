@@ -1,10 +1,10 @@
 "use client"
-import { Lock, AlertTriangle, ArrowLeft, CheckCircle2, Compass, Eye, EyeOff, Key, Radio, Scale, Shield, Sliders, DollarSign, RefreshCw, Save, AlertOctagon } from 'lucide-react'
+import { Lock, AlertTriangle, ArrowLeft, CheckCircle2, Compass, Key, Radio, Scale, Shield, Sliders, DollarSign, RefreshCw, Save, AlertOctagon, Plus, Activity, Tag, CheckCircle, Check, Copy, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../AuthProvider';
 import Footer from '@/section/Footer';
-import { IUserInfoRuntime, Strategy } from '@/interfaces';
+import { IDecryptedKeys, IUserInfoRuntime, Strategy } from '@/interfaces';
 import { formatCurrency, getTradingSymbols } from '@/utils';
 import { getUserByEmail, updateUser, updateUserDemoMode } from '../actions/user.actions';
 import { server } from '../actions/server.actions';
@@ -15,12 +15,22 @@ const Settings = () => {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [userData, setUserData] = useState<IUserInfoRuntime | undefined>(undefined);
-    const [showKey, setShowKey] = useState(false);
     const [strategies, setStrategies] = useState<Strategy[]>([]);
     const [selectedStrategy, setSelectedStrategy] = useState<Strategy | undefined>(undefined);
     const [assetPairs, setAssetPairs] = useState<string[]>([]);
     const [isModeModalOpen, setIsModeModalOpen] = useState(false);
     const [isChangingMode, setIsChangingMode] = useState(false);
+    const [keyFilter, setKeyFilter] = useState<"all" | "demo" | "live">("all");
+    const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+    const [newAPIKey, setNewAPIKey] = useState<IDecryptedKeys>({
+        DecryptedKey: "",
+        DecryptedSecret: "",
+        id: "",
+        isDemo: true,
+        label: "",
+    });
+    const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+    const [keyFormError, setKeyFormError] = useState<string | null>(null);
 
     const router = useRouter();
     const { user } = useAuth();
@@ -113,6 +123,69 @@ const Settings = () => {
         } finally {
             setIsChangingMode(false);
         }
+    }
+
+    const handleCopy = (id: string, text: string) => {
+        if (!text) return;
+        navigator.clipboard?.writeText(text);
+        setCopiedKeyId(id);
+        setTimeout(() => setCopiedKeyId(null), 2000);
+    }
+
+    const handleOpenAddKeyModal = () => {
+        setNewAPIKey({
+            DecryptedKey: "",
+            DecryptedSecret: "",
+            id: "",
+            isDemo: true,
+            label: "",
+        });
+        setKeyFormError(null);
+        setIsKeyModalOpen(true);
+    }
+
+    const handleApiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setNewAPIKey({
+            ...newAPIKey,
+            [e.target.name]: e.target.value
+        });
+    }
+
+    const handleSaveKeyForm = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!userData) return;
+
+        if (newAPIKey.label.length === 0) {
+            setKeyFormError('Label is required (e.g. "Main Futures (Live)", "Paper Sandbox")');
+            return;
+        }
+        if (newAPIKey.DecryptedKey.length === 0) {
+            setKeyFormError('Binance API Key is required');
+            return;
+        }
+        if (newAPIKey.DecryptedSecret.length === 0) {
+            setKeyFormError('Binance API Secret is required');
+            return;
+        }
+
+        const cleanApiKey = newAPIKey.DecryptedKey.trim();
+        const cleanApiSecret = newAPIKey.DecryptedSecret.trim();
+        const updatedKeys = [
+            ...userData.DecryptedAPIKeys,
+            {
+                ...newAPIKey,
+                DecryptedKey: cleanApiKey,
+                DecryptedSecret: cleanApiSecret
+            }
+        ];
+        const _userData: IUserInfoRuntime = { ...userData, DecryptedAPIKeys: updatedKeys}
+        const updatedUser = await updateUser(_userData);
+        if (!updatedUser) {
+            setErrorMessage("Unable to add the binance API");
+            return;
+        }
+        setUserData(updatedUser);
+        setIsKeyModalOpen(false);
     };
 
     return (
@@ -156,63 +229,6 @@ const Settings = () => {
                 )}
 
                 <form onSubmit={handleSave} className="space-y-4 sm:space-y-6">
-                    {/* Section 1: Binance API Configuration */}
-                    {/* <section className="bg-[#121214] border border-[#27272a] rounded-lg p-3.5 sm:p-5 space-y-4">
-                        <div className="flex items-center gap-2 border-b border-[#27272a] pb-3">
-                            <Key className="w-4 h-4 text-blue-400 shrink-0" />
-                            <div>
-                                <h2 className="text-xs font-mono uppercase tracking-wider font-semibold text-zinc-200">
-                                    Binance API Configuration
-                                </h2>
-                                <p className="text-[11px] text-zinc-500 font-mono">
-                                    HMAC SHA-256 API credentials with Futures Trading permissions
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4 pt-1">
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-mono text-zinc-400 flex items-center justify-between">
-                                    <span>API Key</span>
-                                    <span className="text-[10px] text-zinc-500 font-mono">Encrypted at rest with BotID salt</span>
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type={showKey ? 'text' : 'password'}
-                                        name='DecryptedKey'
-                                        value={userData?.DecryptedKey}
-                                        onChange={handleChange}
-                                        placeholder="Enter 64-char Binance API Key"
-                                        className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-200 outline-none pr-10"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowKey(!showKey)}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
-                                    >
-                                        {showKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-xs font-mono text-zinc-400 flex items-center justify-between">
-                                    <span>API Secret</span>
-                                    <span className="text-[10px] text-zinc-500 font-mono">HMAC SHA-256 Signature signing key</span>
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type={userData?.ApiSecret !== null || undefined ? "password" : "text"}
-                                        name="DecryptedSecret"
-                                        value={userData?.DecryptedSecret}
-                                        onChange={handleChange}
-                                        placeholder="Enter Binance Secret Key"
-                                        className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-200 outline-none pr-10"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </section> */}
-
                     <section className="bg-[#121214] border border-[#27272a] rounded-lg p-3.5 sm:p-5 space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#27272a] pb-3">
                             <div className="flex items-center gap-2">
@@ -230,6 +246,7 @@ const Settings = () => {
                             <button
                                 type="button"
                                 onClick={handleOpenAddKeyModal}
+                                disabled={userData ? userData.DecryptedAPIKeys.length > 1 ? true : false : true}
                                 className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-medium transition-colors shadow-sm"
                             >
                                 <Plus className="w-3.5 h-3.5" />
@@ -244,19 +261,17 @@ const Settings = () => {
                                     <Activity className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                                     <span className="text-zinc-400">Current Execution Binding:</span>
                                     <span
-                                        className={`font-bold px-1.5 py-0.5 rounded text-[10px] border ${demo
-                                                ? 'bg-amber-950/60 text-amber-400 border-amber-800'
-                                                : 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                                        className={`font-bold px-1.5 py-0.5 rounded text-[10px] border ${userData?.Demo
+                                            ? 'bg-amber-950/60 text-amber-400 border-amber-800'
+                                            : 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
                                             }`}
                                     >
-                                        {demo ? 'DEMO PAPER MODE' : 'LIVE TRADING'}
+                                        {userData?.Demo ? 'DEMO PAPER MODE' : 'LIVE TRADING'}
                                     </span>
                                 </div>
 
                                 {(() => {
-                                    const activeKey = binanceKeys.find(
-                                        (k) => k.type === (demo ? 'demo' : 'live') && k.isActive
-                                    ) || binanceKeys.find((k) => k.type === (demo ? 'demo' : 'live'));
+                                    const activeKey = userData?.DecryptedAPIKeys.find((key) => key.isDemo === userData?.Demo);
 
                                     if (activeKey) {
                                         return (
@@ -264,14 +279,14 @@ const Settings = () => {
                                                 <span className="text-zinc-500">Routing orders to:</span>
                                                 <span className="text-zinc-100 font-semibold">{activeKey.label}</span>
                                                 <span className="text-zinc-500">
-                                                    ({activeKey.apiKey ? `${activeKey.apiKey.slice(0, 6)}...${activeKey.apiKey.slice(-4)}` : 'No Key'})
+                                                    ({activeKey.DecryptedKey ? `${activeKey.DecryptedKey.slice(0, 6)}...${activeKey.DecryptedKey.slice(-4)}` : 'No Key'})
                                                 </span>
                                             </div>
                                         );
                                     }
                                     return (
                                         <span className="text-amber-400 text-[10.5px]">
-                                            ⚠️ No active {demo ? 'Demo' : 'Live'} key configured. Add one below.
+                                            No active {userData?.Demo ? 'Demo' : 'Live'} key configured. Add one below.
                                         </span>
                                     );
                                 })()}
@@ -284,46 +299,46 @@ const Settings = () => {
                                 type="button"
                                 onClick={() => setKeyFilter('all')}
                                 className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors ${keyFilter === 'all'
-                                        ? 'bg-zinc-800 text-white font-medium border border-zinc-700'
-                                        : 'text-zinc-400 hover:text-zinc-200'
+                                    ? 'bg-zinc-800 text-white font-medium border border-zinc-700'
+                                    : 'text-zinc-400 hover:text-zinc-200'
                                     }`}
                             >
-                                All Keys ({binanceKeys.length})
+                                All Keys ({userData?.DecryptedAPIKeys.length})
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setKeyFilter('live')}
                                 className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors flex items-center gap-1.5 ${keyFilter === 'live'
-                                        ? 'bg-emerald-950/80 text-emerald-300 font-medium border border-emerald-800'
-                                        : 'text-zinc-400 hover:text-zinc-200'
+                                    ? 'bg-emerald-950/80 text-emerald-300 font-medium border border-emerald-800'
+                                    : 'text-zinc-400 hover:text-zinc-200'
                                     }`}
                             >
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                Live Keys ({binanceKeys.filter((k) => k.type === 'live').length})
+                                Live Keys ({userData?.DecryptedAPIKeys.filter((k) => k.isDemo === true).length})
                             </button>
                             <button
                                 type="button"
                                 onClick={() => setKeyFilter('demo')}
                                 className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors flex items-center gap-1.5 ${keyFilter === 'demo'
-                                        ? 'bg-amber-950/80 text-amber-300 font-medium border border-amber-800'
-                                        : 'text-zinc-400 hover:text-zinc-200'
+                                    ? 'bg-amber-950/80 text-amber-300 font-medium border border-amber-800'
+                                    : 'text-zinc-400 hover:text-zinc-200'
                                     }`}
                             >
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                                Demo Keys ({binanceKeys.filter((k) => k.type === 'demo').length})
+                                Demo Keys ({userData?.DecryptedAPIKeys.filter((k) => k.isDemo === false).length})
                             </button>
                         </div>
 
                         {/* Keys List */}
                         <div className="space-y-3 pt-1">
                             {(() => {
-                                const filteredKeys = binanceKeys.filter((k) => {
-                                    if (keyFilter === 'live') return k.type === 'live';
-                                    if (keyFilter === 'demo') return k.type === 'demo';
+                                const filteredKeys = userData?.DecryptedAPIKeys.filter((k) => {
+                                    if (keyFilter === 'live') return k.isDemo === false;
+                                    if (keyFilter === 'demo') return k.isDemo === true;
                                     return true;
                                 });
 
-                                if (filteredKeys.length === 0) {
+                                if (filteredKeys !== undefined && filteredKeys.length === 0) {
                                     return (
                                         <div className="p-6 text-center border border-dashed border-[#27272a] rounded-lg bg-[#09090b]/50 space-y-2">
                                             <Key className="w-6 h-6 text-zinc-600 mx-auto" />
@@ -332,173 +347,134 @@ const Settings = () => {
                                                     ? 'No Binance API keys configured yet.'
                                                     : `No ${keyFilter === 'live' ? 'Live' : 'Demo'} API keys found.`}
                                             </p>
-                                            <button
-                                                type="button"
-                                                onClick={handleOpenAddKeyModal}
-                                                className="text-xs font-mono text-blue-400 hover:text-blue-300 underline"
-                                            >
-                                                + Add a new {keyFilter !== 'all' ? keyFilter : ''} Binance Key
-                                            </button>
+                                            {(userData?.DecryptedAPIKeys.length || 3) < 2 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleOpenAddKeyModal}
+                                                    className="text-xs font-mono text-blue-400 hover:text-blue-300 underline"
+                                                >
+                                                    + Add a new {keyFilter !== 'all' ? keyFilter : ''} Binance Key
+                                                </button>
+                                            )}
+
                                         </div>
                                     );
                                 }
 
-                                return filteredKeys.map((item) => {
-                                    const isCurrentEngineMode = (demo && item.type === 'demo') || (!demo && item.type === 'live');
-                                    const isSecretRevealed = Boolean(revealedSecrets[item.id]);
+                                return filteredKeys?.map((item) => (
+                                    <div
+                                        key={item.id}
+                                        className={`bg-[#09090b] border rounded-lg p-3.5 sm:p-4 space-y-3 transition-colors ${!item.isDemo
+                                            ? 'border-emerald-800/80 bg-emerald-950/10'
+                                            : 'border-amber-800/80 bg-amber-950/10'
+                                            }`}
+                                    >
+                                        {/* Key Header */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Tag className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                                                <span className="font-mono text-xs font-semibold text-zinc-100">
+                                                    {item.label}
+                                                </span>
 
-                                    return (
-                                        <div
-                                            key={item.id}
-                                            className={`bg-[#09090b] border rounded-lg p-3.5 sm:p-4 space-y-3 transition-colors ${item.isActive
-                                                    ? item.type === 'live'
-                                                        ? 'border-emerald-800/80 bg-emerald-950/10'
-                                                        : 'border-amber-800/80 bg-amber-950/10'
-                                                    : 'border-[#27272a] hover:border-zinc-700'
-                                                }`}
-                                        >
-                                            {/* Key Header */}
-                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                                                <div className="flex flex-wrap items-center gap-2">
-                                                    <Tag className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                                                    <span className="font-mono text-xs font-semibold text-zinc-100">
-                                                        {item.label}
+                                                {/* Label Badge */}
+                                                <span
+                                                    className={`text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${!item.isDemo
+                                                        ? 'bg-emerald-950/70 text-emerald-400 border-emerald-800'
+                                                        : 'bg-amber-950/70 text-amber-400 border-amber-800'
+                                                        }`}
+                                                >
+                                                    {!item.isDemo ? 'LIVE TRADING' : 'DEMO SANDBOX'}
+                                                </span>
+
+                                                {/* Active Badge */}
+                                                {item.isDemo === userData?.Demo ? (
+                                                    <span className="flex items-center gap-1 text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border bg-blue-950/70 text-blue-400 border-blue-800">
+                                                        <CheckCircle className="w-3 h-3" />
+                                                        <span>ACTIVE</span>
                                                     </span>
+                                                ) : (
+                                                    <span className="text-[9.5px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded">
+                                                        STANDBY
+                                                    </span>
+                                                )}
+                                            </div>
 
-                                                    {/* Label Badge */}
-                                                    <span
-                                                        className={`text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${item.type === 'live'
-                                                                ? 'bg-emerald-950/70 text-emerald-400 border-emerald-800'
-                                                                : 'bg-amber-950/70 text-amber-400 border-amber-800'
-                                                            }`}
+                                            {/* Actions */}
+                                            {/* <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                                {!item.isActive && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleSetActiveKey(item.id)}
+                                                        className="px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-[11px] font-mono transition-colors"
+                                                        title={`Set ${item.label} as active key for ${item.type} mode`}
                                                     >
-                                                        {item.type === 'live' ? 'LIVE TRADING' : 'DEMO SANDBOX'}
-                                                    </span>
+                                                        Set Active
+                                                    </button>
+                                                )}
 
-                                                    {/* Active Badge */}
-                                                    {item.isActive ? (
-                                                        <span className="flex items-center gap-1 text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border bg-blue-950/70 text-blue-400 border-blue-800">
-                                                            <CheckCircle className="w-3 h-3" />
-                                                            <span>ACTIVE FOR {item.type.toUpperCase()}</span>
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-[9.5px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded">
-                                                            STANDBY
-                                                        </span>
-                                                    )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenEditKeyModal(item)}
+                                                    className="p-1.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors"
+                                                    title="Edit key label or credentials"
+                                                >
+                                                    <Edit3 className="w-3.5 h-3.5" />
+                                                </button>
 
-                                                    {isCurrentEngineMode && item.isActive && (
-                                                        <span className="text-[9.5px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-800/60 px-1.5 py-0.5 rounded">
-                                                            ● CURRENTLY IN USE
-                                                        </span>
-                                                    )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setKeyToDelete(item)}
+                                                    className="p-1.5 rounded bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/60 text-rose-300 hover:text-rose-200 transition-colors"
+                                                    title="Delete this API Key"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div> */}
+                                        </div>
+
+                                        {/* Credentials Display */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs font-mono pt-1">
+                                            {/* API Key */}
+                                            <div className="bg-[#121214] border border-[#27272a] rounded p-2.5 space-y-1">
+                                                <div className="flex items-center justify-between text-zinc-400 text-[10.5px]">
+                                                    <span>API KEY</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleCopy(`key_${item.id}`, item.DecryptedKey)}
+                                                        className="text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
+                                                        title="Copy API Key"
+                                                    >
+                                                        {copiedKeyId === `key_${item.id}` ? (
+                                                            <span className="text-emerald-400 flex items-center gap-0.5">
+                                                                <Check className="w-3 h-3" /> Copied
+                                                            </span>
+                                                        ) : (
+                                                            <span className="flex items-center gap-0.5">
+                                                                <Copy className="w-3 h-3" /> Copy
+                                                            </span>
+                                                        )}
+                                                    </button>
                                                 </div>
-
-                                                {/* Actions */}
-                                                <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
-                                                    {!item.isActive && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleSetActiveKey(item.id)}
-                                                            className="px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-[11px] font-mono transition-colors"
-                                                            title={`Set ${item.label} as active key for ${item.type} mode`}
-                                                        >
-                                                            Set Active
-                                                        </button>
-                                                    )}
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleOpenEditKeyModal(item)}
-                                                        className="p-1.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors"
-                                                        title="Edit key label or credentials"
-                                                    >
-                                                        <Edit3 className="w-3.5 h-3.5" />
-                                                    </button>
-
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setKeyToDelete(item)}
-                                                        className="p-1.5 rounded bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/60 text-rose-300 hover:text-rose-200 transition-colors"
-                                                        title="Delete this API Key"
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                    </button>
+                                                <div className="font-mono text-zinc-200 break-all text-[11px]">
+                                                    {item.DecryptedKey.length > 0
+                                                        ? `${item.DecryptedKey.slice(0, 12)}••••••••••••••••••••••••••••${item.DecryptedKey.slice(-6)}`
+                                                        : 'None configured'}
                                                 </div>
                                             </div>
 
-                                            {/* Credentials Display */}
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs font-mono pt-1">
-                                                {/* API Key */}
-                                                <div className="bg-[#121214] border border-[#27272a] rounded p-2.5 space-y-1">
-                                                    <div className="flex items-center justify-between text-zinc-400 text-[10.5px]">
-                                                        <span>API KEY</span>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleCopy(`key_${item.id}`, item.apiKey)}
-                                                            className="text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
-                                                            title="Copy API Key"
-                                                        >
-                                                            {copiedKeyId === `key_${item.id}` ? (
-                                                                <span className="text-emerald-400 flex items-center gap-0.5">
-                                                                    <Check className="w-3 h-3" /> Copied
-                                                                </span>
-                                                            ) : (
-                                                                <span className="flex items-center gap-0.5">
-                                                                    <Copy className="w-3 h-3" /> Copy
-                                                                </span>
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                    <div className="font-mono text-zinc-200 break-all text-[11px]">
-                                                        {item.apiKey
-                                                            ? `${item.apiKey.slice(0, 12)}••••••••••••••••••••••••••••${item.apiKey.slice(-6)}`
-                                                            : 'None configured'}
-                                                    </div>
+                                            {/* API Secret */}
+                                            <div className="bg-[#121214] border border-[#27272a] rounded p-2.5 space-y-1">
+                                                <div className="flex items-center justify-between text-zinc-400 text-[10.5px]">
+                                                    <span>API SECRET</span>
                                                 </div>
-
-                                                {/* API Secret */}
-                                                <div className="bg-[#121214] border border-[#27272a] rounded p-2.5 space-y-1">
-                                                    <div className="flex items-center justify-between text-zinc-400 text-[10.5px]">
-                                                        <span>API SECRET</span>
-                                                        <div className="flex items-center gap-2">
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => toggleRevealSecret(item.id)}
-                                                                className="text-zinc-500 hover:text-zinc-300 flex items-center gap-0.5"
-                                                                title={isSecretRevealed ? 'Hide secret' : 'Reveal secret'}
-                                                            >
-                                                                {isSecretRevealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                                                                <span>{isSecretRevealed ? 'Hide' : 'Show'}</span>
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleCopy(`secret_${item.id}`, item.apiSecret)}
-                                                                className="text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
-                                                                title="Copy API Secret"
-                                                            >
-                                                                {copiedKeyId === `secret_${item.id}` ? (
-                                                                    <span className="text-emerald-400 flex items-center gap-0.5">
-                                                                        <Check className="w-3 h-3" /> Copied
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="flex items-center gap-0.5">
-                                                                        <Copy className="w-3 h-3" /> Copy
-                                                                    </span>
-                                                                )}
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div className="font-mono text-zinc-200 break-all text-[11px]">
-                                                        {isSecretRevealed
-                                                            ? item.apiSecret
-                                                            : '••••••••••••••••••••••••••••••••••••••••'}
-                                                    </div>
+                                                <div className="font-mono text-zinc-200 break-all text-[11px]">
+                                                    {item.DecryptedSecret}
                                                 </div>
                                             </div>
                                         </div>
-                                    );
-                                });
+                                    </div>
+                                ));
                             })()}
                         </div>
                     </section>
@@ -869,6 +845,139 @@ const Settings = () => {
                         </button>
                     </div>
                 </form>
+
+                {isKeyModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-[#121214] border border-[#27272a] rounded-lg max-w-lg w-full p-4 sm:p-6 space-y-4 shadow-2xl relative">
+                            <div className="flex items-center justify-between border-b border-[#27272a] pb-3">
+                                <div className="flex items-center gap-2">
+                                    <Key className="w-4 h-4 text-blue-400" />
+                                    <h3 className="text-sm font-mono font-semibold text-zinc-100">
+                                        Add Binance API Key
+                                    </h3>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsKeyModalOpen(false)}
+                                    className="text-zinc-400 hover:text-zinc-200 p-1"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            {keyFormError && (
+                                <div className="p-2.5 bg-rose-950/60 border border-rose-800 text-rose-300 text-xs font-mono rounded flex items-center gap-2">
+                                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                                    <span>{keyFormError}</span>
+                                </div>
+                            )}
+
+                            <form onSubmit={handleSaveKeyForm} className="space-y-3.5">
+                                {/* Key Label */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-mono text-zinc-300 flex items-center justify-between">
+                                        <span>Key Label</span>
+                                        <span className="text-[10.5px] text-zinc-500">e.g. Main Futures, Paper Sandbox</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name='label'
+                                        value={newAPIKey.label}
+                                        onChange={handleApiChange}
+                                        placeholder="Enter descriptive label"
+                                        className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-100 outline-none"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                {/* Protocol Tag Selector (Live vs Demo) */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-mono text-zinc-300">
+                                        Execution Protocol Label
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setNewAPIKey({ ...newAPIKey, isDemo: false })}
+                                            className={`p-2.5 rounded border text-xs font-mono flex items-center justify-center gap-1.5 transition-colors ${!newAPIKey.isDemo
+                                                ? 'bg-emerald-950/80 border-emerald-600 text-emerald-300 font-semibold'
+                                                : 'bg-[#09090b] border-[#27272a] text-zinc-400 hover:text-zinc-200'
+                                                }`}
+                                        >
+                                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                                            <span>LIVE TRADING</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setNewAPIKey({ ...newAPIKey, isDemo: false })}
+                                            className={`p-2.5 rounded border text-xs font-mono flex items-center justify-center gap-1.5 transition-colors ${newAPIKey.isDemo
+                                                ? 'bg-amber-950/80 border-amber-600 text-amber-300 font-semibold'
+                                                : 'bg-[#09090b] border-[#27272a] text-zinc-400 hover:text-zinc-200'
+                                                }`}
+                                        >
+                                            <span className="w-2 h-2 rounded-full bg-amber-400" />
+                                            <span>DEMO SANDBOX</span>
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-zinc-500 font-mono">
+                                        {!newAPIKey.isDemo
+                                            ? 'Live execution key: submits real USDT margin orders to Binance perpetual futures.'
+                                            : 'Demo sandbox key: used for testnet and paper simulation environments.'}
+                                    </p>
+                                </div>
+
+                                {/* Binance API Key */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-mono text-zinc-300 flex items-center justify-between">
+                                        <span>Binance API Key</span>
+                                        <span className="text-[10.5px] text-zinc-500">64 alphanumeric chars</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="DecryptedKey"
+                                        value={newAPIKey.DecryptedKey}
+                                        onChange={handleApiChange}
+                                        placeholder="Enter Binance API Key"
+                                        className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-100 outline-none"
+                                    />
+                                </div>
+
+                                {/* Binance API Secret */}
+                                <div className="space-y-1.5">
+                                    <label className="text-xs font-mono text-zinc-300 flex items-center justify-between">
+                                        <span>Binance API Secret</span>
+                                        <span className="text-[10.5px] text-zinc-500">HMAC SHA-256 signature key</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="DecryptedSecret"
+                                        value={newAPIKey.DecryptedSecret}
+                                        onChange={handleApiChange}
+                                        placeholder="Enter Binance API Secret"
+                                        className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-100 outline-none"
+                                    />
+                                </div>
+
+                                {/* Modal Actions */}
+                                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#27272a]">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsKeyModalOpen(false)}
+                                        className="px-4 py-2 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-semibold transition-colors shadow-sm"
+                                    >
+                                        Add API Key
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
 
                 <ConfirmationModal
                     isOpen={isModeModalOpen}

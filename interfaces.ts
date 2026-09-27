@@ -110,8 +110,6 @@ export interface Strategy {
 }
 
 export interface IUserInfoRuntime extends IUserInfo {
-    DecryptedKey: string;
-    DecryptedSecret: string;
     DecryptedAPIKeys: IDecryptedKeys[];
 }
 

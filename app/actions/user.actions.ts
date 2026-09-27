@@ -70,8 +70,6 @@ export const updateUser = async (data: IUserInfoRuntime): Promise<IUserInfoRunti
     // Remove runtime-only fields and prevent client-supplied
     const {
         _id,
-        DecryptedKey,
-        DecryptedSecret,
         DecryptedAPIKeys,
         BotID,
         UID,
@@ -195,7 +193,7 @@ export const createUser = async (userData: Partial<IUserInfoRuntime>): Promise<I
 const PlainUser = (userData: IUserInfo): IUserInfoRuntime => {
     const { APIKeys, ...plainUser } = userData;
 
-    const dec: IDecryptedKeys[] = APIKeys.map((e) => {
+    const dec: IDecryptedKeys[] = APIKeys!.map((e) => {
         return {
             id: e.id,
             isDemo: e.isDemo,
@@ -245,10 +243,10 @@ export const updateUserDemoMode = async (targetEmail: string, isDemo: boolean): 
 
     if (!updatedUser) return null;
 
-    const response = await server({ request: "forceClose" });
-    const restart = await server({ request: "restart" });
+    const response = await server({ request: "forceClose", targetBot: updatedUser.BotID });
+    await server({ request: "restart", targetBot: updatedUser.BotID });
     if (!response.success) {
-        const fallbackUpdate = await UserModel.findOneAndUpdate(
+        await UserModel.findOneAndUpdate(
             { Email: targetEmail },
             { $set: { Demo: !isDemo } },
             { new: true }
@@ -258,4 +256,33 @@ export const updateUserDemoMode = async (targetEmail: string, isDemo: boolean): 
 
     const plainUser = PlainUser(updatedUser);
     return JSON.parse(JSON.stringify(plainUser))
+}
+
+export const deleteAPIKey = async (BotID: string, keyID: string): Promise<IUserInfoRuntime | null> => {
+    await connectDB();
+    if (BotID.length === 0) return null;
+    const session = await getSession();
+    if (!session) return null;
+
+    if (session.user.accountType !== SUPER_USER_ROLE) return null;
+
+    const targetUser = await UserModel.findOne({ BotID: BotID });
+    if (!targetUser) return null;
+
+    const targetAPI = targetUser.APIKeys!.find((e) => e.id === keyID);
+    if (!targetAPI) return null;
+
+    if (targetAPI.isDemo === targetUser.Demo)
+        await server({ request: "forceClose", targetBot: targetUser.BotID });
+
+    const restAPIs = targetUser.APIKeys!.filter((e) => e.id !== keyID);
+    targetUser.APIKeys = restAPIs;
+    await targetUser.save();
+
+    if (targetAPI.isDemo === targetUser.Demo)
+        await server({ request: "restart", targetBot: targetUser.BotID });
+
+    targetUser.Password = "";
+    const plainUser = PlainUser(targetUser.toObject());
+    return JSON.parse(JSON.stringify(plainUser));
 }

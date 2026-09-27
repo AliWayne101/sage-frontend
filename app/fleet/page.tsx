@@ -1,15 +1,15 @@
 "use client"
 import ConfirmationModal, { ConfirmationModalProps } from '@/components/ConfirmationModal';
 import { SAGE_FEE_PERCENTAGE } from '@/constants';
-import { BotHeartbeat, IUserInfoRuntime, Strategy, TradesStatsResults } from '@/interfaces';
+import { BotHeartbeat, IDecryptedKeys, IUserInfoRuntime, Strategy, TradesStatsResults } from '@/interfaces';
 import Footer from '@/section/Footer';
 import { formatCurrency } from '@/utils';
-import { Activity, ArrowLeft, Bot, CheckCircle2, ChevronRight, DollarSign, ExternalLink, Key, Layers, Power, RefreshCw, Search, ShieldCheck, Sliders, Sparkles, UserPlus } from 'lucide-react';
+import { Activity, ArrowLeft, Bot, Check, CheckCircle, CheckCircle2, ChevronRight, Copy, DollarSign, ExternalLink, Key, Layers, Power, Radio, RefreshCw, Search, ShieldCheck, Sliders, Sparkles, Tag, Trash2, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react'
 import { getBotStats, getOverallRealizedProfit } from '../actions/trades.actions';
 import { server } from '../actions/server.actions';
-import { getAllUsers, updateKillSwich } from '../actions/user.actions';
+import { deleteAPIKey, getAllUsers, updateKillSwich } from '../actions/user.actions';
 
 const Fleet = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -28,6 +28,8 @@ const Fleet = () => {
     const [heartBeats, setHeartBeats] = useState<BotHeartbeat[]>([]);
     const [overallProfit, setOverallProfit] = useState<number>(0);
     const [userProfitStats, setUserProfitStats] = useState<TradesStatsResults | null>(null);
+    const [apiFilter, setApiFilter] = useState<"all" | "demo" | "live">("all");
+    const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
 
     const closeConfirmModal = () => {
         setConfirmationModal((prev) => ({ ...prev, isOpen: false, isLoading: false, message: '', onConfirm: () => { }, onClose: () => { } }));
@@ -172,6 +174,83 @@ const Fleet = () => {
             setActionMessage("There seems to be an error updating the bot Kill Switch");
         }
     }
+
+    const handleCopy = (id: string, text: string) => {
+        if (!text) return;
+        navigator.clipboard?.writeText(text);
+        setCopiedKeyId(id);
+        setTimeout(() => setCopiedKeyId(null), 2000);
+    }
+
+    const executeDeleteSingleApiKey = async (targetBot: IUserInfoRuntime, keyItem: IDecryptedKeys) => {
+        setConfirmationModal((prev) => ({ ...prev, isLoading: true }));
+        try {
+            const updatedUser = await deleteAPIKey(targetBot.BotID, keyItem.id);
+            if (!updatedUser) {
+                setActionMessage("There seems to be problem deleting the selected API");
+                return;
+            }
+            setSelectedBot(updatedUser);
+
+            fetchFleet();
+            setActionMessage(`API Key "${keyItem.label}" successfully deleted for ${targetBot.Name}.`);
+        } catch (err: any) {
+            console.error('Failed to delete single API key:', err);
+            setActionMessage("Unable to delete the API");
+        } finally {
+            closeConfirmModal();
+            setTimeout(() => setActionMessage(null), 4000);
+        }
+    }
+
+    const handleDeleteSingleApiKey = (targetBot: IUserInfoRuntime, keyItem: IDecryptedKeys) => {
+        setConfirmationModal({
+            onClose: closeConfirmModal,
+            isOpen: true,
+            title: 'Delete Binance API Key',
+            message: `Do you want to delete the API key "${keyItem.label}" for user "${targetBot.Name}" (${targetBot.BotID})?`,
+            description:
+                `This will permanently remove this API credential from ${targetBot.Name}'s key repository.`,
+            confirmText: 'Delete API Key',
+            cancelText: 'Keep Key',
+            variant: 'danger',
+            details: [
+                { label: 'Selected Operator', value: targetBot.Name },
+                { label: 'Target Bot ID', value: targetBot.BotID },
+                { label: 'Label', value: <span className="font-mono text-zinc-100 font-semibold">{keyItem.label}</span> },
+                {
+                    label: 'Protocol Type',
+                    value: (
+                        <span
+                            className={`font-mono font-bold ${!keyItem.isDemo ? 'text-emerald-400' : 'text-amber-400'
+                                }`}
+                        >
+                            {!keyItem.isDemo ? 'LIVE TRADING' : 'DEMO SANDBOX'}
+                        </span>
+                    ),
+                },
+                {
+                    label: 'Status',
+                    value: keyItem.isDemo === targetBot.Demo ? (
+                        <span className="font-mono text-rose-400 font-semibold">Active Key (Currently In Use)</span>
+                    ) : (
+                        <span className="font-mono text-zinc-400">Standby Key</span>
+                    ),
+                },
+                {
+                    label: 'API Key',
+                    value: (
+                        <span className="font-mono text-amber-300">
+                            {keyItem.DecryptedKey.length > 0
+                                ? `${keyItem.DecryptedKey.slice(0, 8)}...${keyItem.DecryptedKey.slice(-4)}`
+                                : 'None configured'}
+                        </span>
+                    ),
+                }
+            ],
+            onConfirm: () => executeDeleteSingleApiKey(targetBot, keyItem),
+        });
+    };
 
     useEffect(() => {
         if (!actionMessage) return;
@@ -509,41 +588,217 @@ const Fleet = () => {
 
                             {/* Profile Section 1: Binance API Credentials & Signature Status */}
                             <div className="bg-[#121214] border border-[#27272a] rounded-lg p-4 sm:p-5 space-y-4">
-                                <div className="flex items-center gap-2 border-b border-[#27272a] pb-3">
-                                    <Key className="w-4 h-4 text-blue-400 shrink-0" />
-                                    <div>
-                                        <h3 className="text-xs font-mono uppercase tracking-wider font-semibold text-zinc-200">
-                                            Binance API Connection & Authentication
-                                        </h3>
-                                        <p className="text-[11px] text-zinc-500 font-mono">
-                                            Cryptographic credentials and exchange permissions assigned to this bot
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
-                                    <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
-                                        <span className="text-[10px] text-zinc-500 uppercase block">API Key (Masked)</span>
-                                        <div className="flex items-center justify-between text-zinc-300">
-                                            <span className="truncate max-w-[200px]">{selectedBot.DecryptedKey.trim() ? selectedBot.DecryptedKey : 'None configured'}</span>
-                                            <span className="text-[10px] text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800">
-                                                HMAC Valid
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
-                                        <span className="text-[10px] text-zinc-500 uppercase block">API Secret Signature</span>
-                                        <div className="flex items-center justify-between text-zinc-300">
-                                            <span>••••••••••••••••••••••••••••••••</span>
-                                            <span className="text-[10px] text-blue-400 bg-blue-950/60 px-1.5 py-0.5 rounded border border-blue-800">
-                                                SHA-256
-                                            </span>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#27272a] pb-3">
+                                    <div className="flex items-center gap-2">
+                                        <Key className="w-4 h-4 text-blue-400 shrink-0" />
+                                        <div>
+                                            <h3 className="text-xs font-mono uppercase tracking-wider font-semibold text-zinc-200">
+                                                Binance API Key Repository & Connections
+                                            </h3>
+                                            <p className="text-[11px] text-zinc-500 font-mono">
+                                                Available exchange API credentials and execution endpoints configured for {selectedBot.Name}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex flex-wrap gap-2 text-[10.5px] font-mono">
+                                {/* Active Execution Mode Key Routing Status Banner */}
+                                <div className="p-3 bg-[#09090b] border border-zinc-800 rounded-lg space-y-1.5 text-xs font-mono">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <Radio className={`w-3.5 h-3.5 shrink-0 ${selectedBot.Demo ? 'text-amber-400' : 'text-emerald-400'}`} />
+                                            <span className="text-zinc-400">Current Execution Binding:</span>
+                                            <span
+                                                className={`font-bold px-1.5 py-0.5 rounded text-[10px] border ${selectedBot.Demo
+                                                    ? 'bg-amber-950/60 text-amber-400 border-amber-800'
+                                                    : 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                                                    }`}
+                                            >
+                                                {selectedBot.Demo ? 'DEMO PAPER MODE' : 'LIVE TRADING'}
+                                            </span>
+                                        </div>
+
+                                        {(() => {
+                                            const activeKey = selectedBot.DecryptedAPIKeys.find((key) => key.isDemo === selectedBot.Demo);
+
+                                            if (activeKey) {
+                                                return (
+                                                    <div className="flex items-center gap-1.5 text-zinc-300 text-[11px]">
+                                                        <span className="text-zinc-500">Routing orders to:</span>
+                                                        <span className="text-zinc-100 font-semibold">{activeKey.label}</span>
+                                                        <span className="text-zinc-500">
+                                                            ({activeKey.DecryptedKey.length > 0 ? `${activeKey.DecryptedKey.slice(0, 6)}...${activeKey.DecryptedKey.slice(-4)}` : 'No Key'})
+                                                        </span>
+                                                    </div>
+                                                );
+                                            }
+                                            return (
+                                                <span className="text-amber-400 text-[10.5px]">
+                                                    No active {selectedBot.Demo ? 'Demo' : 'Live'} key configured for this bot.
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
+                                </div>
+
+                                {/* Filter Pills */}
+                                <div className="flex items-center gap-1.5 pt-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setApiFilter('all')}
+                                        className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors ${apiFilter === 'all'
+                                            ? 'bg-zinc-800 text-white font-medium border border-zinc-700'
+                                            : 'text-zinc-400 hover:text-zinc-200'
+                                            }`}
+                                    >
+                                        All Keys ({selectedBot.DecryptedAPIKeys.length})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setApiFilter('live')}
+                                        className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors flex items-center gap-1.5 ${apiFilter === 'live'
+                                            ? 'bg-emerald-950/80 text-emerald-300 font-medium border border-emerald-800'
+                                            : 'text-zinc-400 hover:text-zinc-200'
+                                            }`}
+                                    >
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                        Live Keys ({selectedBot.DecryptedAPIKeys.filter((k) => k.isDemo === false).length})
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setApiFilter('demo')}
+                                        className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors flex items-center gap-1.5 ${apiFilter === 'demo'
+                                            ? 'bg-amber-950/80 text-amber-300 font-medium border border-amber-800'
+                                            : 'text-zinc-400 hover:text-zinc-200'
+                                            }`}
+                                    >
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                                        Demo Keys ({selectedBot.DecryptedAPIKeys.filter((k) => k.isDemo === true).length})
+                                    </button>
+                                </div>
+
+                                {/* List of Available API Keys with Manual Delete Button */}
+                                <div className="space-y-3 pt-1">
+                                    {(() => {
+                                        const filteredKeys = selectedBot.DecryptedAPIKeys.filter((k) => {
+                                            if (apiFilter === "live") return k.isDemo === false;
+                                            if (apiFilter === "demo") return k.isDemo === true;
+                                            return true;
+                                        })
+
+                                        if (filteredKeys.length === 0) {
+                                            return (
+                                                <div className="p-6 text-center border border-dashed border-[#27272a] rounded-lg bg-[#09090b]/50 space-y-2">
+                                                    <Key className="w-6 h-6 text-zinc-600 mx-auto" />
+                                                    <p className="text-xs font-mono text-zinc-400">
+                                                        {apiFilter === 'all'
+                                                            ? `No Binance API credentials configured for ${selectedBot.Name}.`
+                                                            : `No ${apiFilter === 'live' ? 'Live' : 'Demo'} API keys found for this operator.`}
+                                                    </p>
+                                                </div>
+                                            );
+                                        }
+
+                                        return filteredKeys.map((item) => (
+                                            <div
+                                                key={item.id}
+                                                className={`bg-[#09090b] border rounded-lg p-3.5 sm:p-4 space-y-3 transition-colors ${!item.isDemo
+                                                    ? 'border-emerald-800/80 bg-emerald-950/10'
+                                                    : 'border-amber-800/80 bg-amber-950/10'
+                                                    }`}
+                                            >
+                                                {/* Key Item Header */}
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <Tag className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                                                        <span className="font-mono text-xs font-semibold text-zinc-100">
+                                                            {item.label}
+                                                        </span>
+
+                                                        {/* Label Badge */}
+                                                        <span
+                                                            className={`text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${item.isDemo
+                                                                ? 'bg-emerald-950/70 text-emerald-400 border-emerald-800'
+                                                                : 'bg-amber-950/70 text-amber-400 border-amber-800'
+                                                                }`}
+                                                        >
+                                                            {!item.isDemo ? 'LIVE TRADING' : 'DEMO SANDBOX'}
+                                                        </span>
+
+                                                        {/* Active Badge */}
+                                                        {item.isDemo === selectedBot.Demo ? (
+                                                            <span className="flex items-center gap-1 text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border bg-blue-950/70 text-blue-400 border-blue-800">
+                                                                <CheckCircle className="w-3 h-3" />
+                                                                <span>ACTIVE</span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-[9.5px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded">
+                                                                STANDBY
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Manual Delete Button for this specific API */}
+                                                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteSingleApiKey(selectedBot, item)}
+                                                            className="px-2.5 py-1 rounded bg-rose-950/50 hover:bg-rose-900/70 border border-rose-800/70 text-rose-300 hover:text-rose-100 text-[11px] font-mono font-medium flex items-center gap-1.5 transition-colors shadow-sm"
+                                                            title={`Delete API Key "${item.label}"`}
+                                                        >
+                                                            <Trash2 className="w-3 h-3 text-rose-400" />
+                                                            <span>Delete Key</span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Credentials Display with Masking, Reveal & Copy */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs font-mono pt-1">
+                                                    {/* API Key */}
+                                                    <div className="bg-[#121214] border border-[#27272a] rounded p-2.5 space-y-1">
+                                                        <div className="flex items-center justify-between text-zinc-400 text-[10.5px]">
+                                                            <span>API KEY</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleCopy(`fleet_key_${item.id}`, item.DecryptedKey)}
+                                                                className="text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
+                                                                title="Copy API Key"
+                                                            >
+                                                                {copiedKeyId === `fleet_key_${item.id}` ? (
+                                                                    <span className="text-emerald-400 flex items-center gap-0.5">
+                                                                        <Check className="w-3 h-3" /> Copied
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="flex items-center gap-0.5">
+                                                                        <Copy className="w-3 h-3" /> Copy
+                                                                    </span>
+                                                                )}
+                                                            </button>
+                                                        </div>
+                                                        <div className="font-mono text-zinc-200 break-all text-[11px]">
+                                                            {item.DecryptedKey.length > 0
+                                                                ? item.DecryptedKey
+                                                                : 'None configured'}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* API Secret */}
+                                                    <div className="bg-[#121214] border border-[#27272a] rounded p-2.5 space-y-1">
+                                                        <div className="flex items-center justify-between text-zinc-400 text-[10.5px]">
+                                                            <span>API SECRET</span>
+                                                        </div>
+                                                        <div className="font-mono text-zinc-200 break-all text-[11px]">
+                                                            {item.DecryptedSecret}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ));
+                                    })()}
+                                </div>
+
+                                {/* Permissions & Security Badges */}
+                                <div className="flex flex-wrap gap-2 text-[10.5px] font-mono pt-1 border-t border-zinc-800/60">
                                     <span className="px-2 py-1 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 flex items-center gap-1.5">
                                         <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                                         Futures Trading Allowed

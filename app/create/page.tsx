@@ -1,8 +1,8 @@
 "use client"
 import { SECRET_PLACEHOLDER } from '@/constants';
-import { IUserInfoRuntime, Strategy } from '@/interfaces';
+import { IDecryptedKeys, IUserInfoRuntime, Strategy } from '@/interfaces';
 import Footer from '@/section/Footer';
-import { Lock, AlertCircle, ArrowLeft, Bot, Check, CheckCircle2, Copy, ExternalLink, Mail, ShieldCheck, Sliders, UserIcon, Sparkles, EyeOff, Eye, X, Key, Layers, Power, UserPlus } from 'lucide-react';
+import { Lock, AlertCircle, ArrowLeft, Bot, Check, CheckCircle2, Copy, ExternalLink, Mail, ShieldCheck, Sliders, UserIcon, Sparkles, EyeOff, Eye, X, Key, Layers, Power, UserPlus, Plus, Radio, Tag, CheckCircle, Trash2, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../AuthProvider';
@@ -25,10 +25,9 @@ const CreateUser = () => {
     StrategyName: "",
     Leverage: 0,
     Symbol: "",
-    DecryptedKey: "",
-    DecryptedSecret: "",
     AvoidLiquidation: true,
-    Demo: false
+    Demo: false,
+    DecryptedAPIKeys: []
   });
   const [enableBinanceApi, setEnableBinanceApi] = useState(false);
   const [strategyEngineOn, setStrategyEngineOn] = useState(false);
@@ -37,6 +36,17 @@ const CreateUser = () => {
   const [strategies, setStrategies] = useState<Strategy[]>([]);
   const [assetPairs, setAssetPairs] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [keyFilter, setKeyFilter] = useState<"all" | "demo" | "live">("all");
+  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
+  const [newAPIKey, setNewAPIKey] = useState<IDecryptedKeys>({
+    DecryptedKey: "",
+    DecryptedSecret: "",
+    id: "",
+    isDemo: true,
+    label: "",
+  });
+  const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+  const [keyFormError, setKeyFormError] = useState<string | null>(null);
 
   const router = useRouter();
   const { user } = useAuth();
@@ -80,10 +90,9 @@ const CreateUser = () => {
       StrategyName: "",
       Leverage: 0,
       Symbol: "",
-      DecryptedKey: "",
-      DecryptedSecret: "",
       AvoidLiquidation: true,
-      Demo: false
+      Demo: false,
+      DecryptedAPIKeys: []
     });
     setCreatedItem(null);
     setErrorMessage(null);
@@ -146,6 +155,67 @@ const CreateUser = () => {
 
     getPairs();
   }, [user])
+
+  const handleCopy = (id: string, text: string) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(text);
+    setCopiedKeyId(id);
+    setTimeout(() => setCopiedKeyId(null), 2000);
+  }
+
+  const handleOpenAddKeyModal = () => {
+    setNewAPIKey({
+      DecryptedKey: "",
+      DecryptedSecret: "",
+      id: "",
+      isDemo: true,
+      label: "",
+    });
+    setKeyFormError(null);
+    setIsKeyModalOpen(true);
+  }
+
+  const handleApiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewAPIKey({
+      ...newAPIKey,
+      [e.target.name]: e.target.value
+    });
+  }
+
+  const setKeyToDelete = (key: IDecryptedKeys) => {
+    const _keys = userInfo.DecryptedAPIKeys!.filter((e) => e !== key);
+    setUserInfo({ ...userInfo, DecryptedAPIKeys: _keys })
+  }
+
+  const handleSaveKeyForm = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (newAPIKey.label.length === 0) {
+      setKeyFormError('Label is required (e.g. "Main Futures (Live)", "Paper Sandbox")');
+      return;
+    }
+    if (newAPIKey.DecryptedKey.length === 0) {
+      setKeyFormError('Binance API Key is required');
+      return;
+    }
+    if (newAPIKey.DecryptedSecret.length === 0) {
+      setKeyFormError('Binance API Secret is required');
+      return;
+    }
+
+    const cleanApiKey = newAPIKey.DecryptedKey.trim();
+    const cleanApiSecret = newAPIKey.DecryptedSecret.trim();
+    const updatedKeys = [
+      ...userInfo.DecryptedAPIKeys || [],
+      {
+        ...newAPIKey,
+        DecryptedKey: cleanApiKey,
+        DecryptedSecret: cleanApiSecret
+      }
+    ];
+    setUserInfo({ ...userInfo, DecryptedAPIKeys: updatedKeys })
+    setIsKeyModalOpen(false);
+  };
 
 
   return (
@@ -551,7 +621,7 @@ const CreateUser = () => {
                 {/* SECTIONS 2 & 3: SHOWN WHEN MASTER SLIDER IS ON */}
                 {showBotSliders ? (
                   <div className="space-y-6 animate-in fade-in duration-200">
-                    {/* SECTION 2: Bot Identification & Binance API Credentials */}
+                    {/* SECTION 2: Bot Identification & Multi-Binance API Credentials */}
                     <div className="bg-[#121214] border border-[#27272a] rounded-lg p-4 sm:p-5 space-y-4 shadow-sm">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#27272a] pb-3 gap-3">
                         <div className="flex items-center gap-2">
@@ -559,7 +629,7 @@ const CreateUser = () => {
                           <div>
                             <div className="flex items-center gap-2">
                               <h2 className="text-xs font-mono uppercase tracking-wider font-semibold text-zinc-200">
-                                2. Binance Api Configuration
+                                2. Binance API Configuration
                               </h2>
                               <span
                                 className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase border ${enableBinanceApi
@@ -571,12 +641,25 @@ const CreateUser = () => {
                               </span>
                             </div>
                             <p className="text-[11px] text-zinc-500 font-mono">
-                              Exchange API credentials for live Binance Futures execution
+                              Multi-key repository with labeled Live & Demo execution protocols
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        {/* Section 2 Controls: Add API Key, Fill Test Keys & Slider Switch */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {enableBinanceApi && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={handleOpenAddKeyModal}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-mono font-medium transition-colors shadow-sm"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Add API Key</span>
+                              </button>
+                            </>
+                          )}
 
                           {/* Slider switch for 2. Binance API Configuration */}
                           <div className="flex items-center gap-2 pl-2 border-l border-zinc-800">
@@ -601,43 +684,219 @@ const CreateUser = () => {
                       {enableBinanceApi ? (
                         <div className="space-y-4 text-xs font-mono animate-in fade-in">
                           {/* Bot ID selection */}
-
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                              <label className="text-zinc-400 font-medium">Binance Futures API Key</label>
-                              <input
-                                type="text"
-                                placeholder="vmQ4P892..."
-                                name='DecryptedKey'
-                                value={userInfo.DecryptedKey}
-                                onChange={handleChange}
-                                className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-zinc-100 outline-none text-xs"
-                              />
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-zinc-400 font-medium flex items-center gap-1.5">
+                                <Bot className="w-3.5 h-3.5 text-zinc-500" />
+                                Bot Identifier (BotID)
+                              </label>
                             </div>
 
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between">
-                                <label className="text-zinc-400 font-medium">Binance API Secret</label>
-                                <button
-                                  type="button"
-                                  onClick={() => setShowSecret(!showSecret)}
-                                  className="text-[10px] text-zinc-500 hover:text-zinc-300"
+                            <div className="p-2.5 rounded bg-[#09090b] border border-[#27272a] text-zinc-400 flex items-center justify-between">
+                              <span className="text-zinc-300">Auto-generated upon creation ({userInfo.BotID})</span>
+                              <span className="text-[10px] text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">
+                                Unique Guaranteed
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Active Execution Mode Key Routing Status Banner */}
+                          <div className="p-3 bg-[#09090b] border border-zinc-800 rounded-lg space-y-1.5 text-xs font-mono">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <Radio className={`w-3.5 h-3.5 shrink-0 ${userInfo.Demo ? 'text-amber-400' : 'text-emerald-400'}`} />
+                                <span className="text-zinc-400">Current Execution Binding:</span>
+                                <span
+                                  className={`font-bold px-1.5 py-0.5 rounded text-[10px] border ${userInfo.Demo
+                                    ? 'bg-amber-950/60 text-amber-400 border-amber-800'
+                                    : 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                                    }`}
                                 >
-                                  {showSecret ? 'Hide' : 'Show'}
-                                </button>
+                                  {userInfo.Demo ? 'DEMO PAPER MODE' : 'LIVE TRADING'}
+                                </span>
                               </div>
-                              <div className="relative">
-                                <input
-                                  type={showSecret ? 'text' : 'password'}
-                                  placeholder="sJ9914710..."
-                                  name='DecryptedSecret'
-                                  value={userInfo.DecryptedSecret}
-                                  onChange={handleChange}
-                                  className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 pr-10 py-2 text-zinc-100 outline-none text-xs"
-                                />
-                              </div>
+
                             </div>
+                          </div>
+
+                          {/* Filter Pills */}
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setKeyFilter('all')}
+                              className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors ${keyFilter === 'all'
+                                ? 'bg-zinc-800 text-white font-medium border border-zinc-700'
+                                : 'text-zinc-400 hover:text-zinc-200'
+                                }`}
+                            >
+                              All Keys ({userInfo.DecryptedAPIKeys!.length})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setKeyFilter('live')}
+                              className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors flex items-center gap-1.5 ${keyFilter === 'live'
+                                ? 'bg-emerald-950/80 text-emerald-300 font-medium border border-emerald-800'
+                                : 'text-zinc-400 hover:text-zinc-200'
+                                }`}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              Live Keys ({userInfo.DecryptedAPIKeys!.filter((k) => k.isDemo === true).length})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setKeyFilter('demo')}
+                              className={`px-2.5 py-1 text-[11px] font-mono rounded transition-colors flex items-center gap-1.5 ${keyFilter === 'demo'
+                                ? 'bg-amber-950/80 text-amber-300 font-medium border border-amber-800'
+                                : 'text-zinc-400 hover:text-zinc-200'
+                                }`}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                              Demo Keys ({userInfo.DecryptedAPIKeys!.filter((k) => k.isDemo === false).length})
+                            </button>
+                          </div>
+
+                          {/* List of Configured Keys */}
+                          <div className="space-y-3 pt-1">
+                            {(() => {
+                              const filteredKeys = userInfo.DecryptedAPIKeys!.filter((k) => {
+                                if (keyFilter === 'live') return k.isDemo === false;
+                                if (keyFilter === 'demo') return k.isDemo === true;
+                                return true;
+                              });
+
+                              if (filteredKeys.length === 0) {
+                                return (
+                                  <div className="p-6 text-center border border-dashed border-[#27272a] rounded-lg bg-[#09090b]/50 space-y-2">
+                                    <Key className="w-6 h-6 text-zinc-600 mx-auto" />
+                                    <p className="text-xs font-mono text-zinc-400">
+                                      {keyFilter === 'all'
+                                        ? 'No Binance API keys configured yet.'
+                                        : `No ${keyFilter === 'live' ? 'Live' : 'Demo'} API keys found.`}
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={handleOpenAddKeyModal}
+                                      className="text-xs font-mono text-blue-400 hover:text-blue-300 underline"
+                                    >
+                                      + Add a new {keyFilter !== 'all' ? keyFilter : ''} Binance Key
+                                    </button>
+                                  </div>
+                                );
+                              }
+
+                              return filteredKeys.map((item) => (
+                                <div
+                                  key={item.id}
+                                  className={`bg-[#09090b] border rounded-lg p-3.5 sm:p-4 space-y-3 transition-colors ${!item.isDemo
+                                    ? 'border-emerald-800/80 bg-emerald-950/10'
+                                    : 'border-amber-800/80 bg-amber-950/10'
+                                    }`}
+                                >
+                                  {/* Key Header */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Tag className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                                      <span className="font-mono text-xs font-semibold text-zinc-100">
+                                        {item.label}
+                                      </span>
+
+                                      {/* Label Badge */}
+                                      <span
+                                        className={`text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${!item.isDemo
+                                          ? 'bg-emerald-950/70 text-emerald-400 border-emerald-800'
+                                          : 'bg-amber-950/70 text-amber-400 border-amber-800'
+                                          }`}
+                                      >
+                                        {!item.isDemo ? 'LIVE TRADING' : 'DEMO SANDBOX'}
+                                      </span>
+
+                                      {/* Active Badge */}
+                                      {item.isDemo === userInfo.Demo ? (
+                                        <span className="flex items-center gap-1 text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border bg-blue-950/70 text-blue-400 border-blue-800">
+                                          <CheckCircle className="w-3 h-3" />
+                                          <span>ACTIVE</span>
+                                        </span>
+                                      ) : (
+                                        <span className="text-[9.5px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded">
+                                          STANDBY
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                                      <button
+                                        type="button"
+                                        onClick={() => setKeyToDelete(item)}
+                                        className="p-1.5 rounded bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/60 text-rose-300 hover:text-rose-200 transition-colors"
+                                        title="Delete this API Key"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Credentials Display */}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs font-mono pt-1">
+                                    {/* API Key */}
+                                    <div className="bg-[#121214] border border-[#27272a] rounded p-2.5 space-y-1">
+                                      <div className="flex items-center justify-between text-zinc-400 text-[10.5px]">
+                                        <span>API KEY</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCopy(`create_key_${item.id}`, item.DecryptedKey)}
+                                          className="text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
+                                          title="Copy API Key"
+                                        >
+                                          {copiedKeyId === `create_key_${item.id}` ? (
+                                            <span className="text-emerald-400 flex items-center gap-0.5">
+                                              <Check className="w-3 h-3" /> Copied
+                                            </span>
+                                          ) : (
+                                            <span className="flex items-center gap-0.5">
+                                              <Copy className="w-3 h-3" /> Copy
+                                            </span>
+                                          )}
+                                        </button>
+                                      </div>
+                                      <div className="font-mono text-zinc-200 break-all text-[11px]">
+                                        {item.DecryptedKey
+                                          ? `${item.DecryptedKey.slice(0, 12)}••••••••••••••••••••••••••••${item.DecryptedKey.slice(-6)}`
+                                          : 'None configured'}
+                                      </div>
+                                    </div>
+
+                                    {/* API Secret */}
+                                    <div className="bg-[#121214] border border-[#27272a] rounded p-2.5 space-y-1">
+                                      <div className="flex items-center justify-between text-zinc-400 text-[10.5px]">
+                                        <span>API SECRET</span>
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => handleCopy(`create_secret_${item.id}`, item.DecryptedSecret)}
+                                            className="text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
+                                            title="Copy API Secret"
+                                          >
+                                            {copiedKeyId === `create_secret_${item.id}` ? (
+                                              <span className="text-emerald-400 flex items-center gap-0.5">
+                                                <Check className="w-3 h-3" /> Copied
+                                              </span>
+                                            ) : (
+                                              <span className="flex items-center gap-0.5">
+                                                <Copy className="w-3 h-3" /> Copy
+                                              </span>
+                                            )}
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div className="font-mono text-zinc-200 break-all text-[11px]">
+                                        {item.DecryptedSecret}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ));
+                            })()}
                           </div>
 
                           {/* Liquidation Avoidance Guard Toggle */}
@@ -733,11 +992,10 @@ const CreateUser = () => {
                               <label className="text-zinc-400 font-medium">Trading Asset Pair</label>
                               <select
                                 value={userInfo.Symbol}
-                                name='Symbol'
+                                name="Symbol"
                                 onChange={(e) => setUserInfo({ ...userInfo, Symbol: e.target.value })}
                                 className="w-full bg-[#09090b] border border-[#27272a] focus:border-purple-500 rounded px-3 py-2 text-zinc-100 outline-none text-xs font-bold"
                               >
-                                <option value="">Select symbol..</option>
                                 {assetPairs.map((p) => (
                                   <option key={p} value={p}>
                                     {p}
@@ -751,9 +1009,8 @@ const CreateUser = () => {
                               <div className="flex items-center gap-2">
                                 <input
                                   type="range"
-                                  min="0"
+                                  min="1"
                                   max="120"
-                                  step={5}
                                   value={userInfo.Leverage}
                                   onChange={(e) => setUserInfo({ ...userInfo, Leverage: Number(e.target.value) })}
                                   className="w-full accent-purple-500 cursor-pointer"
@@ -798,8 +1055,8 @@ const CreateUser = () => {
                               Algorithmic Trading Strategy
                             </label>
                             <select
+                              name="StrategyName"
                               value={userInfo.StrategyName}
-                              name='StrategyName'
                               onChange={(e) => setUserInfo({ ...userInfo, StrategyName: e.target.value })}
                               className="w-full bg-[#09090b] border border-[#27272a] focus:border-purple-500 rounded px-3 py-2 text-zinc-100 outline-none text-xs"
                             >
@@ -907,8 +1164,8 @@ const CreateUser = () => {
                           }
                         >
                           {showBotSliders && enableBinanceApi
-                            ? userInfo.DecryptedKey
-                              ? 'Configured (Live)'
+                            ? userInfo.DecryptedAPIKeys!.length > 0
+                              ? 'Configured'
                               : 'Not Configured'
                             : 'Inactive / Standby'}
                         </span>
@@ -955,6 +1212,138 @@ const CreateUser = () => {
               </div>
             </div>
           </form>
+        )}
+        {isKeyModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-[#121214] border border-[#27272a] rounded-lg max-w-lg w-full p-4 sm:p-6 space-y-4 shadow-2xl relative">
+              <div className="flex items-center justify-between border-b border-[#27272a] pb-3">
+                <div className="flex items-center gap-2">
+                  <Key className="w-4 h-4 text-blue-400" />
+                  <h3 className="text-sm font-mono font-semibold text-zinc-100">
+                    Add Binance API Key
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsKeyModalOpen(false)}
+                  className="text-zinc-400 hover:text-zinc-200 p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {keyFormError && (
+                <div className="p-2.5 bg-rose-950/60 border border-rose-800 text-rose-300 text-xs font-mono rounded flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{keyFormError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveKeyForm} className="space-y-3.5">
+                {/* Key Label */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono text-zinc-300 flex items-center justify-between">
+                    <span>Key Label</span>
+                    <span className="text-[10.5px] text-zinc-500">e.g. Main Futures, Paper Sandbox</span>
+                  </label>
+                  <input
+                    type="text"
+                    name='label'
+                    value={newAPIKey.label}
+                    onChange={handleApiChange}
+                    placeholder="Enter descriptive label"
+                    className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-100 outline-none"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Protocol Tag Selector (Live vs Demo) */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono text-zinc-300">
+                    Execution Protocol Label
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNewAPIKey({ ...newAPIKey, isDemo: false })}
+                      className={`p-2.5 rounded border text-xs font-mono flex items-center justify-center gap-1.5 transition-colors ${!newAPIKey.isDemo
+                        ? 'bg-emerald-950/80 border-emerald-600 text-emerald-300 font-semibold'
+                        : 'bg-[#09090b] border-[#27272a] text-zinc-400 hover:text-zinc-200'
+                        }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span>LIVE TRADING</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewAPIKey({ ...newAPIKey, isDemo: false })}
+                      className={`p-2.5 rounded border text-xs font-mono flex items-center justify-center gap-1.5 transition-colors ${newAPIKey.isDemo
+                        ? 'bg-amber-950/80 border-amber-600 text-amber-300 font-semibold'
+                        : 'bg-[#09090b] border-[#27272a] text-zinc-400 hover:text-zinc-200'
+                        }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-amber-400" />
+                      <span>DEMO SANDBOX</span>
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 font-mono">
+                    {!newAPIKey.isDemo
+                      ? 'Live execution key: submits real USDT margin orders to Binance perpetual futures.'
+                      : 'Demo sandbox key: used for testnet and paper simulation environments.'}
+                  </p>
+                </div>
+
+                {/* Binance API Key */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono text-zinc-300 flex items-center justify-between">
+                    <span>Binance API Key</span>
+                    <span className="text-[10.5px] text-zinc-500">64 alphanumeric chars</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="DecryptedKey"
+                    value={newAPIKey.DecryptedKey}
+                    onChange={handleApiChange}
+                    placeholder="Enter Binance API Key"
+                    className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-100 outline-none"
+                  />
+                </div>
+
+                {/* Binance API Secret */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-mono text-zinc-300 flex items-center justify-between">
+                    <span>Binance API Secret</span>
+                    <span className="text-[10.5px] text-zinc-500">HMAC SHA-256 signature key</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="DecryptedSecret"
+                    value={newAPIKey.DecryptedSecret}
+                    onChange={handleApiChange}
+                    placeholder="Enter Binance API Secret"
+                    className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-100 outline-none"
+                  />
+                </div>
+
+                {/* Modal Actions */}
+                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#27272a]">
+                  <button
+                    type="button"
+                    onClick={() => setIsKeyModalOpen(false)}
+                    className="px-4 py-2 rounded bg-zinc-900 hover:bg-zinc-800 text-zinc-300 text-xs font-mono transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-semibold transition-colors shadow-sm"
+                  >
+                    Add API Key
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </main>
 
