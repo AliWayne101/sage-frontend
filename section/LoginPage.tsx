@@ -5,6 +5,7 @@ import { AlertCircle, Mail, Terminal, Lock, ArrowRight } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { AUTH_ERROR_MESSAGES, AuthErrorCode } from '@/constants';
+import { seedMockDataAction } from '@/app/actions/seeder.actions';
 
 const LoginPage = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -59,6 +60,10 @@ const LoginPage = () => {
             ...loginDetails,
             [e.target.name]: e.target.value
         });
+    }
+
+    const handleSeed = async () => {
+        // await seedMockDataAction();
     }
 
     return (
@@ -145,10 +150,16 @@ const LoginPage = () => {
                             )}
                         </button>
                     </form>
+                    {/* <button
+                        onClick={() => handleSeed()}
+                        className="cursor-pointer w-full py-2.5 px-4 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-semibold tracking-wide transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2"
+                    >
+                        Seed
+                    </button> */}
                 </div>
 
                 <div className="mt-6 text-center text-xs font-mono text-zinc-600">
-                    Personal & Family Private Deployment • Sage Automated Trading Systems
+                    Sage Automated Trading Systems
                 </div>
             </div>
 

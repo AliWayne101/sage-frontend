@@ -25,7 +25,7 @@ const Settings = () => {
     const [newAPIKey, setNewAPIKey] = useState<IDecryptedKeys>({
         DecryptedKey: "",
         DecryptedSecret: "",
-        id: "",
+        id: "new",
         isDemo: true,
         label: "",
     });
@@ -106,9 +106,10 @@ const Settings = () => {
     const handleConfirmModeChange = async () => {
         setIsChangingMode(true);
         setErrorMessage(null);
+        if (!user || !userData) return;
 
         try {
-            const updated = await updateUserDemoMode(user?.email || "", !userData?.Demo);
+            const updated = await updateUserDemoMode(user.email, !userData.Demo);
             if (!updated) {
                 setErrorMessage("There seems to be an error updating execution mode");
                 return;
@@ -136,7 +137,7 @@ const Settings = () => {
         setNewAPIKey({
             DecryptedKey: "",
             DecryptedSecret: "",
-            id: "",
+            id: "new",
             isDemo: true,
             label: "",
         });
@@ -178,13 +179,13 @@ const Settings = () => {
                 DecryptedSecret: cleanApiSecret
             }
         ];
-        const _userData: IUserInfoRuntime = { ...userData, DecryptedAPIKeys: updatedKeys}
-        const updatedUser = await updateUser(_userData);
-        if (!updatedUser) {
-            setErrorMessage("Unable to add the binance API");
-            return;
-        }
-        setUserData(updatedUser);
+        const _userData: IUserInfoRuntime = { ...userData, DecryptedAPIKeys: updatedKeys }
+        // const updatedUser = await updateUser(_userData);
+        // if (!updatedUser) {
+        //     setErrorMessage("Unable to add the binance API");
+        //     return;
+        // }
+        setUserData(_userData);
         setIsKeyModalOpen(false);
     };
 
@@ -242,16 +243,17 @@ const Settings = () => {
                                     </p>
                                 </div>
                             </div>
-
-                            <button
-                                type="button"
-                                onClick={handleOpenAddKeyModal}
-                                disabled={userData ? userData.DecryptedAPIKeys.length > 1 ? true : false : true}
-                                className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-medium transition-colors shadow-sm"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                                <span>Add API Key</span>
-                            </button>
+                            {(userData?.DecryptedAPIKeys.length || 3) < 2 && (
+                                <button
+                                    type="button"
+                                    onClick={handleOpenAddKeyModal}
+                                    disabled={userData ? userData.DecryptedAPIKeys.length > 1 ? true : false : true}
+                                    className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-medium transition-colors shadow-sm"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    <span>Add API Key</span>
+                                </button>
+                            )}
                         </div>
 
                         {/* Active Execution Mode Key Routing Status Banner */}
@@ -314,7 +316,7 @@ const Settings = () => {
                                     }`}
                             >
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                Live Keys ({userData?.DecryptedAPIKeys.filter((k) => k.isDemo === true).length})
+                                Live Keys ({userData?.DecryptedAPIKeys.filter((k) => k.isDemo === false).length})
                             </button>
                             <button
                                 type="button"
@@ -325,7 +327,7 @@ const Settings = () => {
                                     }`}
                             >
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                                Demo Keys ({userData?.DecryptedAPIKeys.filter((k) => k.isDemo === false).length})
+                                Demo Keys ({userData?.DecryptedAPIKeys.filter((k) => k.isDemo === true).length})
                             </button>
                         </div>
 
@@ -360,8 +362,10 @@ const Settings = () => {
                                         </div>
                                     );
                                 }
-
-                                return filteredKeys?.map((item) => (
+                                const sortedKeys = [...filteredKeys || []].sort(
+                                    (a, b) => Number(b.isDemo === userData?.Demo) - Number(a.isDemo === userData?.Demo)
+                                )
+                                return sortedKeys.map((item) => (
                                     <div
                                         key={item.id}
                                         className={`bg-[#09090b] border rounded-lg p-3.5 sm:p-4 space-y-3 transition-colors ${!item.isDemo
@@ -537,19 +541,10 @@ const Settings = () => {
                                     max="125"
                                     step="1"
                                     name="Leverage"
-                                    value={userData?.Leverage}
+                                    value={userData?.Leverage || 1}
                                     onChange={handleChange}
                                     className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
                                 />
-
-                                <div className="flex justify-between text-[10px] font-mono text-zinc-500">
-                                    <span>1x</span>
-                                    <span>20x</span>
-                                    <span>50x</span>
-                                    <span>100x</span>
-                                    <span>125x</span>
-                                </div>
-
                                 {userData?.Leverage! > 20 && (
                                     <div className="p-2.5 bg-rose-950/30 border border-rose-800/60 rounded flex items-center gap-2 text-[11px] font-mono text-rose-300">
                                         <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
@@ -882,6 +877,7 @@ const Settings = () => {
                                     <input
                                         type="text"
                                         name='label'
+                                        autoComplete='false'
                                         value={newAPIKey.label}
                                         onChange={handleApiChange}
                                         placeholder="Enter descriptive label"
@@ -935,6 +931,7 @@ const Settings = () => {
                                     <input
                                         type="text"
                                         name="DecryptedKey"
+                                        autoComplete='false'
                                         value={newAPIKey.DecryptedKey}
                                         onChange={handleApiChange}
                                         placeholder="Enter Binance API Key"
@@ -951,6 +948,7 @@ const Settings = () => {
                                     <input
                                         type="text"
                                         name="DecryptedSecret"
+                                        autoComplete='false'
                                         value={newAPIKey.DecryptedSecret}
                                         onChange={handleApiChange}
                                         placeholder="Enter Binance API Secret"

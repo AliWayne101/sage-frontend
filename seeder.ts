@@ -6,7 +6,6 @@ import UserModel from "./schema/users";
 import { connectDB } from "./lib/mongoose";
 
 const UID = "mock-ali-wains-001";
-const BOT_ID = "mock-bot-001";
 
 function dateDaysAgo(days: number, hour: number, minute: number) {
     const date = new Date();
@@ -36,12 +35,12 @@ export async function seedMockData() {
     // USER
     // -----------------------------------------
 
-    const password = await bcrypt.hash("123", 10);
+    const password = await bcrypt.hash("123", 12);
 
     await UserModel.create({
         _id: new mongoose.Types.ObjectId(),
         UID,
-        BotID: BOT_ID,
+        BotID: UID,
         AccountType: "SUPER",
         Name: "Ali Wains",
         Email: "aliwains@mock.com",
@@ -204,7 +203,7 @@ export async function seedMockData() {
 
             commission: trade.commission,
 
-            BotID: BOT_ID,
+            BotID: UID,
 
             Timestamp: trade.Timestamp,
 
