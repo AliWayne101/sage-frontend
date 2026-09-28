@@ -699,7 +699,11 @@ const Fleet = () => {
                                             );
                                         }
 
-                                        return filteredKeys.map((item) => (
+                                        const sortedKeys = [...filteredKeys].sort(
+                                            (a, b) => Number(b.isDemo === selectedBot.Demo) - Number(a.isDemo === selectedBot.Demo)
+                                        )
+
+                                        return sortedKeys.map((item) => (
                                             <div
                                                 key={item.id}
                                                 className={`bg-[#09090b] border rounded-lg p-3.5 sm:p-4 space-y-3 transition-colors ${!item.isDemo
@@ -717,7 +721,7 @@ const Fleet = () => {
 
                                                         {/* Label Badge */}
                                                         <span
-                                                            className={`text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${item.isDemo
+                                                            className={`text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border uppercase ${!item.isDemo
                                                                 ? 'bg-emerald-950/70 text-emerald-400 border-emerald-800'
                                                                 : 'bg-amber-950/70 text-amber-400 border-amber-800'
                                                                 }`}
