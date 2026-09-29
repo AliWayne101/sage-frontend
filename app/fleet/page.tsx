@@ -163,6 +163,8 @@ const Fleet = () => {
                 return;
             }
 
+            await server({ request: "restart" });
+
             const restBots = fleetData.filter((e) => e !== selectedBot);
             setFleetData([
                 ...restBots,

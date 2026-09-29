@@ -48,6 +48,7 @@ const Settings = () => {
                 setErrorMessage('Failed to save settings to backend');
                 return;
             }
+            await server({ request: "restart"});
             setUserData(updatedUser);
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 3000);
@@ -114,6 +115,7 @@ const Settings = () => {
                 setErrorMessage("There seems to be an error updating execution mode");
                 return;
             }
+            await server({ request: "restart"});
             setUserData({
                 ...userData,
                 Demo: updated.Demo,
