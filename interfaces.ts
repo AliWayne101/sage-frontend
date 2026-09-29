@@ -24,7 +24,7 @@ export interface BotHeartbeat {
     ActiveTrade?: {
         orderId: string;
         symbol: string;
-        side: string;
+        side: Direction;
         entryPrice: number;
         markPrice: number;
         size: number;
@@ -154,8 +154,8 @@ export interface TradeMetrics {
 }
 
 export interface TradesStatsResults {
-  _id: null;
-  totalRealizedProfit: number;
-  count: number;
-  avgProfitPerc: number;
+    _id: null;
+    totalRealizedProfit: number;
+    count: number;
+    avgProfitPerc: number;
 }

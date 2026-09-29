@@ -93,12 +93,12 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         <span className="flex items-center gap-1.5">
                             <span>{position.symbol.toUpperCase()}</span>
                             <span
-                                className={`text-[9px] px-1 py-0.5 rounded border font-mono font-bold ${position.side === "long"
+                                className={`text-[9px] px-1 py-0.5 rounded border font-mono font-bold ${position.side === Direction.Long
                                     ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
                                     : 'text-rose-400 bg-rose-950/60 border-rose-800'
                                     }`}
                             >
-                                {position.side.toUpperCase()}
+                                {position.side.toString()}
                             </span>
                         </span>
                     ),
@@ -511,12 +511,12 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                 <div className="flex items-center gap-1.5">
                                     <span className="font-bold text-sm font-mono text-white">{heartbeatData.ActiveTrade.symbol}</span>
                                     <span
-                                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${heartbeatData?.ActiveTrade.side === "long"
+                                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${heartbeatData?.ActiveTrade.side === Direction.Long
                                             ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
                                             : 'text-rose-400 bg-rose-950/60 border-rose-800'
                                             }`}
                                     >
-                                        {heartbeatData.ActiveTrade.side === "long" ? 'LONG' : 'SHORT'}
+                                        {heartbeatData.ActiveTrade.side === Direction.Long ? 'LONG' : 'SHORT'}
                                     </span>
                                 </div>
                             </div>

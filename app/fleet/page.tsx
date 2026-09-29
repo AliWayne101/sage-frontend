@@ -918,7 +918,7 @@ const Fleet = () => {
                                     <div className="flex items-center gap-2">
                                         <Activity className="w-4 h-4 text-purple-400 shrink-0" />
                                         <span className="text-zinc-400">Active Position State:</span>
-                                        <span className="font-bold text-zinc-200">{heartBeats.find((e) => e.BotID === selectedBot.BotID)?.ActiveTrade?.side || 'No open position'}</span>
+                                        <span className="font-bold text-zinc-200">{heartBeats.find((e) => e.BotID === selectedBot.BotID)?.ActiveTrade?.side.toString() || 'No open position'}</span>
                                     </div>
                                     <button
                                         onClick={() => router.push(`/inspect/${selectedBot.BotID}`)}

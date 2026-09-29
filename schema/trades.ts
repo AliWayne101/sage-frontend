@@ -20,6 +20,7 @@ export interface ITrades {
     closeTime: Date | undefined;
     Reason: string;
     Demo: boolean;
+    margin: number;
 }
 
 const Trades = new Schema<ITrades>({
@@ -41,9 +42,10 @@ const Trades = new Schema<ITrades>({
     isFilled: { type: Boolean, default: false },
     closeTime: { type: Date, default: undefined },
     Reason: { type: String, default: "" },
-    Demo: { type: Boolean, required: true }
+    Demo: { type: Boolean, required: true },
+    margin: { type: Number, default: 0 }
 });
-Trades.index({ BotID: 1, Demo: 1 });
+
 let TradesModel: Model<ITrades>;
 try {
     TradesModel = mongoose.model<ITrades>("trades");
