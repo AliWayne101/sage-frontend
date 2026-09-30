@@ -42,7 +42,7 @@ const Trades = new Schema<ITrades>({
     isFilled: { type: Boolean, default: false },
     closeTime: { type: Date, default: undefined },
     Reason: { type: String, default: "" },
-    Exchange: { type: Number, enum: [Exchange.DEMO, Exchange.LIVE, Exchange.SANDBOX], required: true },
+    Exchange: { type: Number, enum: [Exchange.DEMO, Exchange.LIVE, Exchange.SANDBOX], default: Exchange.SANDBOX },
     margin: { type: Number, default: 0 }
 });
 
