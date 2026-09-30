@@ -1,5 +1,5 @@
 "use client"
-import { Lock, AlertTriangle, ArrowLeft, CheckCircle2, Compass, Key, Radio, Scale, Shield, Sliders, DollarSign, RefreshCw, Save, AlertOctagon, Plus, Activity, Tag, CheckCircle, Check, Copy, X } from 'lucide-react'
+import { Lock, AlertTriangle, ArrowLeft, CheckCircle2, Compass, Key, Radio, Scale, Shield, Sliders, DollarSign, RefreshCw, Save, AlertOctagon, Plus, Activity, Tag, CheckCircle, Check, Copy, X, Box, Globe, Zap } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { useAuth } from '../AuthProvider';
@@ -48,7 +48,7 @@ const Settings = () => {
                 setErrorMessage('Failed to save settings to backend');
                 return;
             }
-            await server({ request: "restart"});
+            await server({ request: "restart" });
             setUserData(updatedUser);
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 3000);
@@ -115,7 +115,7 @@ const Settings = () => {
                 setErrorMessage("There seems to be an error updating execution mode");
                 return;
             }
-            await server({ request: "restart"});
+            await server({ request: "restart" });
             setUserData({
                 ...userData,
                 Demo: updated.Demo,
@@ -593,79 +593,209 @@ const Settings = () => {
 
                     {/* Section 3: Execution Environment & Strategy Engine */}
                     <section className="bg-[#121214] border border-[#27272a] rounded-lg p-3.5 sm:p-5 space-y-4 sm:space-y-5">
-                        <div className="flex items-center gap-2 border-b border-[#27272a] pb-3">
-                            <Compass className="w-4 h-4 text-blue-400 shrink-0" />
-                            <div>
-                                <h2 className="text-xs font-mono uppercase tracking-wider font-semibold text-zinc-200">
-                                    Execution Environment & Strategy Engine
-                                </h2>
-                                <p className="text-[11px] text-zinc-500 font-mono">
-                                    Configure live exchange connectivity and select active quant strategy algorithms
-                                </p>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#27272a] pb-3">
+                            <div className="flex items-center gap-2">
+                                <Compass className="w-4 h-4 text-blue-400 shrink-0" />
+                                <div>
+                                    <h2 className="text-xs font-mono uppercase tracking-wider font-semibold text-zinc-200">
+                                        Execution Environment & Strategy Engine
+                                    </h2>
+                                    <p className="text-[11px] text-zinc-500 font-mono">
+                                        Configure live exchange connectivity or local sandbox execution and select active quant strategy algorithms
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Head Navigation Buttons: Sandbox vs Exchange */}
+                            <div className="flex items-center gap-1.5 p-1 bg-[#09090b] border border-[#27272a] rounded-lg self-start sm:self-auto shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => setUserData({ ...userData!, Sandbox: true })}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono font-medium transition-all ${userData?.Sandbox
+                                        ? 'bg-amber-600 text-white shadow-sm font-semibold'
+                                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                                        }`}
+                                >
+                                    <Box className="w-3.5 h-3.5" />
+                                    <span>Sandbox</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setUserData({ ...userData!, Sandbox: false })}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-mono font-medium transition-all ${!userData?.Sandbox
+                                        ? 'bg-blue-600 text-white shadow-sm font-semibold'
+                                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                                        }`}
+                                >
+                                    <Globe className="w-3.5 h-3.5" />
+                                    <span>Exchange</span>
+                                </button>
                             </div>
                         </div>
 
                         <div className="space-y-4 sm:space-y-5 pt-1">
 
-                            <div className="p-3.5 sm:p-4 bg-[#09090b] border border-[#27272a] rounded-lg space-y-3">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                    <div className="space-y-1 sm:pr-4">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <Radio className={`w-3.5 h-3.5 shrink-0 ${userData?.Demo ? 'text-amber-400' : 'text-emerald-400'}`} />
-                                            <span className="text-xs font-mono font-medium text-zinc-200">
-                                                Execution Mode Protocol
-                                            </span>
-                                            <span
-                                                className={`text-[9.5px] sm:text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${userData?.Demo
-                                                    ? 'bg-amber-950/60 text-amber-400 border-amber-800'
-                                                    : 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
-                                                    }`}
-                                            >
-                                                {userData?.Demo ? 'DEMO MODE (SANDBOX)' : 'LIVE TRADING'}
-                                            </span>
-                                        </div>
-                                        <p className="text-[10.5px] sm:text-[11px] text-zinc-500 font-mono leading-relaxed">
-                                            {userData?.Demo
-                                                ? 'Paper trading sandbox: simulated order fills and margin tracking without risking real capital.'
-                                                : 'Live execution: places real USDT-Margined perpetual futures contracts directly on Binance.'}
-                                        </p>
-                                    </div>
+                            {userData?.Sandbox && (
+                                <div className="space-y-4 animate-in fade-in duration-200">
+                                    <div className="p-4 sm:p-5 bg-[#09090b] border border-amber-800/60 rounded-lg space-y-4 relative overflow-hidden">
+                                        <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
 
-                                    <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-center">
-                                        {/* Explicit protocol pills */}
-                                        <div className="inline-flex rounded p-0.5 bg-zinc-900 border border-zinc-800">
+                                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-10 h-10 rounded-lg bg-amber-950/80 border border-amber-700/80 flex items-center justify-center shrink-0 text-amber-400">
+                                                    <Box className="w-5 h-5" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-xs font-mono font-bold uppercase text-zinc-100">
+                                                            Local Offline Sandbox Simulation
+                                                        </h3>
+                                                        <span className="text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border bg-amber-950/80 text-amber-300 border-amber-800">
+                                                            LOCAL 1,000 USDT BALANCE
+                                                        </span>
+                                                        <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded border bg-zinc-900 text-zinc-400 border-zinc-700">
+                                                            ZERO EXCHANGE CALLS
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-zinc-300 font-mono leading-relaxed">
+                                                        The bot will use a <strong className="text-amber-300">local balance of 1,000 USDT</strong> and test the strategy completely offline without making calls on the exchange.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Active Status Badge */}
+                                            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-950/40 border border-amber-800/80 text-amber-300 font-mono text-[11px] shrink-0 self-start">
+                                                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                                                <span>Sandbox Standby</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Sandbox Details Grid */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs font-mono">
+                                            <div className="bg-[#121214] border border-[#27272a] rounded p-3 space-y-1">
+                                                <span className="text-[10px] text-zinc-500 uppercase block">Virtual Starting Balance</span>
+                                                <div className="text-base font-bold text-amber-400">$1,000.00 USDT</div>
+                                                <p className="text-[10.5px] text-zinc-400 leading-normal">
+                                                    Isolated local paper margin. PnL and trade statistics accumulate purely in client memory.
+                                                </p>
+                                            </div>
+
+                                            <div className="bg-[#121214] border border-[#27272a] rounded p-3 space-y-1">
+                                                <span className="text-[10px] text-zinc-500 uppercase block">Exchange Network Activity</span>
+                                                <div className="text-base font-bold text-emerald-400">Offline (0 Calls)</div>
+                                                <p className="text-[10.5px] text-zinc-400 leading-normal">
+                                                    No Binance REST orders, WebSocket margin trades, or signature requests are transmitted.
+                                                </p>
+                                            </div>
+
+                                            <div className="bg-[#121214] border border-[#27272a] rounded p-3 space-y-1">
+                                                <span className="text-[10px] text-zinc-500 uppercase block">Strategy Verification</span>
+                                                <div className="text-base font-bold text-blue-400">Active Test Matrix</div>
+                                                <p className="text-[10.5px] text-zinc-400 leading-normal">
+                                                    Evaluates indicators (RSI, EMA, Bollinger, ATR) using local candle feeds and simulated fills.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Advisory Banner */}
+                                        <div className="p-3 bg-[#121214] border border-zinc-800 rounded-lg flex items-center justify-between gap-3 text-xs font-mono">
+                                            <div className="flex items-center gap-2 text-zinc-300">
+                                                <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+                                                <span>Ready to run live market or testnet orders? Switch to the <strong>Exchange</strong> tab above.</span>
+                                            </div>
                                             <button
                                                 type="button"
-                                                onClick={() => handleRequestModeChange(true)}
-                                                className={`px-2.5 py-1 text-[10.5px] font-mono rounded transition-colors ${userData?.Demo
-                                                    ? 'bg-amber-600 text-white font-semibold shadow-sm'
-                                                    : 'text-zinc-400 hover:text-zinc-200'
-                                                    }`}
+                                                onClick={() => setUserData({ ...userData!, Sandbox: false })}
+                                                className="px-3 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-mono transition-colors shrink-0"
                                             >
-                                                DEMO
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRequestModeChange(false)}
-                                                className={`px-2.5 py-1 text-[10.5px] font-mono rounded transition-colors ${!userData?.Demo
-                                                    ? 'bg-emerald-600 text-white font-semibold shadow-sm'
-                                                    : 'text-zinc-400 hover:text-zinc-200'
-                                                    }`}
-                                            >
-                                                LIVE
+                                                Switch to Exchange
                                             </button>
                                         </div>
                                     </div>
                                 </div>
+                            )}
 
-                                {/* Safety Warning Note */}
-                                <div className="flex items-start gap-2 pt-2 border-t border-zinc-800/80 text-[10.5px] font-mono text-zinc-400">
-                                    <AlertOctagon className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                                    <span>
-                                        <strong className="text-zinc-300">Safety Protocol Gate:</strong> Switching Execution Mode Protocol requires confirmation. All active positions will be closed on current market.
-                                    </span>
+                            {/* TAB 2: EXCHANGE ENVIRONMENT (Conventional Live / Demo switch & full controls) */}
+                            {!userData?.Sandbox && (
+                                <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-200">
+                                    {/* Demo / Live Switch Toggle (Requested in Engine Config) */}
+                                    <div className="p-3.5 sm:p-4 bg-[#09090b] border border-[#27272a] rounded-lg space-y-3">
+                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <div className="space-y-1 sm:pr-4">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <Radio className={`w-3.5 h-3.5 shrink-0 ${userData?.Demo ? 'text-amber-400' : 'text-emerald-400'}`} />
+                                                    <span className="text-xs font-mono font-medium text-zinc-200">
+                                                        Execution Mode Protocol
+                                                    </span>
+                                                    <span
+                                                        className={`text-[9.5px] sm:text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${userData?.Demo
+                                                            ? 'bg-amber-950/60 text-amber-400 border-amber-800'
+                                                            : 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                                                            }`}
+                                                    >
+                                                        {userData?.Demo ? 'DEMO MODE (TESTNET)' : 'LIVE TRADING'}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[10.5px] sm:text-[11px] text-zinc-500 font-mono leading-relaxed">
+                                                    {userData?.Demo
+                                                        ? 'Testnet exchange sandbox: places simulated order fills and tracks margin on Binance Testnet endpoints.'
+                                                        : 'Live execution: places real USDT-Margined perpetual futures contracts directly on Binance exchange.'}
+                                                </p>
+                                            </div>
+
+                                            <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-center">
+                                                {/* Explicit protocol pills */}
+                                                <div className="inline-flex rounded p-0.5 bg-zinc-900 border border-zinc-800">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRequestModeChange(true)}
+                                                        className={`px-2.5 py-1 text-[10.5px] font-mono rounded transition-colors ${userData?.Demo
+                                                            ? 'bg-amber-600 text-white font-semibold shadow-sm'
+                                                            : 'text-zinc-400 hover:text-zinc-200'
+                                                            }`}
+                                                    >
+                                                        DEMO
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRequestModeChange(false)}
+                                                        className={`px-2.5 py-1 text-[10.5px] font-mono rounded transition-colors ${!userData?.Demo
+                                                            ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+                                                            : 'text-zinc-400 hover:text-zinc-200'
+                                                            }`}
+                                                    >
+                                                        LIVE
+                                                    </button>
+                                                </div>
+
+                                                {/* Interactive Switch Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRequestModeChange(!userData?.Demo)}
+                                                    className={`w-12 h-6 rounded-full transition-colors relative p-0.5 border shrink-0 ${!userData?.Demo
+                                                        ? 'bg-emerald-600 border-emerald-500'
+                                                        : 'bg-amber-600 border-amber-500'
+                                                        }`}
+                                                    title={`Click to switch to ${userData?.Demo ? 'Live Trading' : 'Demo Mode'}`}
+                                                >
+                                                    <span
+                                                        className={`block w-5 h-5 rounded-full bg-white transition-transform ${!userData?.Demo ? 'translate-x-6' : 'translate-x-0.5'
+                                                            }`}
+                                                    />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Safety Warning Note */}
+                                        <div className="flex items-start gap-2 pt-2 border-t border-zinc-800/80 text-[10.5px] font-mono text-zinc-400">
+                                            <AlertOctagon className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                                            <span>
+                                                <strong className="text-zinc-300">Safety Protocol Gate:</strong> Switching Execution Mode Protocol requires confirmation. All active positions will be closed on current market.
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Strategy Dropdown */}
                             <div className="space-y-1.5">

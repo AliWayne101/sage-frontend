@@ -1,4 +1,4 @@
-import { Direction } from "@/interfaces";
+import { Direction, Exchange } from "@/interfaces";
 import mongoose, { Model, Schema } from "mongoose";
 
 export interface ITrades {
@@ -19,7 +19,7 @@ export interface ITrades {
     isFilled: boolean;
     closeTime: Date | undefined;
     Reason: string;
-    Demo: boolean;
+    Exchange: Exchange;
     margin: number;
 }
 
@@ -42,7 +42,7 @@ const Trades = new Schema<ITrades>({
     isFilled: { type: Boolean, default: false },
     closeTime: { type: Date, default: undefined },
     Reason: { type: String, default: "" },
-    Demo: { type: Boolean, required: true },
+    Exchange: { type: Number, enum: [Exchange.DEMO, Exchange.LIVE, Exchange.SANDBOX], required: true },
     margin: { type: Number, default: 0 }
 });
 

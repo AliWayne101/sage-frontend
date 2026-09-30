@@ -46,7 +46,11 @@ export enum Direction {
     Long,
     Short
 }
-
+export enum Exchange {
+    DEMO,
+    LIVE,
+    SANDBOX
+}
 
 export interface Filter {
     name: string;

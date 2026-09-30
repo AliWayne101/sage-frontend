@@ -130,7 +130,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const handleButtonEvents = async (actionState: string) => {
         setLoadingAction(actionState);
         try {
-            const serverResponse = await server({ request: actionState });
+            const serverResponse = await server({ request: actionState, targetBot: BotID });
             if (!serverResponse.success) {
                 setActionNotice(serverResponse.message!);
                 return;

@@ -58,6 +58,7 @@ export interface IUserInfo {
     IsHalted: boolean;
     IsApproved: boolean;
     Demo: boolean;
+    Sandbox: boolean;
     Name: string;
     Email: string;
     Password: string;
@@ -87,6 +88,7 @@ const User = new Schema<IUserInfo>({
     Name: { type: String, required: true },
     Password: { type: String, required: true },
     AvoidLiquidation: { type: Boolean, default: true },
+    Sandbox: { type: Boolean, default: false },
     ConnectedAccounts: {
         type: [
             {
