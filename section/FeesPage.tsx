@@ -1,17 +1,19 @@
 "use client"
+import { getTransactionsByTimeRange } from '@/app/actions/transactions.actions';
+import { getUserByBotID } from '@/app/actions/user.actions';
 import { IUserInfoRuntime } from '@/interfaces';
 import { ITransaction } from '@/schema/transactions';
 import Footer from '@/section/Footer';
 import { formatCurrency } from '@/utils';
 import { ArrowLeft, ArrowUpRight, Bot, CalendarDays, Check, CheckCircle2, Clock, Copy, DollarSign, Download, Filter, Receipt, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
 export interface FeesPageProps {
     BotID: string;
 }
 
-const FeesPage = ({BotID}: FeesPageProps) => {
+const FeesPage = ({ BotID }: FeesPageProps) => {
     const [User, setUser] = useState<IUserInfoRuntime | null>(null);
     const [activePreset, setActivePreset] = useState<string>('7days');
     const [searchFilter, setSearchFilter] = useState("");
@@ -57,14 +59,36 @@ const FeesPage = ({BotID}: FeesPageProps) => {
         };
     }, [filteredList]);
 
-
-
     const handleSetPreset = (preset: string) => {
         // Logic to set the date filter preset
+        setActivePreset(preset);
+        const now = new Date();
+        let from = sevenDaysAgoStr;
+        let to = todayStr;
+
+        if (preset === 'today') {
+            from = todayStr;
+            to = todayStr;
+        } else if (preset === '7days') {
+            const past7 = new Date(now.getTime() - 7 * 86400000);
+            from = past7.toISOString().split('T')[0];
+            to = todayStr;
+        } else if (preset === '30days') {
+            const past30 = new Date(now.getTime() - 30 * 86400000);
+            from = past30.toISOString().split('T')[0];
+            to = todayStr;
+        } else if (preset === 'all') {
+            from = '';
+            to = '';
+        }
+
+        setTargetDates({ from, to });
+        fetchTransactions();
     }
 
     const handleApplyFilter = (e: React.FormEvent) => {
         e.preventDefault();
+        fetchTransactions();
     }
 
     const handleExportCSV = () => {
@@ -95,6 +119,31 @@ const FeesPage = ({BotID}: FeesPageProps) => {
         setCopiedTxid(id);
         setTimeout(() => setCopiedTxid(null), 2000);
     };
+
+    useEffect(() => {
+        if (!BotID) return;
+        const fetchUser = async () => {
+            const user = await getUserByBotID(BotID);
+            setUser(user);
+        }
+        fetchUser();
+        fetchTransactions();
+    }, [BotID])
+
+    const fetchTransactions = async () => {
+        setLoading(true);
+        try {
+            const trxs = await getTransactionsByTimeRange(BotID, targetDates.from, targetDates.to);
+            if (!trxs) {
+                console.log("There seems to be problem fetching transactions");
+                return;
+            }
+            setTransactions(trxs);
+            setLoading(false);
+        } catch (err) {
+            console.log(err);
+        }
+    }
 
     return (
         <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans">

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react'
 import Footer from '@/section/Footer';
-import { Activity, ArrowDownRight, ArrowUpRight, Calendar, CheckCircle, ChevronDown, DollarSign, Layers, LogOut, Pause, Play, RefreshCw, RotateCcw, Sliders, TrendingUp, UserPlus, Users, XCircle } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowUpRight, Calendar, CheckCircle, ChevronDown, DollarSign, Layers, LogOut, Pause, Play, Receipt, RefreshCw, RotateCcw, Sliders, TrendingUp, UserPlus, Users, XCircle } from 'lucide-react';
 import CustomLineChart from '@/components/CustomLineChart';
 import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
@@ -311,6 +311,15 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                 >
                                     <Calendar className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                                     <span>Trades by Date Window</span>
+                                </button>
+                                <button
+                                    onClick={() => router.push('/fees')}
+                                    className="w-full text-left px-3 py-2 hover:bg-zinc-800/80 text-zinc-300 flex items-center justify-between group"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <Receipt className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                        <span>Service Fees Paid Ledger</span>
+                                    </div>
                                 </button>
                                 <button
                                     onClick={() => {

@@ -4,7 +4,7 @@ import { SAGE_FEE_PERCENTAGE } from '@/constants';
 import { BotHeartbeat, IDecryptedKeys, IUserInfoRuntime, Strategy, TradesStatsResults } from '@/interfaces';
 import Footer from '@/section/Footer';
 import { formatCurrency } from '@/utils';
-import { Activity, ArrowLeft, Bot, Check, CheckCircle, CheckCircle2, ChevronRight, Copy, DollarSign, ExternalLink, Key, Layers, Power, Radio, RefreshCw, Search, ShieldCheck, Sliders, Sparkles, Tag, Trash2, UserPlus } from 'lucide-react';
+import { Activity, ArrowLeft, Bot, Check, CheckCircle, CheckCircle2, ChevronRight, Copy, DollarSign, ExternalLink, Key, Layers, Power, Radio, Receipt, RefreshCw, Search, ShieldCheck, Sliders, Sparkles, Tag, Trash2, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react'
 import { getBotStats, getOverallRealizedProfit } from '../actions/trades.actions';
@@ -756,6 +756,7 @@ const Fleet = () => {
                                                             <span>Delete Key</span>
                                                         </button>
                                                     </div>
+
                                                 </div>
 
                                                 {/* Credentials Display with Masking, Reveal & Copy */}
