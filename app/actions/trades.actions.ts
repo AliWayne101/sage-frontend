@@ -2,7 +2,7 @@
 
 import { CustomLineChartInsideData } from "@/components/CustomLineChart";
 import { SUPER_USER_ROLE } from "@/constants";
-import { TradeAnalytics, TradesStatsResults } from "@/interfaces";
+import { Exchange, TradeAnalytics, TradesStatsResults } from "@/interfaces";
 import { connectDB } from "@/lib/mongoose";
 import { getSession } from "@/lib/nextauth"
 import TradesModel, { ITrades } from "@/schema/trades";
@@ -19,8 +19,11 @@ export const getRecentTrades = async (targetEmail: string, limit: number = 10): 
     if (targetEmail !== session.user.email && session.user.accountType !== SUPER_USER_ROLE)
         return null;
 
+    let tradeExchange: Exchange = Exchange.SANDBOX;
+    if (!user.Sandbox) tradeExchange = user.Demo ? Exchange.DEMO : Exchange.LIVE;
+
     const trades = await TradesModel
-        .find({ BotID: user.BotID, isFilled: true, Demo: user.Demo })
+        .find({ BotID: user.BotID, isFilled: true, Exchange: tradeExchange })
         .sort({ Timestamp: -1 })
         .limit(limit)
         .lean();
@@ -47,10 +50,13 @@ export const generateDailyTradeAnalytics = async (
     startDate.setDate(now.getDate() - (days - 1));
     startDate.setHours(0, 0, 0, 0);
 
+    let tradeExchange: Exchange = Exchange.SANDBOX;
+    if (!user.Sandbox) tradeExchange = user.Demo ? Exchange.DEMO : Exchange.LIVE;
+
     const trades = await TradesModel.find({
         BotID: user.BotID,
         isFilled: true,
-        Demo: user.Demo,
+        Exchange: tradeExchange,
         Timestamp: { $gte: startDate }
     }).sort({ Timestamp: 1 }).lean();
 
@@ -133,10 +139,13 @@ export const getUserTrades = async (botID: string, targetDates: { fromDate: stri
     if (botID !== session.user.uid && session.user.accountType !== SUPER_USER_ROLE)
         return [];
 
+    let tradeExchange: Exchange = Exchange.SANDBOX;
+    if (!user.Sandbox) tradeExchange = user.Demo ? Exchange.DEMO : Exchange.LIVE;
+
     let query: any = {
         BotID: botID,
         isFilled: true,
-        Demo: user.Demo
+        Exchange: tradeExchange
     };
 
     const _timestamp: Record<string, number> = {};
@@ -175,7 +184,7 @@ export async function getOverallRealizedProfit(): Promise<number> {
 
     const [result] = await TradesModel.aggregate<RealizedProfitAggregateResult>([
         {
-            $match: { Demo: false, isFilled: true }
+            $match: { Exchange: Exchange.LIVE, isFilled: true }
         },
         {
             $group: {
@@ -203,7 +212,7 @@ export async function getBotStats(botId: string): Promise<TradesStatsResults> {
         {
             $match: {
                 BotID: botId,
-                Demo: false,
+                Exchange: Exchange.LIVE,
                 isFilled: true
             }
         },
