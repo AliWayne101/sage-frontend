@@ -113,7 +113,7 @@ const Fleet = () => {
     const handleToggleHalt = (botID: string) => {
         const targetBot = selectedBot;
         if (!targetBot) return;
-        const isCurrentlyHalted = targetBot.IsHalted;
+        const isCurrentlyHalted = targetBot.SUKillSwitch;
 
         if (isCurrentlyHalted) {
             setConfirmationModal({
@@ -171,6 +171,7 @@ const Fleet = () => {
                 updatedBot
             ]);
             setSelectedBot(updatedBot);
+            closeConfirmModal();
         } catch (error) {
             console.log(error);
             setActionMessage("There seems to be an error updating the bot Kill Switch");
@@ -542,13 +543,13 @@ const Fleet = () => {
                                     </div>
 
                                     {/* Primary Super User Action: Inspect in Dashboard */}
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <button
                                             onClick={() => router.push(`/inspect/${selectedBot.BotID}`)}
                                             className="flex-1 sm:flex-none px-3.5 py-2 rounded-md bg-purple-600 hover:bg-purple-500 text-white font-mono text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-purple-900/30 transition-colors"
                                         >
                                             <ExternalLink className="w-3.5 h-3.5" />
-                                            <span>Inspect in Dashboard</span>
+                                            <span>Inspect Dashboard</span>
                                         </button>
 
                                         <button
@@ -560,6 +561,15 @@ const Fleet = () => {
                                         >
                                             <Power className="w-3.5 h-3.5" />
                                             <span>{selectedBot.SUKillSwitch ? 'Resume' : 'Halt'}</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => router.push(`/fees/${selectedBot.BotID}`)}
+                                            className="px-3 py-2 rounded-md bg-amber-950/60 hover:bg-amber-900/80 border border-amber-800/80 text-amber-300 font-mono text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                                            title={`View Service Fee & Settlement Transactions for bot ${selectedBot.BotID} (${selectedBot.Name})`}
+                                        >
+                                            <Receipt className="w-3.5 h-3.5 text-amber-400" />
+                                            <span>View Transactions</span>
                                         </button>
                                     </div>
                                 </div>
