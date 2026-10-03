@@ -1,11 +1,11 @@
 "use client"
 import { getTransactionsByTimeRange } from '@/app/actions/transactions.actions';
 import { getUserByBotID } from '@/app/actions/user.actions';
-import { IUserInfoRuntime } from '@/interfaces';
+import { BinanceWithdrawalStatus, IUserInfoRuntime } from '@/interfaces';
 import { ITransaction } from '@/schema/transactions';
 import Footer from '@/section/Footer';
 import { formatCurrency } from '@/utils';
-import { ArrowLeft, ArrowUpRight, Bot, CalendarDays, Check, CheckCircle2, Clock, Copy, DollarSign, Download, Filter, Receipt, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Bot, CalendarDays, Check, CheckCircle2, CircleSlashed, Clock, Copy, DollarSign, Download, Filter, Receipt, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react'
 
@@ -138,6 +138,11 @@ const FeesPage = ({ BotID }: FeesPageProps) => {
                 console.log("There seems to be problem fetching transactions");
                 return;
             }
+            const sortedTrxs = [...trxs].sort(
+                (a, b) =>
+                    new Date(b.Timestamp).getTime() -
+                    new Date(a.Timestamp).getTime()
+            );
             setTransactions(trxs);
             setLoading(false);
         } catch (err) {
@@ -499,16 +504,38 @@ const FeesPage = ({ BotID }: FeesPageProps) => {
                                                 {/* Amount */}
                                                 <td className="py-3 px-3 text-right">
                                                     <span className="font-bold text-amber-400 text-sm">
-                                                        {formatCurrency(tx.Amount, 2)}
+                                                        {formatCurrency(tx.Amount, 3)}
                                                     </span>
                                                     <span className="text-[9.5px] text-zinc-500 block">USDT</span>
                                                 </td>
 
                                                 {/* Settlement Status */}
                                                 <td className="py-3 px-3 whitespace-nowrap">
-                                                    <span className="px-2 py-0.5 rounded border text-[10px] font-bold uppercase inline-flex items-center gap-1 bg-emerald-950/60 text-emerald-400 border-emerald-800">
-                                                        <CheckCircle2 className="w-3 h-3" />
-                                                        <span>{tx.Status || 'Confirmed'}</span>
+                                                    <span
+                                                        className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase inline-flex items-center gap-1 ${tx.Status === BinanceWithdrawalStatus.Cancelled ||
+                                                            tx.Status === BinanceWithdrawalStatus.Rejected ||
+                                                            tx.Status === BinanceWithdrawalStatus.Failure
+                                                            ? "bg-red-950/60 text-red-400 border-red-800"
+                                                            : tx.Status === BinanceWithdrawalStatus.Completed
+                                                                ? "bg-emerald-950/60 text-emerald-400 border-emerald-800"
+                                                                : "bg-blue-950/60 text-blue-400 border-blue-800"
+                                                            }`}
+                                                    >
+                                                        {tx.Status === BinanceWithdrawalStatus.EmailSent ||
+                                                            tx.Status === BinanceWithdrawalStatus.AwaitingApproval ||
+                                                            tx.Status === BinanceWithdrawalStatus.Processing ? (
+                                                            <RefreshCw className="w-3 h-3 animate-spin" />
+                                                        ) : tx.Status === BinanceWithdrawalStatus.Cancelled ||
+                                                            tx.Status === BinanceWithdrawalStatus.Rejected ||
+                                                            tx.Status === BinanceWithdrawalStatus.Failure ? (
+                                                            <CircleSlashed className="w-3 h-3" />
+                                                        ) : (
+                                                            <CheckCircle2 className="w-3 h-3" />
+                                                        )}
+
+                                                        <span>
+                                                            {BinanceWithdrawalStatus[tx.Status] || "Confirmed"}
+                                                        </span>
                                                     </span>
                                                 </td>
 

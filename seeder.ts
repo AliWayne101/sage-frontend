@@ -1,9 +1,10 @@
 import bcrypt from "bcrypt";
 import mongoose from "mongoose";
-import { Direction } from "@/interfaces";
+import { BinanceWithdrawalStatus, Direction } from "@/interfaces";
 import TradesModel from "./schema/trades";
 import UserModel from "./schema/users";
 import { connectDB } from "./lib/mongoose";
+import TransactionModel from "./schema/transactions";
 
 const UID = "mock-ali-wains-001";
 
@@ -18,6 +19,11 @@ function dateDaysAgo(days: number, hour: number, minute: number) {
 
 function orderId(index: number) {
     return `MOCK-${Date.now()}-${index}`;
+}
+
+export async function seedMockTransactions() {
+    await connectDB();
+    await TransactionModel.insertMany(transactions);
 }
 
 export async function seedMockData() {
@@ -250,3 +256,29 @@ export async function seedMockData() {
     console.log("Trades:", tradeDocuments.length);
     console.log("PNL:", pnl.toFixed(2));
 }
+
+const BOT_ID = "mock-ali-wains-001";
+const transactions = Array.from({ length: 8 }, (_, i) => {
+    const statuses = [
+        BinanceWithdrawalStatus.Completed,
+        BinanceWithdrawalStatus.Processing,
+        BinanceWithdrawalStatus.EmailSent,
+        BinanceWithdrawalStatus.AwaitingApproval,
+        BinanceWithdrawalStatus.Cancelled,
+        BinanceWithdrawalStatus.Rejected,
+        BinanceWithdrawalStatus.Failure,
+    ];
+
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+
+    return {
+        _id: new mongoose.Types.ObjectId(),
+        BotID: BOT_ID,
+        TXID: `MOCK-TX-${Date.now()}-${i + 1}`,
+        Amount: Number((Math.random() * 4.9 + 0.1).toFixed(2)),
+        Description: "Mock USDT withdrawal transaction",
+        isSettled: status === BinanceWithdrawalStatus.Completed,
+        Status: status,
+        Timestamp: new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)),
+    };
+});

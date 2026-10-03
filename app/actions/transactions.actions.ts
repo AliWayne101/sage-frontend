@@ -28,5 +28,5 @@ export const getTransactionsByTimeRange = async (botId: string, from: string, to
             $gte: startDate, $lte: endDate
         }
     }).sort({ Timestamp: -1 }).exec();
-    return transactions;
+    return JSON.parse(JSON.stringify(transactions));
 }
