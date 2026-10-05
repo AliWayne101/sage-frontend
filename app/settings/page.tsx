@@ -1,7 +1,7 @@
 "use client"
 import { Lock, AlertTriangle, ArrowLeft, CheckCircle2, Compass, Key, Radio, Scale, Shield, Sliders, DollarSign, RefreshCw, Save, AlertOctagon, Plus, Activity, Tag, CheckCircle, Check, Copy, X, Box, Globe, Zap } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../AuthProvider';
 import Footer from '@/section/Footer';
 import { IDecryptedKeys, IUserInfoRuntime, Strategy } from '@/interfaces';
@@ -34,6 +34,15 @@ const Settings = () => {
 
     const router = useRouter();
     const { user } = useAuth();
+
+    const triggerWindow = useMemo(() => {
+        if (!userData || !strategies || strategies.length === 0) return null;
+        const strat = strategies.find((e) => e.name === userData.StrategyName);
+        if (!strat) return null;
+        const trigger = strat.lifecycle?.find((e) => e.name === "requireBBReentry");
+        if (!trigger) return null;
+        return trigger.window || null;
+    }, [strategies, userData])
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -855,12 +864,12 @@ const Settings = () => {
                                     <div className="bg-[#121214] border border-[#27272a] p-2.5 sm:p-3 rounded space-y-1">
                                         <span className="text-[9.5px] sm:text-[10px] font-mono uppercase text-zinc-500 block">Risk Per Trade</span>
                                         <span className="text-xs sm:text-sm font-mono font-bold text-emerald-400 block">
-                                            {selectedStrategy?.risk.riskPerType === 'percent'
-                                                ? `${(selectedStrategy.risk.riskPer * 100).toFixed(1)}%`
-                                                : `$${selectedStrategy?.risk.riskPer.toFixed(2)}`}
+                                            {selectedStrategy?.risk.riskType === 'percent'
+                                                ? `${(selectedStrategy.risk.risk * 100).toFixed(1)}%`
+                                                : `${selectedStrategy?.risk.risk.toFixed(2)} USDT`}
                                         </span>
                                         <span className="text-[9px] sm:text-[9.5px] font-mono text-zinc-500">
-                                            Type: {selectedStrategy?.risk.riskPerType || 'percent'}
+                                            Type: {selectedStrategy?.risk.riskType || 'percent'}
                                         </span>
                                     </div>
 
@@ -895,8 +904,8 @@ const Settings = () => {
                                             {selectedStrategy?.MaxCandlesHistory ?? 20} candles
                                         </span>
                                         <span className="text-[9px] sm:text-[9.5px] font-mono text-zinc-500 truncate block">
-                                            {selectedStrategy?.setup?.bbReentryWindow
-                                                ? `Trigger: ${selectedStrategy.setup?.bbReentryWindow} bars`
+                                            {triggerWindow
+                                                ? `Trigger: ${triggerWindow} bars`
                                                 : 'Instant trigger'}
                                         </span>
                                     </div>
@@ -923,7 +932,10 @@ const Settings = () => {
                             <div className="bg-[#09090b] border border-[#27272a] p-3.5 sm:p-4 rounded space-y-1">
                                 <span className="text-[10.5px] sm:text-[11px] font-mono text-zinc-500 uppercase">Lifetime Realized PnL</span>
                                 <p className="text-lg sm:text-xl font-mono font-bold text-emerald-400">
-                                    +{formatCurrency(userData?.PNL ?? 0, 2)} USDT
+                                    +{formatCurrency(
+                                        userData ? ((userData.Demo || userData.Sandbox) ? userData.DemoStats.PNL : userData.LiveStats.PNL) : 0
+                                        , 2
+                                    )} USDT
                                 </p>
                                 <span className="text-[10px] sm:text-[10.5px] font-mono text-zinc-500 block">
                                     Aggregate profit across all closed positions
@@ -933,7 +945,10 @@ const Settings = () => {
                             <div className="bg-[#09090b] border border-[#27272a] p-3.5 sm:p-4 rounded space-y-1">
                                 <span className="text-[10.5px] sm:text-[11px] font-mono text-zinc-500 uppercase">Accumulated Unpaid Fee</span>
                                 <p className="text-lg sm:text-xl font-mono font-bold text-amber-400">
-                                    ${formatCurrency(userData?.UnpaidFee ?? 0, 2)} USDT
+                                    {formatCurrency(
+                                        userData ? ((userData.Demo || userData.Sandbox) ? userData.DemoStats.UnpaidFee : userData.LiveStats.UnpaidFee) : 0
+                                        , 2
+                                    )} USDT
                                 </p>
                                 <span className="text-[10px] sm:text-[10.5px] font-mono text-zinc-500 block">
                                     Service fee calculated at 20% of net profits

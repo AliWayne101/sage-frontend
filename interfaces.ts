@@ -52,67 +52,6 @@ export enum Exchange {
     SANDBOX
 }
 
-export interface Filter {
-    name: string;
-    value: boolean;
-    multiplier: number;
-}
-
-export interface StrategyCondition {
-    enabled: boolean;
-    type?: 'above' | 'below' | 'greater' | 'less' | 'bullish' | 'bearish';
-    threshold?: number;
-    period?: number;
-    multiplier?: number;
-    bool?: boolean;
-    skipDecision?: boolean;
-}
-
-export enum SLCondition {
-    LiquidationLimit,
-    DynamicSL
-}
-
-interface ConditionsProps {
-    trigger?: Record<string, StrategyCondition>,
-    conditions: Record<string, StrategyCondition>,
-    filters?: {
-        enabled: boolean,
-        conditions?: Filter[][]
-    }
-}
-
-export interface SetupTrackerConfig {
-    enableStructuralReversal?: boolean;
-    requireBBReentry?: boolean;
-    requireStructureBreak?: boolean;
-    bbReentryWindow?: number;
-    structureBreakWindow?: number;
-    invalidateNewExtreme?: boolean;
-}
-
-export interface Strategy {
-    name: string;
-    description?: string;
-    MaxCandlesHistory: number;
-    MinBalanceRequired?: number;
-    KLine?: string;
-    setup?: SetupTrackerConfig;
-    entry: {
-        direction: {
-            long: ConditionsProps;
-            short: ConditionsProps;
-        }
-    };
-    risk: {
-        riskPer: number;
-        riskPerType?: 'percent' | 'fixed';
-        tpPerc: number;
-        slPerc?: number;
-        slCondition: SLCondition;
-    }
-}
-
 export interface IUserInfoRuntime extends IUserInfo {
     DecryptedAPIKeys: IDecryptedKeys[];
 }
@@ -172,4 +111,66 @@ export enum BinanceWithdrawalStatus {
     Processing = 4,
     Failure = 5,
     Completed = 6
+}
+
+export interface Strategy {
+    name: string;
+    description?: string;
+    MaxCandlesHistory: number;
+    MinBalanceRequired: number;
+    KLine: string;
+    indicators: Record<string, StrategyIndicators>;
+    lifecycle?: LifecycleRule[],
+    setup?: {
+        long: Record<string, StrategyCondition>,
+        short: Record<string, StrategyCondition>
+    },
+    rules: {
+        long: {
+            conditions: Record<string, StrategyCondition>,
+            filters?: StrategyFilter[][]
+        },
+        short: {
+            conditions: Record<string, StrategyCondition>,
+            filters?: StrategyFilter[][]
+        }
+    },
+    risk: {
+        risk: number;
+        riskType?: 'percent' | 'fixed';
+        tpPerc: number;
+        slPerc?: number;
+        slCondition: SLCondition;
+    }
+}
+export interface LifecycleRule {
+    name: string;
+    enabled: boolean;
+    window?: number;
+    [key: string]: any;
+}
+export enum SLCondition {
+    LiquidationLimit,
+    DynamicSL
+}
+
+export interface StrategyFilter {
+    name: string;
+    value: boolean;
+    multiplier: number;
+    lookback?: number;
+}
+
+export interface StrategyIndicators {
+    enabled: boolean,
+    period: number;
+    multiplier?: number;
+}
+
+export interface StrategyCondition {
+    type?: 'above' | 'below' | 'greater' | 'less' | 'bullish' | 'bearish';
+    threshold?: number;
+    bool?: boolean;
+    value?: string;
+    multiplier?: number;
 }

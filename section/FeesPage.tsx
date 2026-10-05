@@ -372,10 +372,13 @@ const FeesPage = ({ BotID }: FeesPageProps) => {
                             <Wallet className="w-4 h-4 text-emerald-400" />
                         </div>
                         <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-400">
-                            {formatCurrency(User?.UnpaidFee ?? User?.UnpaidFee ?? 0, 2)} USDT
+                            {formatCurrency(
+                                User?.LiveStats.UnpaidFee ?? User?.LiveStats.UnpaidFee ?? 0,
+                                2
+                            )} USDT
                         </div>
                         <p className="text-[11px] text-zinc-500 font-mono">
-                            {(User?.UnpaidFee ?? User?.UnpaidFee ?? 0) > 0
+                            {(User?.LiveStats.UnpaidFee ?? User?.LiveStats.UnpaidFee ?? 0) > 0
                                 ? 'Pending next automated bot deduction'
                                 : 'All service fee payments up to date'}
                         </p>

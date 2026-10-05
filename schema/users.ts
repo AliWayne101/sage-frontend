@@ -1,5 +1,10 @@
 import mongoose, { Model, Schema } from "mongoose";
 
+export interface IAccountPerformance {
+    PNL: number;
+    UnpaidFee: number;
+}
+
 export interface IEncryptedCredential {
     encrypted: string;
     iv: string;
@@ -36,6 +41,14 @@ const BinanceAPIKeySchema = new Schema<IBinanceAPIKey>(
     { _id: false }
 )
 
+const AccountPerformanceSchema = new Schema<IAccountPerformance>(
+    {
+        PNL: { type: Number, default: 0 },
+        UnpaidFee: { type: Number, default: 0 }
+    },
+    { _id: false }
+);
+
 export interface IConnectedAccount {
     platform: "google" | "github" | "facebook" | "twitter" | "linkedin";
     url?: string;
@@ -53,8 +66,8 @@ export interface IUserInfo {
     Leverage: number;
     Symbol?: string;
     IsActive: boolean;
-    PNL: number;
-    UnpaidFee: number,
+    LiveStats: IAccountPerformance;
+    DemoStats: IAccountPerformance;
     IsHalted: boolean;
     IsApproved: boolean;
     Demo: boolean;
@@ -78,8 +91,14 @@ const User = new Schema<IUserInfo>({
     Leverage: { type: Number, default: 1 },
     Symbol: { type: String, default: '' },
     IsActive: { type: Boolean, default: true },
-    PNL: { type: Number, default: 0 },
-    UnpaidFee: { type: Number, default: 0 },
+    LiveStats: {
+        type: AccountPerformanceSchema,
+        default: () => ({ PNL: 0, UnpaidFee: 0 })
+    },
+    DemoStats: {
+        type: AccountPerformanceSchema,
+        default: () => ({ PNL: 0, UnpaidFee: 0 })
+    },
     IsHalted: { type: Boolean, default: true },
     IsApproved: { type: Boolean, default: false },
     Demo: { type: Boolean, default: false },

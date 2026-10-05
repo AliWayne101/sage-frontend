@@ -357,7 +357,7 @@ const Fleet = () => {
                         <span className="text-[10.5px] font-mono uppercase text-zinc-400">Unpaid Sage Fees ({SAGE_FEE_PERCENTAGE}%)</span>
                         <div className="flex items-baseline justify-between">
                             <span className="text-xl sm:text-2xl font-bold font-mono text-blue-400">
-                                {fleetData.reduce((acc, bot) => (acc + bot.UnpaidFee), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
+                                {fleetData.reduce((acc, bot) => (acc + bot.LiveStats.UnpaidFee), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                             </span>
                             <span className="text-[10px] font-mono text-blue-500/80">Accrued</span>
                         </div>
@@ -907,14 +907,16 @@ const Fleet = () => {
                                             className={`text-lg font-bold ${(userProfitStats?.totalRealizedProfit || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
                                                 }`}
                                         >
-                                            {(userProfitStats?.totalRealizedProfit || 0) >= 0 ? '+' : ''}${userProfitStats?.totalRealizedProfit.toFixed(2)} USDT
+                                            {(userProfitStats?.totalRealizedProfit || 0) >= 0 ? '+' : ''}{userProfitStats?.totalRealizedProfit.toFixed(2)} USDT
                                         </span>
                                     </div>
 
                                     <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
-                                        <span className="text-[10px] text-zinc-500 uppercase block">Unpaid Sage Fee ({SAGE_FEE_PERCENTAGE}%)</span>
+                                        <span className="text-[10px] text-zinc-500 uppercase block">Unpaid Sage Fee ({selectedBot.Demo && "Demo"} {selectedBot.Sandbox && "Sandbox"}) ({SAGE_FEE_PERCENTAGE}%)</span>
                                         <span className="text-lg font-bold text-blue-400">
-                                            {formatCurrency(selectedBot.UnpaidFee)} USDT
+                                            {formatCurrency(
+                                                (selectedBot.Demo || selectedBot.Sandbox) ? selectedBot.DemoStats.UnpaidFee : selectedBot.LiveStats.UnpaidFee
+                                            )} USDT
                                         </span>
                                     </div>
 
