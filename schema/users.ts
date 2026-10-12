@@ -80,6 +80,7 @@ export interface IUserInfo {
     ConnectedAccounts: IConnectedAccount[];
     APIKeys?: IBinanceAPIKey[];
     SUKillSwitch: boolean;
+    TPTrailing: boolean;
 }
 
 const User = new Schema<IUserInfo>({
@@ -125,7 +126,8 @@ const User = new Schema<IUserInfo>({
         default: []
     },
     SUKillSwitch: { type: Boolean, default: false },
-    APIKeys: { type: [BinanceAPIKeySchema], default: [] }
+    APIKeys: { type: [BinanceAPIKeySchema], default: [] },
+    TPTrailing: { type: Boolean, default: false }
 });
 
 let UserModel: Model<IUserInfo>;

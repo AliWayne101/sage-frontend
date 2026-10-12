@@ -1,13 +1,13 @@
 "use client"
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import Footer from '@/section/Footer';
 import { Activity, ArrowDownRight, ArrowUpRight, Calendar, CheckCircle, ChevronDown, DollarSign, Layers, LogOut, Pause, Play, Receipt, RefreshCw, RotateCcw, Sliders, TrendingUp, UserPlus, Users, XCircle } from 'lucide-react';
 import CustomLineChart from '@/components/CustomLineChart';
 import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
 import { TERMINAL_VER } from '@/configs';
-import { BotHeartbeat, ConfirmModalProps, Direction, IUserInfoRuntime, TradeAnalytics } from '@/interfaces';
+import { BotHeartbeat, ConfirmModalProps, Direction, IUserInfoRuntime, Log, TradeAnalytics } from '@/interfaces';
 import { useRouter } from 'next/navigation';
 import { ITrades } from '@/schema/trades';
 import LogTerminal from '@/components/LogTerminal';
@@ -32,6 +32,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const [loadingAction, setLoadingAction] = useState("null");
     const [lastTrades, setLastTrades] = useState<ITrades[]>([]);
     const [tradeAnalytics, setTradeAnalytics] = useState<TradeAnalytics | null>(null);
+    const [excludedLogs, setExcludedLogs] = useState<Log[]>([]);
     const [confirmModal, setConfirmModal] = useState<ConfirmModalProps>({
         isOpen: false,
         message: '',
@@ -142,6 +143,14 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         }
     }
 
+    const botLogs = useMemo(() => {
+        if (!heartbeatData) return [];
+        const newLogs = heartbeatData.Logs.filter(
+            log => !excludedLogs.some(exLog => exLog.timestamp.getTime() === log.timestamp.getTime())
+        );
+        return newLogs;
+    }, [heartbeatData?.Logs])
+
     const handleToggleTrading = async () => {
         if (!User) return;
         setLoadingAction("trading");
@@ -163,16 +172,17 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     }
 
     const handleClearLogs = () => {
-        setConfirmModal({
-            isOpen: true,
-            title: 'Clear Logs',
-            message: 'Do you want to clear the logs?',
-            description: 'This will clear all logs from server and bots immediately, Do you still want to remove the logs?',
-            confirmText: 'Yes, Clear Logs',
-            cancelText: 'Cancel',
-            variant: 'danger',
-            onConfirm: () => handleButtonEvents("clearLogs"),
-        });
+        // setConfirmModal({
+        //     isOpen: true,
+        //     title: 'Clear Logs',
+        //     message: 'Do you want to clear the logs?',
+        //     description: 'This will clear all logs from server and bots immediately, Do you still want to remove the logs?',
+        //     confirmText: 'Yes, Clear Logs',
+        //     cancelText: 'Cancel',
+        //     variant: 'danger',
+        //     onConfirm: () => handleButtonEvents("clearLogs"),
+        // });
+        setExcludedLogs(heartbeatData?.Logs || []);
     }
 
     useEffect(() => {
