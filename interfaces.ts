@@ -174,3 +174,34 @@ export interface StrategyCondition {
     value?: string;
     multiplier?: number;
 }
+
+
+export type Position = {
+    symbol: string;
+    uid: string;
+    orderId: number;
+    entryPrice: number;
+    quantity: number;
+    side: Direction;
+    notional: number;
+    isolatedWallet: number;
+    liquidationPrice: number;
+    commission: number;
+    Timestamp?: Date;
+    realizedPnl?: number;
+    margin: number;
+    barIndex: number;
+}
+
+export type Candle = {
+    symbol: string;
+    open_time: number;
+    close_time: number;
+    interval: string;
+    open: number;
+    close: number;
+    high: number;
+    low: number;
+    volume: number;
+    barIndex: number | undefined;
+}
