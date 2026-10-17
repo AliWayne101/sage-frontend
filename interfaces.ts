@@ -15,25 +15,30 @@ export interface LineChartData {
     independentvalue: number;
 }
 
+export interface HeartbeatActiveTrade {
+    entryBarIndex: number;
+    orderId: string;
+    symbol: string;
+    side: Direction;
+    entryPrice: number;
+    markPrice: number;
+    size: number;
+    notional: number;
+    liqPrice: number;
+    marginBuffer: number;
+    unrealizedPnl: number;
+    roe: number;
+}
+
 export interface BotHeartbeat {
     BotID: string;
     Balance: number;
     Demo: boolean;
     Status: string;
     Logs: Log[];
-    ActiveTrade?: {
-        orderId: string;
-        symbol: string;
-        side: Direction;
-        entryPrice: number;
-        markPrice: number;
-        size: number;
-        notional: number;
-        liqPrice: number;
-        marginBuffer: number;
-        unrealizedPnl: number;
-        roe: number;
-    }
+    Candles: Candle[];
+    Trades: Position[];
+    ActiveTrade?: HeartbeatActiveTrade
 }
 
 export interface Log {
@@ -190,7 +195,8 @@ export type Position = {
     Timestamp?: Date;
     realizedPnl?: number;
     margin: number;
-    barIndex: number;
+    entryBarIndex?: number;
+    closeBarIndex?: number;
 }
 
 export type Candle = {

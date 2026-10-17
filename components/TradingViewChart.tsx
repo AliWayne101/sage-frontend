@@ -1,21 +1,20 @@
 "use client"
-import { Candle, Position } from '@/interfaces'
+import { Candle, HeartbeatActiveTrade, Position } from '@/interfaces'
 import { formatCurrency, formatPercent } from '@/utils'
-import { CandlestickSeries, ColorType, createChart, createSeriesMarkers, CrosshairMode, HistogramSeries, IPriceLine, ISeriesApi, LineStyle, PriceScaleMode } from 'lightweight-charts'
+import { CandlestickSeries, ColorType, createChart, createSeriesMarkers, CrosshairMode, HistogramSeries, IPriceLine, ISeriesApi, LineStyle, PriceScaleMode, UTCTimestamp } from 'lightweight-charts'
 import { Activity, BarChart2, Compass, Layers, Maximize2, Minimize2, Tag } from 'lucide-react'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 export interface TradingViewChartInterface {
     candles: Candle[],
-    position: Position | null,
+    position: HeartbeatActiveTrade | undefined,
     trades: Position[],
     symbol: string,
     interval: string,
-    className: string,
     isLoading: boolean
 }
 
-const TradingViewChart = ({ candles, className, interval, isLoading, position, symbol, trades }: TradingViewChartInterface) => {
+const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trades }: TradingViewChartInterface) => {
 
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
@@ -31,12 +30,102 @@ const TradingViewChart = ({ candles, className, interval, isLoading, position, s
     const [isExpanded, setIsExpanded] = useState(false);
     const [hoveredCandle, setHoveredCandle] = useState<Candle | null>(null);
 
+
+    // Reset fit flag on symbol or interval switch
+    useEffect(() => {
+        initialFitDoneRef.current = false;
+    }, [symbol, interval]);
+
     const latestCandle = useMemo(() => {
         return candles.length > 0 ? candles[candles.length - 1] : null;
     }, [candles]);
 
 
     const activeDisplayCandle = hoveredCandle || latestCandle;
+
+    useEffect(() => {
+        if (!markersPluginRef.current || !candleSeriesRef.current) return;
+
+        if (!showMarkers || candles.length === 0) {
+            markersPluginRef.current.setMarkers([]);
+            return;
+        }
+
+        const markers: any[] = [];
+
+        const barIndexToCandleMap = new Map<number, Candle>();
+        candles.forEach((c, index) => {
+            const idx = c.barIndex !== undefined ? c.barIndex : index;
+            barIndexToCandleMap.set(idx, c);
+        });
+
+        if (position) {
+            const entryBarIdx = position.entryBarIndex;
+            const entryCandle =
+                entryBarIdx !== undefined ? barIndexToCandleMap.get(entryBarIdx) : candles[Math.max(0, candles.length - 25)];
+
+            if (entryCandle) {
+                const isLong = position.side === 0;
+                markers.push({
+                    time: Math.floor(entryCandle.open_time / 1000) as UTCTimestamp,
+                    position: isLong ? 'belowBar' : 'aboveBar',
+                    color: isLong ? '#10b981' : '#f43f5e',
+                    shape: isLong ? 'arrowUp' : 'arrowDown',
+                    text: isLong ? `LONG #${entryBarIdx ?? ''}` : `SHORT #${entryBarIdx ?? ''}`,
+                    size: 1.2,
+                    id: `pos_entry_${position.orderId || 'active'}`,
+                });
+            }
+        }
+
+        trades.forEach((trade) => {
+            if (trade.entryBarIndex === undefined) return;
+
+            const openBar = trade.entryBarIndex;
+            const isLong = trade.side === 0;
+            const candle = barIndexToCandleMap.get(openBar);
+
+            if (candle) {
+                markers.push({
+                    time: Math.floor(candle.open_time / 1000) as UTCTimestamp,
+                    position: isLong ? 'belowBar' : 'aboveBar',
+                    color: isLong ? '#10b981' : '#f43f5e',
+                    shape: isLong ? 'arrowUp' : 'arrowDown',
+                    text: isLong ? `BUY #${openBar}` : `SELL #${openBar}`,
+                    size: 1.1,
+                    id: `trade_entry_${trade.uid || trade.orderId}`,
+                });
+            }
+
+            if (trade.closeBarIndex !== undefined) {
+                const exitCandle = barIndexToCandleMap.get(trade.closeBarIndex);
+                if (exitCandle) {
+                    const isWin = (trade.realizedPnl ?? 0) >= 0;
+                    markers.push({
+                        time: Math.floor(exitCandle.open_time / 1000) as UTCTimestamp,
+                        position: isLong ? 'aboveBar' : 'belowBar',
+                        color: isWin ? '#10b981' : '#f43f5e',
+                        shape: isLong ? 'arrowDown' : 'arrowUp',
+                        text: `${isWin ? 'TP' : 'SL'} #${trade.closeBarIndex} (${isWin ? '+' : ''}$${Math.round(trade.realizedPnl ?? 0)})`,
+                        size: 1.1,
+                        id: `trade_exit_${trade.uid || trade.orderId}`,
+                    });
+                }
+            }
+        });
+
+        const sortedMarkers = [...markers].sort((a, b) => {
+            const diff = (a.time as number) - (b.time as number);
+            if (diff !== 0) return diff;
+            return (a.id || '').localeCompare(b.id || '');
+        });
+
+        try {
+            markersPluginRef.current.setMarkers(sortedMarkers);
+        } catch (err) {
+            console.warn('Failed to set lightweight-charts markers:', err);
+        }
+    }, [candles, position, trades, showMarkers]);
 
     // Initialize and mount Lightweight Chart
     useEffect(() => {
@@ -206,11 +295,117 @@ const TradingViewChart = ({ candles, className, interval, isLoading, position, s
         };
     }, []);
 
+    useEffect(() => {
+        if (!candleSeriesRef.current || !volumeSeriesRef.current || candles.length === 0) return;
+
+        // Format candlestick data with UTC timestamp in seconds and guarantee valid OHLC
+        const formattedCandles = candles.map((c) => ({
+            time: Math.floor(c.open_time / 1000) as UTCTimestamp,
+            open: c.open,
+            high: Math.max(c.open, c.close, c.high),
+            low: Math.min(c.open, c.close, c.low),
+            close: c.close,
+        }));
+
+        // Deduplicate & sort by time ascending (strict lightweight-charts requirement)
+        const sortedCandles = [...formattedCandles].sort((a, b) => (a.time as number) - (b.time as number));
+        const uniqueCandles = sortedCandles.filter((item, index, arr) => {
+            return index === 0 || item.time > arr[index - 1].time;
+        });
+
+        candleSeriesRef.current.setData(uniqueCandles);
+
+        // Format Volume bars with corresponding bull/bear tint
+        if (showVolume) {
+            const formattedVolume = candles.map((c) => {
+                const isBull = c.close >= c.open;
+                return {
+                    time: Math.floor(c.open_time / 1000) as UTCTimestamp,
+                    value: c.volume,
+                    color: isBull ? 'rgba(16, 185, 129, 0.28)' : 'rgba(244, 63, 94, 0.28)',
+                };
+            });
+            const sortedVolume = [...formattedVolume].sort((a, b) => (a.time as number) - (b.time as number));
+            const uniqueVolume = sortedVolume.filter((item, index, arr) => {
+                return index === 0 || item.time > arr[index - 1].time;
+            });
+            volumeSeriesRef.current.setData(uniqueVolume);
+        } else {
+            volumeSeriesRef.current.setData([]);
+        }
+
+        // Auto fit content to screen on initial load so candles are cleanly proportioned
+        if (chartRef.current && !initialFitDoneRef.current && uniqueCandles.length > 0) {
+            chartRef.current.timeScale().fitContent();
+            initialFitDoneRef.current = true;
+        }
+    }, [candles, showVolume]);
+
     const handleFitContent = () => {
         if (chartRef.current) {
             chartRef.current.timeScale().fitContent();
         }
     };
+
+    useEffect(() => {
+        if (!candleSeriesRef.current) return;
+
+        // Remove existing price lines
+        priceLinesRef.current.forEach((line) => {
+            try {
+                candleSeriesRef.current?.removePriceLine(line);
+            } catch {
+                // ignore
+            }
+        });
+        priceLinesRef.current = [];
+
+        if (!showPriceLines || !position) return;
+
+        const series = candleSeriesRef.current;
+        const isLong = position.side === 0;
+
+        // 1. Entry Price Line (Cyan / Sky)
+        if (position.entryPrice) {
+            const entryLine = series.createPriceLine({
+                price: position.entryPrice,
+                color: '#06b6d4',
+                lineWidth: 1,
+                lineStyle: LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: `ENTRY: $${formatCurrency(position.entryPrice, 2)}`,
+            });
+            priceLinesRef.current.push(entryLine);
+        }
+
+        // 2. Take-Profit Estimated Line (+2.0% default or calculated)
+        const tpPrice = isLong
+            ? position.entryPrice * 1.02
+            : position.entryPrice * 0.98;
+
+        const tpLine = series.createPriceLine({
+            price: Math.round(tpPrice * 100) / 100,
+            color: '#10b981',
+            lineWidth: 1,
+            lineStyle: LineStyle.SparseDotted,
+            axisLabelVisible: true,
+            title: `TP TARGET: $${formatCurrency(tpPrice, 2)}`,
+        });
+        priceLinesRef.current.push(tpLine);
+
+        // 3. Liquidation / Avoid Liquidation Buffer Line (Red)
+        // if (position.liquidationPrice) {
+        //     const liqLine = series.createPriceLine({
+        //         price: position.liquidationPrice,
+        //         color: '#ef4444',
+        //         lineWidth: 1,
+        //         lineStyle: LineStyle.LargeDashed,
+        //         axisLabelVisible: true,
+        //         title: `LIQ: $${formatCurrency(position.liquidationPrice, 2)}`,
+        //     });
+        //     priceLinesRef.current.push(liqLine);
+        // }
+    }, [position, showPriceLines]);
 
     const priceChange = activeDisplayCandle
         ? activeDisplayCandle.close - activeDisplayCandle.open
@@ -222,8 +417,7 @@ const TradingViewChart = ({ candles, className, interval, isLoading, position, s
 
     return (
         <div
-            className={`bg-[#121214] border border-[#27272a] rounded-lg flex flex-col overflow-hidden transition-all duration-200 ${isExpanded ? 'fixed inset-4 z-50 shadow-2xl bg-[#0e0e11]' : ''
-                } ${className}`}
+            className={`bg-[#121214] border border-[#27272a] rounded-lg flex flex-col overflow-hidden transition-all duration-200 ${isExpanded ? 'fixed inset-4 z-50 shadow-2xl bg-[#0e0e11]' : ''}`}
         >
             {/* 1. Header Toolbar */}
             <div className="flex flex-wrap items-center justify-between px-3.5 py-2.5 sm:px-4 sm:py-3 border-b border-[#27272a] bg-[#0c0c0e] gap-2.5">
@@ -445,8 +639,8 @@ const TradingViewChart = ({ candles, className, interval, isLoading, position, s
                 </div>
                 <div className="flex items-center gap-3">
                     <span>Total Bars: <span className="text-zinc-300">{candles.length}</span></span>
-                    {position && position.barIndex !== undefined && (
-                        <span>Position Entry Bar: <span className="text-emerald-400 font-semibold">#{position.barIndex}</span></span>
+                    {position && position.entryBarIndex !== undefined && (
+                        <span>Position Entry Bar: <span className="text-emerald-400 font-semibold">#{position.entryBarIndex}</span></span>
                     )}
                 </div>
             </div>

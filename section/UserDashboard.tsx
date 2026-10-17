@@ -18,6 +18,8 @@ import { generateDailyTradeAnalytics, getRecentTrades } from '@/app/actions/trad
 import { server } from '@/app/actions/server.actions';
 import { getUserByBotID } from '@/app/actions/user.actions';
 import { useAuth } from '@/app/AuthProvider';
+import TradingViewChart from '@/components/TradingViewChart';
+import MOCK_CANDLE_DATA, { SAMPLE_ACTIVE_POSITION, SAMPLE_HISTORICAL_TRADES } from '@/mock/mockTradingViewData';
 
 export interface UserDashboardProps {
     BotID: string;
@@ -47,10 +49,36 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         try {
             const _hData = await server<BotHeartbeat>({ request: "heartbeat" });
             if (!_hData) {
+                // FALLBACK TO MOCK DATA IF SERVER FAILS OR RETURNS NULL
+                // setHeartbeatData({
+                //     BotID: BotID || "mock-ali-wains-001",
+                //     Balance: 12450.50,
+                //     Demo: true,
+                //     Status: "MOCK_DEV_MODE (Server Offline)",
+                //     Logs: [
+                //         { timestamp: new Date(), type: "system", message: "Loaded mock heartbeat state because backend server is offline." }
+                //     ],
+                //     Candles: MOCK_CANDLE_DATA,
+                //     Trades: SAMPLE_HISTORICAL_TRADES,
+                //     ActiveTrade: SAMPLE_ACTIVE_POSITION,
+                // });
                 setActionNotice("Unable to load the heartbeat data");
-            }
-            setHeartbeatData(_hData);
+            } else
+                setHeartbeatData(_hData);
         } catch (error) {
+            // FALLBACK TO MOCK DATA IF SERVER THROWS AN ERROR/EXCEPTION
+            // setHeartbeatData({
+            //     BotID: BotID || "mock-ali-wains-001",
+            //     Balance: 12450.50,
+            //     Demo: true,
+            //     Status: "MOCK_DEV_MODE (Server Error)",
+            //     Logs: [
+            //         { timestamp: new Date(), type: "system", message: "Loaded mock heartbeat due to network exception." }
+            //     ],
+            //     Candles: MOCK_CANDLE_DATA,
+            //     Trades: SAMPLE_HISTORICAL_TRADES,
+            //     ActiveTrade: SAMPLE_ACTIVE_POSITION,
+            // });
             setActionNotice("Seems to be an error refreshing");
             console.log(error);
         } finally {
@@ -68,7 +96,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             if (_tradeAnalytics)
                 setTradeAnalytics(_tradeAnalytics);
         }
-    }, [User])
+    }, [User, BotID])
 
 
     const closeConfirmModal = () => {
@@ -274,7 +302,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         <div className="flex flex-col text-right">
                             <span className="text-[9px] sm:text-[10px] font-mono uppercase text-zinc-500 leading-tight">USDT</span>
                             <span className="text-xs sm:text-sm font-mono font-bold text-emerald-400 whitespace-nowrap">
-                                ${formatCurrency(heartbeatData?.Balance ?? 0, 2)}
+                                {formatCurrency(heartbeatData?.Balance ?? 0, 2)}
                             </span>
                         </div>
                     </div>
@@ -495,6 +523,17 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                             <span className="truncate">{heartbeatData ? heartbeatData.Status : "Loading.."}</span>
                         </span>
                     </div>
+                </section>
+
+                {/* Real-time TradingView Candlestick Chart with Entry/Exit Markers */}
+                <section className="w-full">
+                    <TradingViewChart
+                        candles={heartbeatData?.Candles || []}
+                        position={heartbeatData?.ActiveTrade}
+                        trades={heartbeatData?.Trades || []} symbol={User?.Symbol || heartbeatData?.Candles?.[0]?.symbol || "undefined"}
+                        interval={heartbeatData && heartbeatData.Candles.length > 0 ? heartbeatData.Candles[0].interval : "undefined"}
+                        isLoading={heartbeatData === undefined}
+                    />
                 </section>
 
                 {/* 3. Live Position Card (Top Row) */}
