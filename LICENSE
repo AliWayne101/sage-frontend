@@ -1,0 +1,35 @@
+SAGE - Proprietary Software License
+
+Copyright (c) 2025–2026 Ali A. Wains. Developed under WayneDev
+
+All rights reserved.
+
+This software, source code, strategies, backtesting engines, and associated documentation files (collectively, the "Software") are licensed for personal, educational, and non-commercial evaluation use only.
+
+1. Grant of License & Restrictions
+
+You are NOT permitted to:
+- Modify, adapt, alter, or create derivative works from any part of this Software.
+- Reverse engineer, decompile, disassemble, or extract trade secrets or algorithms from this Software.
+- Redistribute, sell, sublicense, publish, rent, lease, or mirror this Software to any third party or publicly hosted repository.
+- Deploy, run, or utilize this Software for commercial trading, proprietary funds, automated execution services, or profit-generating activities without explicit prior written authorization.
+
+2. Financial & Trading Disclaimer
+
+- No Investment Advice: This Software is built strictly for personal research and algorithmic backtesting purposes. Nothing contained in this codebase constitutes financial, investment, legal, or tax advice.
+- Trading Risks: Cryptocurrency and financial market trading carry substantial risks of capital loss. You acknowledge that automated trading execution, backtest results, indicators, and strategy logic can yield unexpected trading behavior, slippage, API execution delays, or complete capital loss.
+
+3. Disclaimer of Warranty & Limitation of Liability
+
+- AS IS Provision: This Software is provided "AS IS", without warranty of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, non-infringement, accuracy, or operational uptime.
+- Limitation of Liability: In no event shall the author or copyright holders be held liable for any direct, indirect, incidental, special, exemplary, or consequential damages (including financial losses, trading losses, loss of profits, system outages, or data loss) arising out of or in connection with the use or inability to use this Software.
+
+4. Support & Modifications
+
+The author maintains no obligation to provide maintenance, technical support, bug fixes, updates, or modifications for this Software.
+
+5. Commercial Licensing Requests
+
+To request authorization for commercial deployment, institutional integration, strategic partnership, or custom licensing, please contact:
+
+Contact: alimalikwayne@gmail.com
