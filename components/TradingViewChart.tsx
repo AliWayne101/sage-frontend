@@ -1,5 +1,5 @@
 "use client"
-import { Candle, HeartbeatActiveTrade, Position } from '@/interfaces'
+import { Candle, Direction, HeartbeatActiveTrade, Position } from '@/interfaces'
 import { formatCurrency, formatPercent } from '@/utils'
 import { CandlestickSeries, ColorType, createChart, createSeriesMarkers, CrosshairMode, HistogramSeries, IPriceLine, ISeriesApi, LineStyle, PriceScaleMode, UTCTimestamp } from 'lightweight-charts'
 import { Activity, BarChart2, Compass, Layers, Maximize2, Minimize2, Tag } from 'lucide-react'
@@ -64,8 +64,8 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
             const entryCandle =
                 entryBarIdx !== undefined ? barIndexToCandleMap.get(entryBarIdx) : candles[Math.max(0, candles.length - 25)];
 
-            if (entryCandle) {
-                const isLong = position.side === 0;
+            if (entryCandle !== undefined && entryBarIdx !== 0) {
+                const isLong = position.side === Direction.Long;
                 markers.push({
                     time: Math.floor(entryCandle.open_time / 1000) as UTCTimestamp,
                     position: isLong ? 'belowBar' : 'aboveBar',
@@ -79,10 +79,10 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
         }
 
         trades.forEach((trade) => {
-            if (trade.entryBarIndex === undefined) return;
+            if (trade.entryBarIndex === undefined || trade.entryBarIndex === 0) return;
 
             const openBar = trade.entryBarIndex;
-            const isLong = trade.side === 0;
+            const isLong = trade.side === Direction.Long;
             const candle = barIndexToCandleMap.get(openBar);
 
             if (candle) {
@@ -363,7 +363,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
         if (!showPriceLines || !position) return;
 
         const series = candleSeriesRef.current;
-        const isLong = position.side === 0;
+        const isLong = position.side === Direction.Long;
 
         // 1. Entry Price Line (Cyan / Sky)
         if (position.entryPrice) {
