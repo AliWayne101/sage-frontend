@@ -254,7 +254,7 @@ const Settings = () => {
                                     </p>
                                 </div>
                             </div>
-                            {(userData?.DecryptedAPIKeys.length || 3) < 2 && (
+                            {(userData?.DecryptedAPIKeys.length || 0) < 2 && (
                                 <button
                                     type="button"
                                     onClick={handleOpenAddKeyModal}
