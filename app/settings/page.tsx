@@ -57,7 +57,7 @@ const Settings = () => {
                 setErrorMessage('Failed to save settings to backend');
                 return;
             }
-            await server({ request: "restart" });
+            await server({ request: "reloadBot", targetBot: updatedUser.BotID }, "GET");
             setUserData(updatedUser);
             setSaveSuccess(true);
             setTimeout(() => setSaveSuccess(false), 3000);
@@ -102,7 +102,7 @@ const Settings = () => {
             const pairs = await getTradingSymbols();
             setAssetPairs(pairs);
 
-            const strategies = await server<Strategy[]>({ request: "getStrategies" });
+            const strategies = await server<Strategy[]>({ request: "getStrategies" }, "GET");
             setStrategies(strategies);
         }
         loadUser();
@@ -813,10 +813,14 @@ const Settings = () => {
                                     <span className="text-[10px] text-zinc-500 font-mono hidden sm:inline">Predefined strategies for bot</span>
                                 </label>
                                 <select
-                                    value={selectedStrategy?.name}
+                                    value={userData?.StrategyName || ''}
                                     onChange={(e) => {
                                         const strat = strategies.find(({ name }) => name === e.target.value);
                                         setSelectedStrategy(strat);
+                                        setUserData({
+                                            ...userData!,
+                                            StrategyName: e.target.value
+                                        });
                                     }}
                                     className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-200 outline-none cursor-pointer"
                                 >

@@ -144,7 +144,7 @@ const CreateUser = () => {
       const pairs = await getTradingSymbols();
       setAssetPairs(pairs);
 
-      const strategies = await server<Strategy[]>({ request: "getStrategies" });
+      const strategies = await server<Strategy[]>({ request: "getStrategies" }, "GET");
       setStrategies(strategies);
     }
 

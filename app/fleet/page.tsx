@@ -75,7 +75,7 @@ const Fleet = () => {
             const profit = await getOverallRealizedProfit();
             setOverallProfit(profit);
 
-            const strategies = await server<Strategy[]>({ request: "getStrategies" });
+            const strategies = await server<Strategy[]>({ request: "getStrategies" }, "GET");
             setStrategies(strategies);
         }
         fetchFleet();

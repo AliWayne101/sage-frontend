@@ -89,6 +89,8 @@ export const updateUser = async (data: IUserInfoRuntime): Promise<IUserInfoRunti
         ...rest
     };
 
+    console.log(updateData);
+
     const newKeys = DecryptedAPIKeys.filter((e) => e.id === "new");
 
     if (newKeys.length > 0) {

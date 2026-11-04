@@ -211,3 +211,5 @@ export type Candle = {
     volume: number;
     barIndex: number | undefined;
 }
+
+export type requestType = "POST" | "GET" | "PUT" | "DELETE" | "PATCH";

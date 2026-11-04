@@ -63,8 +63,10 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 //     ActiveTrade: SAMPLE_ACTIVE_POSITION,
                 // });
                 setActionNotice("Unable to load the heartbeat data");
-            } else
+            } else {
                 setHeartbeatData(_hData);
+                console.log(_hData);
+            }
         } catch (error) {
             // FALLBACK TO MOCK DATA IF SERVER THROWS AN ERROR/EXCEPTION
             // setHeartbeatData({
@@ -531,7 +533,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         candles={heartbeatData?.Candles || []}
                         position={heartbeatData?.ActiveTrade}
                         trades={heartbeatData?.Trades || []} symbol={User?.Symbol || heartbeatData?.Candles?.[0]?.symbol || "undefined"}
-                        interval={heartbeatData && heartbeatData.Candles.length > 0 ? heartbeatData.Candles[0].interval : "undefined"}
+                        interval={heartbeatData && heartbeatData.Candles?.length > 0 ? heartbeatData.Candles[0].interval : "undefined"}
                         isLoading={heartbeatData === undefined}
                     />
                 </section>
