@@ -213,3 +213,78 @@ export type Candle = {
 }
 
 export type requestType = "POST" | "GET" | "PUT" | "DELETE" | "PATCH";
+
+
+export interface BacktestOptions {
+    days?: number;
+    initialBalance?: number;
+    leverage?: number;
+    symbol?: string;
+    isTrailing?: boolean;
+    targetStrategies?: Strategy[];
+}
+
+export interface BacktestTrade {
+    side: "LONG" | "SHORT";
+    entryPrice: number;
+    exitPrice: number;
+    entryTime: number;
+    exitTime: number;
+    durationBars: number;
+    grossPnl: number;
+    netPnl: number;
+    commission: number;
+    roePercent: number;
+    reason: string;
+}
+
+export interface StrategyBacktestResult {
+    strategyName: string;
+    description?: string;
+    timeframe: string;
+    startingBalance: number;
+    endingBalance: number;
+    netProfit: number;
+    netProfitPercent: number;
+    compounded: boolean;
+    riskConfig: {
+        risk: number;
+        riskType: string;
+        tpPerc: number;
+        slPerc?: number;
+        slCondition: string;
+        isTrailing: boolean;
+    };
+    metrics: {
+        totalTrades: number;
+        wins: number;
+        losses: number;
+        winRatePercent: number;
+        profitFactor: number;
+        maxDrawdownPercent: number;
+        maxDrawdownUSDT: number;
+        totalFeesPaid: number;
+        avgTradeDurationBars: number;
+        avgTradePnL: number;
+        largestWin: number;
+        largestLoss: number;
+    };
+    breakdown: {
+        long: { total: number; wins: number; winRatePercent: number };
+        short: { total: number; wins: number; winRatePercent: number };
+    };
+    recentTrades: BacktestTrade[];
+}
+
+export interface BacktestSummary {
+    symbol: string;
+    timeframe: string;
+    period: {
+        days: number;
+        totalCandles: number;
+        from: Date;
+        to: Date;
+    };
+    bestStrategy: string;
+    rankedResults: StrategyBacktestResult[];
+}
