@@ -1,11 +1,13 @@
 "use client"
-import { AlertTriangle, ArrowLeft, Award, CheckCircle2, Clock, Play, RefreshCw, Zap, Lock, ShieldAlert, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Award, CheckCircle2, Clock, Play, RefreshCw, Zap, Lock, ShieldAlert, XCircle, Loader2, SlidersHorizontal, Layers, Activity, Eye } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../AuthProvider';
-import { BacktestSummary, BotHeartbeat, IUserInfoRuntime } from '@/interfaces';
+import { BacktestSummary, BotHeartbeat, Direction, IUserInfoRuntime, StrategyBacktestResult } from '@/interfaces';
 import { getUserByBotID } from '../actions/user.actions';
 import { formatCurrency } from '@/utils';
+import Footer from '@/section/Footer';
+import ConfirmationModal, { ConfirmationModalDetail } from '@/components/ConfirmationModal';
 
 const BacktestPage = () => {
     const router = useRouter();
@@ -16,6 +18,9 @@ const BacktestPage = () => {
     const [isCheckingPosition, setIsCheckingPosition] = useState<boolean>(false);
     const [isBacktesting, setIsBacktesting] = useState(false);
     const [heartBeat, setHeartBeat] = useState<BotHeartbeat | undefined>(undefined);
+    const [startingBalance, setStartingBalance] = useState(100);
+    const [isTrailing, setIsTrailing] = useState(false);
+    const [currentStep, setCurrentStep] = useState<string>('');
 
 
     // Results & Error state
@@ -24,6 +29,27 @@ const BacktestPage = () => {
     const [historyList, setHistoryList] = useState<BacktestSummary[]>([]);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [serverError, setServerError] = useState<string | null>(null);
+
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title?: string;
+        message: string;
+        description?: string;
+        confirmText?: string;
+        cancelText?: string;
+        isLoading?: boolean;
+        details?: ConfirmationModalDetail[];
+        onConfirm: () => void | Promise<void>;
+    }>({
+        isOpen: false,
+        message: '',
+        onConfirm: () => { },
+    });
+
+    const activeStrategy: StrategyBacktestResult | null = useMemo(() => {
+        if (!summary || !summary.rankedResults || summary.rankedResults.length === 0) return null;
+        return summary.rankedResults[selectedStrategyIndex] || summary.rankedResults[0];
+    }, [summary, selectedStrategyIndex]);
 
 
     useEffect(() => {
@@ -43,7 +69,9 @@ const BacktestPage = () => {
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     <button
                         onClick={() => router.push('/dashboard')}
-                        className="p-1.5 sm:px-2.5 sm:py-1.5 rounded bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 text-zinc-300 transition-colors flex items-center gap-1.5 text-xs font-mono shrink-0"
+                        disabled={isBacktesting}
+                        className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 text-zinc-300 transition-colors flex items-center gap-1.5 text-xs font-mono shrink-0 ${isBacktesting ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}
+                        title={isBacktesting ? 'Engine busy: Backtest running' : 'Back to Dashboard'}
                     >
                         <ArrowLeft className="w-4 h-4 shrink-0" />
                         <span className="hidden sm:inline">Back to Dashboard</span>
@@ -66,7 +94,7 @@ const BacktestPage = () => {
                                 </span>
                             </div>
                             <p className="text-[10px] sm:text-[11px] text-zinc-400 font-mono hidden md:block">
-                                Multi-strategy candle simulation & performance ranking for {User?.BotID || 'N/A'}
+                                Multi-strategy candle simulation & performance ranking for {User?.BotID}
                             </p>
                         </div>
                     </div>
@@ -85,8 +113,8 @@ const BacktestPage = () => {
                             verifyPosition();
                             loadHistoryAndStatus();
                         }}
-                        disabled={isCheckingPosition}
-                        className="p-1.5 sm:px-2.5 sm:py-1.5 rounded bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 text-zinc-300 text-xs font-mono transition-colors flex items-center gap-1.5"
+                        disabled={isCheckingPosition || isBacktesting}
+                        className="p-1.5 sm:px-2.5 sm:py-1.5 rounded bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 text-xs font-mono transition-colors flex items-center gap-1.5"
                         title="Refresh Position & Status"
                     >
                         <RefreshCw className={`w-3.5 h-3.5 ${isCheckingPosition ? 'animate-spin text-blue-400' : ''}`} />
@@ -103,7 +131,8 @@ const BacktestPage = () => {
                         <button
                             type="button"
                             onClick={() => setActiveTab('run')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-medium transition-colors ${activeTab === 'run'
+                            disabled={isBacktesting}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${activeTab === 'run'
                                 ? 'bg-blue-600 text-white shadow-sm font-semibold'
                                 : 'text-zinc-400 hover:text-zinc-200'
                                 }`}
@@ -115,7 +144,7 @@ const BacktestPage = () => {
                         <button
                             type="button"
                             onClick={() => setActiveTab('results')}
-                            disabled={!summary}
+                            disabled={!summary || isBacktesting}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${activeTab === 'results'
                                 ? 'bg-blue-600 text-white shadow-sm font-semibold'
                                 : 'text-zinc-400 hover:text-zinc-200'
@@ -133,7 +162,8 @@ const BacktestPage = () => {
                         <button
                             type="button"
                             onClick={() => setActiveTab('history')}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-medium transition-colors ${activeTab === 'history'
+                            disabled={isBacktesting}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${activeTab === 'history'
                                 ? 'bg-blue-600 text-white shadow-sm font-semibold'
                                 : 'text-zinc-400 hover:text-zinc-200'
                                 }`}
@@ -151,7 +181,7 @@ const BacktestPage = () => {
                         {isBacktesting ? (
                             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-950/80 border border-amber-700/80 text-amber-300 animate-pulse font-semibold">
                                 <Lock className="w-3.5 h-3.5" />
-                                <span>Trading Operations Locked (Simulation Active)</span>
+                                <span>Backend Computing (Actions Locked)</span>
                             </span>
                         ) : heartBeat?.ActiveTrade ? (
                             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-rose-950/60 border border-rose-800/80 text-rose-300">
@@ -169,14 +199,26 @@ const BacktestPage = () => {
 
                 {/* Global Error Banner */}
                 {errorMessage && (
-                    <div className="p-3 bg-rose-950/60 border border-rose-800 text-rose-200 text-xs font-mono rounded flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-                            <span>{errorMessage}</span>
+                    <div className="p-3.5 bg-rose-950/80 border border-rose-700 text-rose-200 text-xs font-mono rounded-lg flex items-start justify-between gap-3 shadow-md animate-in fade-in">
+                        <div className="flex items-start gap-2.5">
+                            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5">
+                                <span className="font-semibold text-rose-300 block">Server Error Response:</span>
+                                <p className="text-rose-200 leading-relaxed">{errorMessage}</p>
+                                {serverError && (
+                                    <div className="text-[11px] text-rose-300/80 mt-1">
+                                        Open position blocked execution: {heartBeat?.ActiveTrade?.symbol} ({heartBeat?.ActiveTrade?.side})
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <button
-                            onClick={() => setErrorMessage(null)}
-                            className="text-zinc-400 hover:text-zinc-200 font-bold px-2 py-0.5"
+                            onClick={() => {
+                                setErrorMessage(null);
+                                setServerError(null);
+                            }}
+                            className="text-zinc-400 hover:text-zinc-200 font-bold px-2 py-0.5 shrink-0"
+                            title="Dismiss error"
                         >
                             ×
                         </button>
@@ -198,17 +240,17 @@ const BacktestPage = () => {
                                     </p>
                                     <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
                                         <span className="bg-rose-950/80 border border-rose-700/80 px-2 py-0.5 rounded text-rose-300 font-bold">
-                                            {heartBeat?.ActiveTrade.symbol}
+                                            {heartBeat.ActiveTrade.symbol}
                                         </span>
                                         <span className="text-zinc-300">
-                                            Side: <strong>{(heartBeat?.ActiveTrade.side === 0) ? 'LONG' : 'SHORT'}</strong>
+                                            Side: <strong>{(heartBeat.ActiveTrade.side === Direction.Long) ? 'LONG' : 'SHORT'}</strong>
                                         </span>
                                         <span className="text-zinc-300">
-                                            Entry: <strong>${formatCurrency(heartBeat?.ActiveTrade.entryPrice, 2)}</strong>
+                                            Entry: <strong>${formatCurrency(heartBeat.ActiveTrade.entryPrice, 2)}</strong>
                                         </span>
                                         <span className="text-zinc-300">
-                                            Unrealized PnL: <strong className={(heartBeat?.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                                {(heartBeat?.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? '+' : ''}USDT {formatCurrency(heartBeat?.ActiveTrade.unrealizedPnl ?? 0, 2)}
+                                            Unrealized PnL: <strong className={(heartBeat.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                                                {(heartBeat.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? '+' : ''}USDT {formatCurrency(heartBeat.ActiveTrade.unrealizedPnl ?? 0, 2)}
                                             </strong>
                                         </span>
                                     </div>
@@ -218,7 +260,8 @@ const BacktestPage = () => {
                             <button
                                 type="button"
                                 onClick={handleOpenForceCloseModal}
-                                className="px-3 py-2 rounded bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold shrink-0 transition-colors shadow-sm flex items-center gap-1.5"
+                                disabled={isBacktesting}
+                                className="px-3 py-2 rounded bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold shrink-0 transition-colors shadow-sm flex items-center gap-1.5"
                             >
                                 <XCircle className="w-4 h-4" />
                                 <span>Liquidate Position to Backtest</span>
@@ -227,27 +270,45 @@ const BacktestPage = () => {
                     </div>
                 )}
 
-                {/* ONGOING BACKTEST PROGRESS BAR */}
+                {/* ONGOING BACKTEST NOTICE BANNER (NO PROGRESS BAR) */}
                 {isBacktesting && (
-                    <div className="p-4 bg-blue-950/40 border border-blue-800/80 rounded-lg space-y-3 font-mono">
-                        <div className="flex items-center justify-between text-xs">
-                            <div className="flex items-center gap-2 text-blue-300">
-                                <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
-                                <span className="font-semibold">{currentStep || 'Executing multi-strategy simulation...'}</span>
+                    <div className="p-4 sm:p-5 bg-gradient-to-r from-[#0b192e] via-[#0e1f3d] to-[#0b192e] border border-blue-500/60 rounded-lg font-mono shadow-xl relative overflow-hidden">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex items-start sm:items-center gap-3.5">
+                                <div className="w-10 h-10 rounded-lg bg-blue-900/40 border border-blue-500/60 flex items-center justify-center shrink-0 shadow-inner">
+                                    <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2">
+                                            <span>Computing Backtest on Backend Engine</span>
+                                        </h3>
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-700/80 uppercase tracking-wider">
+                                            Asynchronous Request
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-blue-200/90 leading-relaxed">
+                                        Strategy algorithms, candle history simulation, and performance calculations are actively executing on the server.
+                                    </p>
+                                    <p className="text-[11px] text-zinc-400">
+                                        {currentStep ? (
+                                            <span className="text-blue-300 font-semibold">{currentStep}</span>
+                                        ) : (
+                                            'The client is awaiting completion from the server...'
+                                        )}{' '}
+                                        All action buttons are temporarily disabled until the result is produced.
+                                    </p>
+                                </div>
                             </div>
-                            <span className="font-bold text-blue-300">{progressPercent}%</span>
-                        </div>
 
-                        <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
-                            <div
-                                className="bg-blue-500 h-2 transition-all duration-300 ease-out"
-                                style={{ width: `${progressPercent}%` }}
-                            />
+                            <div className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-blue-950/90 border border-blue-600/70 text-blue-300 text-xs shrink-0 self-start sm:self-center font-mono">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                                </span>
+                                <span className="font-semibold tracking-wide">Awaiting Results</span>
+                            </div>
                         </div>
-
-                        <p className="text-[11px] text-zinc-400">
-                            Note: Trading operations on the bot engine are locked while backtesting to prevent margin conflict and simulated state corruption.
-                        </p>
                     </div>
                 )}
 
@@ -277,19 +338,20 @@ const BacktestPage = () => {
                                 <form onSubmit={handleRunBacktest} className="space-y-4">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {/* Symbol Selection */}
-                                        <div className="space-y-1.5">
+                                        {/* <div className="space-y-1.5">
                                             <label className="text-xs font-mono text-zinc-400">Target Trading Pair</label>
                                             <select
                                                 value={symbol}
                                                 onChange={(e) => setSymbol(e.target.value)}
-                                                className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded px-3 py-2 text-xs font-mono text-zinc-200 outline-none cursor-pointer"
+                                                disabled={isBacktesting}
+                                                className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded px-3 py-2 text-xs font-mono text-zinc-200 outline-none cursor-pointer"
                                             >
                                                 <option value="BTCUSDT">BTCUSDT (Bitcoin Perpetual)</option>
                                                 <option value="ETHUSDT">ETHUSDT (Ethereum Perpetual)</option>
                                                 <option value="SOLUSDT">SOLUSDT (Solana Perpetual)</option>
                                                 <option value="BNBUSDT">BNBUSDT (BNB Perpetual)</option>
                                             </select>
-                                        </div>
+                                        </div> */}
 
                                         {/* Starting Capital Balance */}
                                         <div className="space-y-1.5">
@@ -303,7 +365,8 @@ const BacktestPage = () => {
                                                     step="100"
                                                     value={startingBalance}
                                                     onChange={(e) => setStartingBalance(Number(e.target.value))}
-                                                    className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 rounded pl-7 pr-3 py-2 text-xs font-mono text-zinc-200 outline-none"
+                                                    disabled={isBacktesting}
+                                                    className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded pl-7 pr-3 py-2 text-xs font-mono text-zinc-200 outline-none"
                                                 />
                                             </div>
                                         </div>
@@ -332,7 +395,7 @@ const BacktestPage = () => {
                                                 </span>
                                             </div>
                                             <div className="text-sm font-bold text-blue-300">Strategy Defined</div>
-                                            <p className="text-[10.5px] text-zinc-500">EMA-RSI: 1h • Mean Rev: 15m • Filtered: 4h</p>
+                                            <p className="text-[10.5px] text-zinc-500">Intervals taken from pre-built strategies</p>
                                         </div>
 
                                         {/* Default Compounding Mode */}
@@ -363,7 +426,8 @@ const BacktestPage = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => setIsTrailing(!isTrailing)}
-                                                className={`w-10 h-5 rounded-full transition-colors relative p-0.5 border shrink-0 ${isTrailing ? 'bg-emerald-600 border-emerald-500' : 'bg-zinc-800 border-zinc-700'
+                                                disabled={isBacktesting}
+                                                className={`w-10 h-5 rounded-full transition-colors relative p-0.5 border shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${isTrailing ? 'bg-emerald-600 border-emerald-500' : 'bg-zinc-800 border-zinc-700'
                                                     }`}
                                                 title={`Toggle Step-Ratchet Trailing ${isTrailing ? 'OFF' : 'ON'}`}
                                             >
@@ -379,11 +443,20 @@ const BacktestPage = () => {
                                     <div className="pt-3 flex items-center justify-end gap-3">
                                         <button
                                             type="submit"
-                                            disabled={isBacktesting || Boolean(currentPosition)}
+                                            disabled={isBacktesting || Boolean(heartBeat?.ActiveTrade)}
                                             className="w-full sm:w-auto px-6 py-2.5 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-mono text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm"
                                         >
-                                            <Play className="w-4 h-4 fill-white" />
-                                            <span>{isBacktesting ? 'Simulation Running...' : 'Execute Quant Backtest'}</span>
+                                            {isBacktesting ? (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin text-blue-200" />
+                                                    <span>Computing on Backend...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Play className="w-4 h-4 fill-white" />
+                                                    <span>Execute Quant Backtest</span>
+                                                </>
+                                            )}
                                         </button>
                                     </div>
                                 </form>
@@ -421,11 +494,12 @@ const BacktestPage = () => {
                                     <div className="pt-2 border-t border-[#27272a]">
                                         <button
                                             type="button"
+                                            disabled={isBacktesting}
                                             onClick={() => {
                                                 setSummary(historyList[0]);
                                                 setActiveTab('results');
                                             }}
-                                            className="w-full py-2 px-3 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-mono flex items-center justify-center gap-2 transition-colors"
+                                            className="w-full py-2 px-3 rounded bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed border border-zinc-800 text-zinc-300 text-xs font-mono flex items-center justify-center gap-2 transition-colors"
                                         >
                                             <Award className="w-3.5 h-3.5 text-amber-400" />
                                             <span>View Latest Results ({historyList[0].symbol})</span>
@@ -460,7 +534,7 @@ const BacktestPage = () => {
                                             </span>
                                         </div>
                                         <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
-                                            Period: {new Date(summary.period.from).toLocaleDateString()} to {new Date(summary.period.to).toLocaleDateString()} • Executed {summary.executedAt ? new Date(summary.executedAt).toLocaleTimeString() : 'Recently'}
+                                            Period: {new Date(summary.period.from).toLocaleDateString()} to {new Date(summary.period.to).toLocaleDateString()}
                                         </p>
                                     </div>
                                 </div>
@@ -468,8 +542,9 @@ const BacktestPage = () => {
                                 <div className="flex items-center gap-2">
                                     <button
                                         type="button"
+                                        disabled={isBacktesting}
                                         onClick={() => setActiveTab('run')}
-                                        className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white font-mono text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                                        className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-mono text-xs font-semibold flex items-center gap-1.5 transition-colors"
                                     >
                                         <Play className="w-3.5 h-3.5" />
                                         <span>Run Another Test</span>
@@ -484,7 +559,7 @@ const BacktestPage = () => {
                                     <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
                                         <span className="text-[10px] text-zinc-500 uppercase block">Net Profit</span>
                                         <span className={`text-base sm:text-lg font-bold block ${activeStrategy.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                            {activeStrategy.netProfit >= 0 ? '+' : ''}${formatCurrency(activeStrategy.netProfit, 2)}
+                                            {activeStrategy.netProfit >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(activeStrategy.netProfit, 2)}
                                         </span>
                                         <span className="text-[10px] text-zinc-400 block">
                                             {activeStrategy.netProfitPercent >= 0 ? '+' : ''}{activeStrategy.netProfitPercent.toFixed(2)}% ROI
@@ -520,7 +595,7 @@ const BacktestPage = () => {
                                             -{activeStrategy.metrics.maxDrawdownPercent.toFixed(2)}%
                                         </span>
                                         <span className="text-[10px] text-zinc-400 block">
-                                            -${formatCurrency(activeStrategy.metrics.maxDrawdownUSDT, 2)} USDT
+                                            -{formatCurrency(activeStrategy.metrics.maxDrawdownUSDT, 2)} <small>USDT</small>
                                         </span>
                                     </div>
 
@@ -528,10 +603,10 @@ const BacktestPage = () => {
                                     <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
                                         <span className="text-[10px] text-zinc-500 uppercase block">Final Capital</span>
                                         <span className="text-base sm:text-lg font-bold text-zinc-100 block">
-                                            ${formatCurrency(activeStrategy.endingBalance, 2)}
+                                            <small>USDT</small> {formatCurrency(activeStrategy.endingBalance, 2)}
                                         </span>
                                         <span className="text-[10px] text-zinc-400 block">
-                                            From ${formatCurrency(activeStrategy.startingBalance, 2)}
+                                            From <small>USDT</small> {formatCurrency(activeStrategy.startingBalance, 2)}
                                         </span>
                                     </div>
 
@@ -539,10 +614,10 @@ const BacktestPage = () => {
                                     <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
                                         <span className="text-[10px] text-zinc-500 uppercase block">Platform Fees</span>
                                         <span className="text-base sm:text-lg font-bold text-amber-400 block">
-                                            ${formatCurrency(activeStrategy.metrics.totalFeesPaid, 2)}
+                                            <small>USDT</small> {formatCurrency(activeStrategy.metrics.totalFeesPaid, 2)}
                                         </span>
                                         <span className="text-[10px] text-zinc-400 block">
-                                            20% performance fee
+                                            {summary.serviceFee * 100} performance fee
                                         </span>
                                     </div>
                                 </div>
@@ -615,7 +690,7 @@ const BacktestPage = () => {
                                                         </span>
                                                     </td>
                                                     <td className={`py-3 px-3 font-bold ${strat.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        {strat.netProfit >= 0 ? '+' : ''}${formatCurrency(strat.netProfit, 2)}
+                                                        {strat.netProfit >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(strat.netProfit, 2)}
                                                     </td>
                                                     <td className={`py-3 px-3 font-bold ${strat.netProfitPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                         {strat.netProfitPercent >= 0 ? '+' : ''}{strat.netProfitPercent.toFixed(2)}%
@@ -635,11 +710,12 @@ const BacktestPage = () => {
                                                     <td className="py-3 px-3">
                                                         <button
                                                             type="button"
+                                                            disabled={isBacktesting}
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 setSelectedStrategyIndex(idx);
                                                             }}
-                                                            className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors ${isSelected
+                                                            className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isSelected
                                                                 ? 'bg-blue-600 text-white'
                                                                 : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
                                                                 }`}
@@ -747,22 +823,22 @@ const BacktestPage = () => {
                                                                     </span>
                                                                 </td>
                                                                 <td className="py-2 px-3 text-zinc-300 font-mono">
-                                                                    ${formatCurrency(t.entryPrice, 2)}
+                                                                    <small>USDT</small> {formatCurrency(t.entryPrice, 2)}
                                                                 </td>
                                                                 <td className="py-2 px-3 text-zinc-300 font-mono">
-                                                                    ${formatCurrency(t.exitPrice, 2)}
+                                                                    <small>USDT</small> {formatCurrency(t.exitPrice, 2)}
                                                                 </td>
                                                                 <td className="py-2 px-3 text-zinc-400 font-mono">
                                                                     {t.durationBars} bars
                                                                 </td>
                                                                 <td className={`py-2 px-3 font-bold font-mono ${isWin ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                                    {isWin ? '+' : ''}${formatCurrency(t.netPnl, 2)}
+                                                                    {isWin ? '+' : ''}<small>USDT</small> {formatCurrency(t.netPnl, 2)}
                                                                 </td>
                                                                 <td className={`py-2 px-3 font-mono ${t.roePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                                     {t.roePercent >= 0 ? '+' : ''}{t.roePercent.toFixed(2)}%
                                                                 </td>
                                                                 <td className="py-2 px-3 text-zinc-400 font-mono">
-                                                                    ${formatCurrency(t.commission, 2)}
+                                                                    <small>USDT</small> {formatCurrency(t.commission, 2)}
                                                                 </td>
                                                                 <td className="py-2 px-3 text-zinc-300 text-[11px] truncate max-w-xs">
                                                                     {t.reason}
@@ -829,7 +905,7 @@ const BacktestPage = () => {
                                         {historyList.map((item, idx) => {
                                             const topStrat = item.rankedResults[0];
                                             return (
-                                                <tr key={item.id || idx} className="hover:bg-zinc-900/50">
+                                                <tr key={item.executedAt.toString()} className="hover:bg-zinc-900/50">
                                                     <td className="py-3 px-3 text-zinc-400 text-[11px]">
                                                         {item.executedAt ? new Date(item.executedAt).toLocaleString() : 'Pre-seeded'}
                                                     </td>
@@ -846,20 +922,21 @@ const BacktestPage = () => {
                                                         {item.bestStrategy}
                                                     </td>
                                                     <td className={`py-3 px-3 font-bold ${(topStrat?.netProfit ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        {(topStrat?.netProfit ?? 0) >= 0 ? '+' : ''}${formatCurrency(topStrat?.netProfit ?? 0, 2)}
+                                                        {(topStrat?.netProfit ?? 0) >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(topStrat?.netProfit ?? 0, 2)}
                                                     </td>
                                                     <td className={`py-3 px-3 font-bold ${(topStrat?.netProfitPercent ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        {(topStrat?.netProfitPercent ?? 0) >= 0 ? '+' : ''}{(topStrat?.netProfitPercent ?? 0).toFixed(2)}%
+                                                        {(topStrat?.netProfitPercent ?? 0) >= 0 ? '+' : ''}<small>USDT</small> {(topStrat?.netProfitPercent ?? 0).toFixed(2)}%
                                                     </td>
                                                     <td className="py-3 px-3">
                                                         <button
                                                             type="button"
+                                                            disabled={isBacktesting}
                                                             onClick={() => {
                                                                 setSummary(item);
                                                                 setSelectedStrategyIndex(0);
                                                                 setActiveTab('results');
                                                             }}
-                                                            className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                                                            className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-200 text-[11px] font-semibold flex items-center gap-1 transition-colors"
                                                         >
                                                             <Eye className="w-3 h-3" />
                                                             <span>Inspect Results</span>
