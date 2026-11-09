@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../AuthProvider';
 import { BotHeartbeat, Direction, IUserInfoRuntime, StrategyBacktestResult } from '@/interfaces';
 import { getUserByBotID, updateUser } from '../actions/user.actions';
-import { formatCurrency } from '@/utils';
+import { formatCurrency, formatTradeTimestamp } from '@/utils';
 import Footer from '@/section/Footer';
 import ConfirmationModal, { ConfirmationModalDetail, ConfirmationVariant } from '@/components/ConfirmationModal';
 import { getRecentBacktestSummary } from '../actions/backtest.actions';
@@ -402,7 +402,7 @@ const BacktestPage = () => {
                                                             {profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%
                                                         </span>
                                                         <span className="text-[11px] text-zinc-400 font-medium">
-                                                            ({netProfit >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(netProfit, 2)})
+                                                            ({netProfit >= 0 ? '+' : ''}{formatCurrency(netProfit, 2)} <small>USDT</small>)
                                                         </span>
                                                     </div>
                                                     <span className="text-[10px] text-zinc-500 block">
@@ -570,7 +570,7 @@ const BacktestPage = () => {
                                         <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
                                             <span className="text-[10px] text-zinc-500 uppercase block">Net Profit / Delta</span>
                                             <span className={`text-base sm:text-lg font-bold block ${activeStrategy.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                {activeStrategy.netProfit >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(activeStrategy.netProfit, 2)}
+                                                <small>USDT</small> {activeStrategy.netProfit >= 0 ? '' : '-'}{formatCurrency(activeStrategy.netProfit, 2)}
                                             </span>
                                             <span className="text-[10px] text-zinc-400 block font-semibold">
                                                 {activeStrategy.netProfitPercent >= 0 ? '+' : ''}{activeStrategy.netProfitPercent.toFixed(2)}% ROI
@@ -715,12 +715,12 @@ const BacktestPage = () => {
 
                                                     {/* Net Profit */}
                                                     <td className={`py-3 px-3 font-bold ${strat.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        {strat.netProfit >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(strat.netProfit, 2)}
+                                                        {strat.netProfit >= 0 ? '' : '-'}{formatCurrency(strat.netProfit, 2)}<small> USDT</small>
                                                     </td>
 
                                                     {/* ROI % */}
                                                     <td className={`py-3 px-3 font-bold ${strat.netProfitPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        {strat.netProfitPercent >= 0 ? '+' : ''}{strat.netProfitPercent.toFixed(2)}%
+                                                        {strat.netProfitPercent >= 0 ? '+' : '-'}{strat.netProfitPercent.toFixed(2)}%
                                                     </td>
 
                                                     {/* Win Rate */}
@@ -866,8 +866,8 @@ const BacktestPage = () => {
                                         </span>
                                     </div>
                                     <div className="ml-auto text-[11px] text-zinc-500">
-                                        Largest Win: <strong className="text-emerald-400">+<small>USDT</small> {activeStrategy.metrics.largestWin.toFixed(2)}</strong> • Largest Loss:{activeStrategy.metrics.largestLoss.toFixed(2)}
-                                        <strong className="text-rose-400">${activeStrategy.metrics.largestLoss.toFixed(2)}</strong>
+                                        Largest Win: <strong className="text-emerald-400"><small>USDT</small> {activeStrategy.metrics.largestWin.toFixed(2)}</strong> • Largest Loss:{' '}
+                                        <strong className="text-rose-400"><small>USDT</small> {activeStrategy.metrics.largestLoss.toFixed(2)}</strong>
                                     </div>
                                 </div>
 
@@ -889,8 +889,8 @@ const BacktestPage = () => {
                                                 <thead>
                                                     <tr className="border-b border-zinc-800 bg-[#09090b] text-zinc-400 text-[10px] uppercase">
                                                         <th className="py-2 px-3">Side</th>
-                                                        <th className="py-2 px-3">Entry Price</th>
-                                                        <th className="py-2 px-3">Exit Price</th>
+                                                        <th className="py-2 px-3">Date (Entry / Exit)</th>
+                                                        <th className="py-2 px-3">Price (Entry / Exit)</th>
                                                         <th className="py-2 px-3">Duration</th>
                                                         <th className="py-2 px-3">Net PnL</th>
                                                         <th className="py-2 px-3">ROE %</th>
@@ -899,39 +899,65 @@ const BacktestPage = () => {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-zinc-800/60 bg-[#121214]">
-                                                    {activeStrategy.recentTrades.map((t, idx) => {
+                                                    {[...activeStrategy.recentTrades].reverse().map((t, idx) => {
                                                         const isWin = t.netPnl > 0;
                                                         return (
                                                             <tr key={idx} className="hover:bg-zinc-900/50">
-                                                                <td className="py-2 px-3">
+                                                                <td className="py-2.5 px-3 align-middle">
                                                                     <span
                                                                         className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${t.side === 'LONG'
-                                                                            ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800'
-                                                                            : 'bg-rose-950/80 text-rose-400 border border-rose-800'
+                                                                                ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800'
+                                                                                : 'bg-rose-950/80 text-rose-400 border border-rose-800'
                                                                             }`}
                                                                     >
                                                                         {t.side}
                                                                     </span>
                                                                 </td>
-                                                                <td className="py-2 px-3 text-zinc-300 font-mono">
-                                                                    <small>USDT</small> {formatCurrency(t.entryPrice, 2)}
+                                                                <td className="py-2.5 px-3 whitespace-nowrap font-mono align-middle">
+                                                                    <div className="flex flex-col gap-1 justify-center">
+                                                                        <div className="flex items-center gap-1.5 text-zinc-200 text-[11px] leading-tight">
+                                                                            <span className="text-[9px] uppercase font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800/80 px-1 py-0.2 rounded leading-none">
+                                                                                EN
+                                                                            </span>
+                                                                            <span>{formatTradeTimestamp(t.entryTime)}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] leading-tight">
+                                                                            <span className="text-[9px] uppercase font-bold text-blue-400 bg-blue-950/80 border border-blue-800/80 px-1 py-0.2 rounded leading-none">
+                                                                                EX
+                                                                            </span>
+                                                                            <span>{formatTradeTimestamp(t.exitTime)}</span>
+                                                                        </div>
+                                                                    </div>
                                                                 </td>
-                                                                <td className="py-2 px-3 text-zinc-300 font-mono">
-                                                                    <small>USDT</small> {formatCurrency(t.exitPrice, 2)}
+                                                                <td className="py-2.5 px-3 whitespace-nowrap font-mono align-middle">
+                                                                    <div className="flex flex-col gap-1 justify-center">
+                                                                        <div className="flex items-center gap-1.5 text-zinc-200 text-[11px] leading-tight">
+                                                                            <span className="text-[9px] uppercase font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-800/80 px-1 py-0.2 rounded leading-none">
+                                                                                EN
+                                                                            </span>
+                                                                            <span><small>USDT</small> {formatCurrency(t.entryPrice, 2)}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] leading-tight">
+                                                                            <span className="text-[9px] uppercase font-bold text-blue-400 bg-blue-950/80 border border-blue-800/80 px-1 py-0.2 rounded leading-none">
+                                                                                EX
+                                                                            </span>
+                                                                            <span><small>USDT</small> {formatCurrency(t.exitPrice, 2)}</span>
+                                                                        </div>
+                                                                    </div>
                                                                 </td>
-                                                                <td className="py-2 px-3 text-zinc-400 font-mono">
+                                                                <td className="py-2.5 px-3 text-zinc-400 font-mono align-middle">
                                                                     {t.durationBars} bars
                                                                 </td>
-                                                                <td className={`py-2 px-3 font-bold font-mono ${isWin ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                                    {isWin ? '+' : ''}<small>USDT</small> {formatCurrency(t.netPnl, 2)}
+                                                                <td className={`py-2.5 px-3 font-bold font-mono align-middle ${isWin ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                                    {isWin ? '' : '-'}{formatCurrency(t.netPnl, 2)} <small>USDT</small> 
                                                                 </td>
-                                                                <td className={`py-2 px-3 font-mono ${t.roePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                                <td className={`py-2.5 px-3 font-mono align-middle ${t.roePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                                     {t.roePercent >= 0 ? '+' : ''}{t.roePercent.toFixed(2)}%
                                                                 </td>
-                                                                <td className="py-2 px-3 text-zinc-400 font-mono">
-                                                                    <small>USDT</small> {formatCurrency(t.commission, 2)}
+                                                                <td className="py-2.5 px-3 text-zinc-400 font-mono align-middle">
+                                                                    {formatCurrency(t.commission, 2)} <small>USDT</small> 
                                                                 </td>
-                                                                <td className="py-2 px-3 text-zinc-300 text-[11px] truncate max-w-xs">
+                                                                <td className="py-2.5 px-3 text-zinc-300 text-[11px] truncate max-w-xs align-middle">
                                                                     {t.reason}
                                                                 </td>
                                                             </tr>

@@ -75,6 +75,7 @@ const BacktestSummarySchema = new Schema<IBacktestSummaryDocument>({
     UID: { type: String, required: true, index: true },
     symbol: { type: String, required: true, index: true },
     timeframe: { type: String, required: true, index: true },
+    serviceFee: { type: Number, required: true },
     period: {
         days: { type: Number, required: true },
         totalCandles: { type: Number, required: true },

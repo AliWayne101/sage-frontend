@@ -51,3 +51,15 @@ export function generateID(totalLength: number = 12): string {
 
     return randomString;
 }
+
+export function formatTradeTimestamp(timestamp?: number | string): string {
+  if (!timestamp) return '—';
+  const d = new Date(timestamp);
+  if (isNaN(d.getTime())) return String(timestamp);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hours}:${mins}`;
+}
