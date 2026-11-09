@@ -288,5 +288,4 @@ export interface BacktestSummary {
     bestStrategy: string;
     serviceFee: number;
     rankedResults: StrategyBacktestResult[];
-    executedAt: Date;
 }

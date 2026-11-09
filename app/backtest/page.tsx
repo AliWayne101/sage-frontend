@@ -2,7 +2,7 @@
 import { History, AlertTriangle, ArrowLeft, Award, CheckCircle2, Zap, Layers, Activity, Sparkles, AlertOctagon, Calendar, ArrowRight, RotateCcw, Check, Database } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../AuthProvider';
-import { BacktestSummary, BotHeartbeat, Direction, IUserInfoRuntime, StrategyBacktestResult } from '@/interfaces';
+import { BotHeartbeat, Direction, IUserInfoRuntime, StrategyBacktestResult } from '@/interfaces';
 import { getUserByBotID, updateUser } from '../actions/user.actions';
 import { formatCurrency } from '@/utils';
 import Footer from '@/section/Footer';
@@ -11,12 +11,13 @@ import { getRecentBacktestSummary } from '../actions/backtest.actions';
 import { server } from '../actions/server.actions';
 import { LOAD_INTERVAL } from '@/constants';
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { IBacktestSummaryDocument } from '@/schema/backtest';
 
 const BacktestPage = () => {
     const router = useRouter();
     const { user } = useAuth();
 
-    const [dailyRuns, setDailyRuns] = useState<BacktestSummary[]>([]);
+    const [dailyRuns, setDailyRuns] = useState<IBacktestSummaryDocument[]>([]);
     const [viewMode, setViewMode] = useState<'detail' | 'history'>('detail');
     const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
     const [selectedRunIndex, setSelectedRunIndex] = useState(0);
@@ -50,7 +51,7 @@ const BacktestPage = () => {
         fetchData();
     }
 
-    const activeSummary: BacktestSummary | null = useMemo(() => {
+    const activeSummary: IBacktestSummaryDocument | null = useMemo(() => {
         if (!dailyRuns || dailyRuns.length === 0) return null;
         return dailyRuns[selectedRunIndex] || dailyRuns[0];
     }, [dailyRuns, selectedRunIndex]);
@@ -345,11 +346,11 @@ const BacktestPage = () => {
                                 const profitFactor = bestStrat?.metrics?.profitFactor ?? 0;
                                 const maxDd = bestStrat?.metrics?.maxDrawdownPercent ?? 0;
 
-                                const dateLabel = isLatest ? 'Today' : idx === 1 ? 'Yesterday' : `${new Date(run.executedAt).toLocaleDateString()}`;
+                                const dateLabel = isLatest ? 'Today' : idx === 1 ? 'Yesterday' : `${new Date(run.createdAt).toLocaleDateString()}`;
 
                                 return (
                                     <div
-                                        key={run.executedAt.getTime()}
+                                        key={run.createdAt.getTime()}
                                         onClick={() => handleSelectHistoryRun(idx)}
                                         className={`bg-[#121214] border transition-all rounded-lg p-4 sm:p-5 cursor-pointer group hover:bg-[#151518] hover:border-blue-500/80 shadow-md ${isCurrentlySelected
                                             ? 'border-blue-500 bg-blue-950/10 ring-1 ring-blue-500/50'
@@ -475,7 +476,7 @@ const BacktestPage = () => {
                                 <div className="flex flex-wrap items-center gap-2 min-w-0">
                                     <span className="text-zinc-400">Backtest Result</span>
                                     <span className="font-bold text-white">
-                                        {isViewingLatest ? `Today (${new Date(activeSummary.executedAt).toLocaleDateString()})` : `${new Date(activeSummary.executedAt).toLocaleDateString()}`}
+                                        {isViewingLatest ? `Today (${new Date(activeSummary.createdAt).toLocaleDateString()})` : `${new Date(activeSummary.createdAt).toLocaleDateString()}`}
                                     </span>
                                     {isViewingLatest ? (
                                         <span className="text-[9.5px] px-2 py-0.5 rounded font-bold uppercase tracking-wider bg-emerald-950 text-emerald-400 border border-emerald-800">
@@ -529,7 +530,7 @@ const BacktestPage = () => {
                                     <div>
                                         <div className="flex flex-wrap items-center gap-2">
                                             <h2 className="text-sm sm:text-base font-bold text-white">
-                                                Backtest Summary: {new Date(activeSummary.executedAt).toLocaleDateString()} ({activeSummary.symbol})
+                                                Backtest Summary: {new Date(activeSummary.createdAt).toLocaleDateString()} ({activeSummary.symbol})
                                             </h2>
                                             <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800">
                                                 RANK #1: {activeSummary.bestStrategy}
