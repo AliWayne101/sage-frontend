@@ -1,13 +1,16 @@
 "use client"
 import { History, AlertTriangle, ArrowLeft, Award, CheckCircle2, Zap, Layers, Activity, Sparkles, AlertOctagon, Calendar, ArrowRight, RotateCcw, Check, Database } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../AuthProvider';
 import { BacktestSummary, BotHeartbeat, Direction, IUserInfoRuntime, StrategyBacktestResult } from '@/interfaces';
-import { getUserByBotID } from '../actions/user.actions';
+import { getUserByBotID, updateUser } from '../actions/user.actions';
 import { formatCurrency } from '@/utils';
 import Footer from '@/section/Footer';
 import ConfirmationModal, { ConfirmationModalDetail, ConfirmationVariant } from '@/components/ConfirmationModal';
+import { getRecentBacktestSummary } from '../actions/backtest.actions';
+import { server } from '../actions/server.actions';
+import { LOAD_INTERVAL } from '@/constants';
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 
 const BacktestPage = () => {
     const router = useRouter();
@@ -38,6 +41,14 @@ const BacktestPage = () => {
         onConfirm: () => { },
     });
 
+    const updateUserStrategy = async (strategy: StrategyBacktestResult) => {
+        if (!User) return;
+        setUser((prev) => prev ? { ...prev, StrategyName: strategy.strategyName } : prev);
+        await updateUser(User);
+
+        await server({ request: "restart", targetBot: User.BotID });
+        fetchData();
+    }
 
     const activeSummary: BacktestSummary | null = useMemo(() => {
         if (!dailyRuns || dailyRuns.length === 0) return null;
@@ -56,7 +67,6 @@ const BacktestPage = () => {
         if (isCurrentActive || !heartBeat || !User) return;
 
         if (heartBeat.ActiveTrade) {
-            // SCENARIO A: Active position exists -> Modal asks to liquidate position before applying
             const sideText = (heartBeat.ActiveTrade.side === Direction.Long) ? 'LONG' : 'SHORT';
             const pnlValue = heartBeat.ActiveTrade.unrealizedPnl ?? 0;
             const pnlFormatted = `${pnlValue >= 0 ? '+' : ''} USDT ${formatCurrency(pnlValue, 2)}`;
@@ -80,9 +90,8 @@ const BacktestPage = () => {
                 onConfirm: async () => {
                     setConfirmModal((prev) => ({ ...prev, isLoading: true }));
                     try {
-                        //Force close
-                        //Apply Strategy
-                        //Update heartbeat
+                        await server({ request: "forceClose", targetBot: User.BotID });
+                        await updateUserStrategy(strategy);
                         showToast(
                             `Active position liquidated and strategy "${strategy.strategyName}" successfully applied to your bot profile in the database!`,
                             'success'
@@ -116,8 +125,7 @@ const BacktestPage = () => {
                 onConfirm: async () => {
                     setConfirmModal((prev) => ({ ...prev, isLoading: true }));
                     try {
-                        //Apply Strategy
-                        //Update heartbeat
+                        await updateUserStrategy(strategy);
                         showToast(
                             `Strategy "${strategy.strategyName}" successfully applied to your bot profile in database!`,
                             'success'
@@ -152,9 +160,32 @@ const BacktestPage = () => {
             const _user = await getUserByBotID(user.uid);
             if (!_user) return;
             setUser(_user);
+
+            const summaries = await getRecentBacktestSummary();
+            setDailyRuns(summaries);
         }
         loadUser();
     }, [user])
+
+    const fetchData = useCallback(async () => {
+        try {
+            const _hData = await server<BotHeartbeat>({ request: "heartbeat" });
+            if (!_hData) {
+                showToast("Unable to load the heartbeat data", "error");
+            } else {
+                setHeartBeat(_hData);
+            }
+        } catch (error) {
+            showToast("Seems to be an error refreshing", "error");
+            console.log(error);
+        }
+    }, [User])
+
+    useEffect(() => {
+        fetchData();
+        const interval = setInterval(fetchData, LOAD_INTERVAL);
+        return () => clearInterval(interval);
+    }, [fetchData])
 
     const isViewingLatest = selectedRunIndex === 0;
 

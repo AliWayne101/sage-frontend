@@ -65,7 +65,6 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 setActionNotice("Unable to load the heartbeat data");
             } else {
                 setHeartbeatData(_hData);
-                console.log(_hData);
             }
         } catch (error) {
             // FALLBACK TO MOCK DATA IF SERVER THROWS AN ERROR/EXCEPTION
