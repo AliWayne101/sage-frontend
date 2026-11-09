@@ -1,5 +1,5 @@
 "use client"
-import { AlertTriangle, ArrowLeft, Award, CheckCircle2, Clock, Play, RefreshCw, Zap, Lock, ShieldAlert, XCircle, Loader2, SlidersHorizontal, Layers, Activity, Eye } from 'lucide-react';
+import { History, AlertTriangle, ArrowLeft, Award, CheckCircle2, Zap, Layers, Activity, Sparkles, AlertOctagon, Calendar, ArrowRight, RotateCcw, Check, Database } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../AuthProvider';
@@ -7,28 +7,19 @@ import { BacktestSummary, BotHeartbeat, Direction, IUserInfoRuntime, StrategyBac
 import { getUserByBotID } from '../actions/user.actions';
 import { formatCurrency } from '@/utils';
 import Footer from '@/section/Footer';
-import ConfirmationModal, { ConfirmationModalDetail } from '@/components/ConfirmationModal';
+import ConfirmationModal, { ConfirmationModalDetail, ConfirmationVariant } from '@/components/ConfirmationModal';
 
 const BacktestPage = () => {
     const router = useRouter();
     const { user } = useAuth();
 
-    const [activeTab, setActiveTab] = useState<'run' | 'results' | 'history'>('run');
+    const [dailyRuns, setDailyRuns] = useState<BacktestSummary[]>([]);
+    const [viewMode, setViewMode] = useState<'detail' | 'history'>('detail');
+    const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+    const [selectedRunIndex, setSelectedRunIndex] = useState(0);
     const [User, setUser] = useState<IUserInfoRuntime | null>(null);
-    const [isCheckingPosition, setIsCheckingPosition] = useState<boolean>(false);
-    const [isBacktesting, setIsBacktesting] = useState(false);
     const [heartBeat, setHeartBeat] = useState<BotHeartbeat | undefined>(undefined);
-    const [startingBalance, setStartingBalance] = useState(100);
-    const [isTrailing, setIsTrailing] = useState(false);
-    const [currentStep, setCurrentStep] = useState<string>('');
-
-
-    // Results & Error state
-    const [summary, setSummary] = useState<BacktestSummary | null>(null);
     const [selectedStrategyIndex, setSelectedStrategyIndex] = useState<number>(0);
-    const [historyList, setHistoryList] = useState<BacktestSummary[]>([]);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [serverError, setServerError] = useState<string | null>(null);
 
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
@@ -38,6 +29,7 @@ const BacktestPage = () => {
         confirmText?: string;
         cancelText?: string;
         isLoading?: boolean;
+        variant?: ConfirmationVariant;
         details?: ConfirmationModalDetail[];
         onConfirm: () => void | Promise<void>;
     }>({
@@ -46,11 +38,113 @@ const BacktestPage = () => {
         onConfirm: () => { },
     });
 
-    const activeStrategy: StrategyBacktestResult | null = useMemo(() => {
-        if (!summary || !summary.rankedResults || summary.rankedResults.length === 0) return null;
-        return summary.rankedResults[selectedStrategyIndex] || summary.rankedResults[0];
-    }, [summary, selectedStrategyIndex]);
 
+    const activeSummary: BacktestSummary | null = useMemo(() => {
+        if (!dailyRuns || dailyRuns.length === 0) return null;
+        return dailyRuns[selectedRunIndex] || dailyRuns[0];
+    }, [dailyRuns, selectedRunIndex]);
+
+    const activeStrategy: StrategyBacktestResult | null = useMemo(() => {
+        if (!activeSummary || !activeSummary.rankedResults || activeSummary.rankedResults.length === 0) {
+            return null;
+        }
+        return activeSummary.rankedResults[selectedStrategyIndex] || activeSummary.rankedResults[0];
+    }, [activeSummary, selectedStrategyIndex]);
+
+    const handleInitiateApplyStrategy = async (strategy: StrategyBacktestResult) => {
+        const isCurrentActive = User?.StrategyName === strategy.strategyName;
+        if (isCurrentActive || !heartBeat || !User) return;
+
+        if (heartBeat.ActiveTrade) {
+            // SCENARIO A: Active position exists -> Modal asks to liquidate position before applying
+            const sideText = (heartBeat.ActiveTrade.side === Direction.Long) ? 'LONG' : 'SHORT';
+            const pnlValue = heartBeat.ActiveTrade.unrealizedPnl ?? 0;
+            const pnlFormatted = `${pnlValue >= 0 ? '+' : ''} USDT ${formatCurrency(pnlValue, 2)}`;
+
+            setConfirmModal({
+                isOpen: true,
+                title: 'Active Position Detected — Liquidate to Apply',
+                message: `Liquidate open ${heartBeat.ActiveTrade.symbol} position and apply "${strategy.strategyName}"?`,
+                description: `An active position in ${heartBeat.ActiveTrade.symbol} is currently open. Applying a new strategy requires a completely flat market exposure to prevent indicator or margin conflicts. Confirming will liquidate this position at current market price before saving "${strategy.strategyName}" to your bot profile in the database.`,
+                variant: 'danger',
+                confirmText: 'Liquidate Position & Apply Strategy',
+                cancelText: 'Cancel',
+                details: [
+                    { label: 'Current Position', value: `${heartBeat.ActiveTrade.symbol} (${sideText})` },
+                    { label: 'Entry Price', value: `USDT ${formatCurrency(heartBeat.ActiveTrade.entryPrice, 2)}` },
+                    { label: 'Mark Price', value: `USDT ${formatCurrency(heartBeat.ActiveTrade.markPrice || heartBeat.ActiveTrade.entryPrice, 2)}` },
+                    { label: 'Unrealized PnL', value: pnlFormatted },
+                    { label: 'Target Strategy', value: strategy.strategyName },
+                    { label: 'Trailing Ratchet', value: strategy.riskConfig.isTrailing ? 'Step-Ratchet ON' : 'Standard' },
+                ],
+                onConfirm: async () => {
+                    setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+                    try {
+                        //Force close
+                        //Apply Strategy
+                        //Update heartbeat
+                        showToast(
+                            `Active position liquidated and strategy "${strategy.strategyName}" successfully applied to your bot profile in the database!`,
+                            'success'
+                        );
+                        setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+                    } catch (err: any) {
+                        console.error('Failed to apply strategy with liquidation:', err);
+                        showToast(err.message || 'Failed to apply strategy', 'error');
+                        setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+                    }
+                },
+            });
+        } else {
+            setConfirmModal({
+                isOpen: true,
+                title: 'Apply Strategy to Bot Profile',
+                message: `Apply "${strategy.strategyName}" to your bot profile in database?`,
+                description: `Market exposure is flat (no active positions). Confirming will update bot ${User.BotID}'s active strategy to "${strategy.strategyName}" in the database. Upcoming trades will execute with this model's parameters.`,
+                variant: 'primary',
+                confirmText: `Apply Strategy`,
+                cancelText: 'Cancel',
+                details: [
+                    { label: 'Bot ID', value: User.BotID },
+                    { label: 'Strategy Name', value: strategy.strategyName },
+                    { label: 'Target Asset', value: activeSummary?.symbol || 'N/A' },
+                    { label: 'Take Profit Target', value: `${(strategy.riskConfig.tpPerc * 100).toFixed(2)}%` },
+                    { label: 'Stop Loss Condition', value: strategy.riskConfig.slCondition },
+                    { label: 'Trailing Ratchet', value: strategy.riskConfig.isTrailing ? 'Step-Ratchet ON' : 'Disabled' },
+                    { label: 'Simulated Win Rate', value: `${strategy.metrics.winRatePercent.toFixed(1)}%` },
+                ],
+                onConfirm: async () => {
+                    setConfirmModal((prev) => ({ ...prev, isLoading: true }));
+                    try {
+                        //Apply Strategy
+                        //Update heartbeat
+                        showToast(
+                            `Strategy "${strategy.strategyName}" successfully applied to your bot profile in database!`,
+                            'success'
+                        );
+                        setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }));
+                    } catch (err: any) {
+                        console.error('Failed to apply strategy:', err);
+                        showToast(err.message || 'Failed to apply strategy', 'error');
+                        setConfirmModal((prev) => ({ ...prev, isLoading: false }));
+                    }
+                },
+            });
+        }
+    };
+
+    const handleSelectHistoryRun = (index: number) => {
+        setSelectedRunIndex(index);
+        setSelectedStrategyIndex(0);
+        setViewMode('detail');
+    };
+
+    const showToast = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
+        setToastMessage({ text, type });
+        setTimeout(() => {
+            setToastMessage(null);
+        }, 6000);
+    };
 
     useEffect(() => {
         if (!user || !user.uid) return;
@@ -62,16 +156,16 @@ const BacktestPage = () => {
         loadUser();
     }, [user])
 
+    const isViewingLatest = selectedRunIndex === 0;
+
     return (
         <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans">
-            {/* Top Header */}
             <header className="sticky top-0 z-30 bg-[#0c0c0e]/95 backdrop-blur border-b border-[#27272a] px-3 sm:px-4 lg:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     <button
                         onClick={() => router.push('/dashboard')}
-                        disabled={isBacktesting}
-                        className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 text-zinc-300 transition-colors flex items-center gap-1.5 text-xs font-mono shrink-0 ${isBacktesting ? 'opacity-40 cursor-not-allowed pointer-events-none' : ''}`}
-                        title={isBacktesting ? 'Engine busy: Backtest running' : 'Back to Dashboard'}
+                        className="p-1.5 sm:px-2.5 sm:py-1.5 rounded bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 text-zinc-300 transition-colors flex items-center gap-1.5 text-xs font-mono shrink-0"
+                        title="Return to Live Dashboard"
                     >
                         <ArrowLeft className="w-4 h-4 shrink-0" />
                         <span className="hidden sm:inline">Back to Dashboard</span>
@@ -87,435 +181,315 @@ const BacktestPage = () => {
                         <div className="min-w-0">
                             <div className="flex items-center gap-2">
                                 <h1 className="text-xs sm:text-sm font-semibold tracking-tight text-white font-mono truncate">
-                                    Quant Strategy Backtester
+                                    {viewMode === 'history' ? 'Daily Backtest History' : 'Daily Backtest Benchmarks'}
                                 </h1>
-                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-950/60 text-blue-400 border border-blue-800 shrink-0">
-                                    BOT ENGINE
-                                </span>
                             </div>
                             <p className="text-[10px] sm:text-[11px] text-zinc-400 font-mono hidden md:block">
-                                Multi-strategy candle simulation & performance ranking for {User?.BotID}
+                                {viewMode === 'history'
+                                    ? 'Historical archive of automated backtests'
+                                    : 'Automated daily benchmark results'}
                             </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Header Right Navigation & Actions */}
-                <div className="flex items-center gap-2 shrink-0">
-                    {/* Revertability / Feature flag note */}
-                    <div className="hidden xl:flex items-center gap-1.5 px-2 py-1 rounded bg-zinc-900 border border-zinc-800 text-[10px] font-mono text-zinc-400" title="Backtest feature can be toggled in src/config/features.ts">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                        <span>Modular Backtest Engine</span>
-                    </div>
-
-                    <button
-                        onClick={() => {
-                            verifyPosition();
-                            loadHistoryAndStatus();
-                        }}
-                        disabled={isCheckingPosition || isBacktesting}
-                        className="p-1.5 sm:px-2.5 sm:py-1.5 rounded bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 text-xs font-mono transition-colors flex items-center gap-1.5"
-                        title="Refresh Position & Status"
-                    >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isCheckingPosition ? 'animate-spin text-blue-400' : ''}`} />
-                        <span className="hidden md:inline">Refresh</span>
-                    </button>
-                </div>
             </header>
 
             {/* Main Container */}
             <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-4 sm:space-y-6">
-                {/* Navigation Tabs Bar */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#27272a] pb-3">
-                    <div className="flex items-center gap-1.5 bg-[#121214] border border-[#27272a] p-1 rounded-lg text-xs font-mono">
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('run')}
-                            disabled={isBacktesting}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${activeTab === 'run'
-                                ? 'bg-blue-600 text-white shadow-sm font-semibold'
-                                : 'text-zinc-400 hover:text-zinc-200'
-                                }`}
-                        >
-                            <Play className="w-3.5 h-3.5" />
-                            <span>Run Backtest</span>
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('results')}
-                            disabled={!summary || isBacktesting}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${activeTab === 'results'
-                                ? 'bg-blue-600 text-white shadow-sm font-semibold'
-                                : 'text-zinc-400 hover:text-zinc-200'
-                                }`}
-                        >
-                            <Award className="w-3.5 h-3.5 text-amber-400" />
-                            <span>Backtest Results</span>
-                            {summary && (
-                                <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-950 border border-blue-800 text-blue-300">
-                                    {summary.symbol}
-                                </span>
+                {/* Toast Feedback Notification Banner */}
+                {toastMessage && (
+                    <div
+                        className={`p-3.5 rounded-lg border text-xs font-mono flex items-center justify-between gap-3 shadow-lg animate-in fade-in slide-in-from-top-2 ${toastMessage.type === 'success'
+                            ? 'bg-emerald-950/80 border-emerald-600 text-emerald-200'
+                            : toastMessage.type === 'error'
+                                ? 'bg-rose-950/80 border-rose-600 text-rose-200'
+                                : 'bg-blue-950/80 border-blue-600 text-blue-200'
+                            }`}
+                    >
+                        <div className="flex items-center gap-2.5">
+                            {toastMessage.type === 'success' ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                            ) : toastMessage.type === 'error' ? (
+                                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                            ) : (
+                                <Sparkles className="w-4 h-4 text-blue-400 shrink-0" />
                             )}
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('history')}
-                            disabled={isBacktesting}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${activeTab === 'history'
-                                ? 'bg-blue-600 text-white shadow-sm font-semibold'
-                                : 'text-zinc-400 hover:text-zinc-200'
-                                }`}
-                        >
-                            <Clock className="w-3.5 h-3.5 text-purple-400" />
-                            <span>Historical Archive</span>
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300">
-                                {historyList.length}
-                            </span>
-                        </button>
-                    </div>
-
-                    {/* Safe Mode Lock Notice */}
-                    <div className="flex items-center gap-2 text-xs font-mono text-zinc-400">
-                        {isBacktesting ? (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-950/80 border border-amber-700/80 text-amber-300 animate-pulse font-semibold">
-                                <Lock className="w-3.5 h-3.5" />
-                                <span>Backend Computing (Actions Locked)</span>
-                            </span>
-                        ) : heartBeat?.ActiveTrade ? (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-rose-950/60 border border-rose-800/80 text-rose-300">
-                                <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-                                <span>Active Position: Flat Exposure Required</span>
-                            </span>
-                        ) : (
-                            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-950/60 border border-emerald-800/80 text-emerald-400">
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Flat Exposure: Ready to Backtest</span>
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                {/* Global Error Banner */}
-                {errorMessage && (
-                    <div className="p-3.5 bg-rose-950/80 border border-rose-700 text-rose-200 text-xs font-mono rounded-lg flex items-start justify-between gap-3 shadow-md animate-in fade-in">
-                        <div className="flex items-start gap-2.5">
-                            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                            <div className="space-y-0.5">
-                                <span className="font-semibold text-rose-300 block">Server Error Response:</span>
-                                <p className="text-rose-200 leading-relaxed">{errorMessage}</p>
-                                {serverError && (
-                                    <div className="text-[11px] text-rose-300/80 mt-1">
-                                        Open position blocked execution: {heartBeat?.ActiveTrade?.symbol} ({heartBeat?.ActiveTrade?.side})
-                                    </div>
-                                )}
-                            </div>
+                            <span className="leading-relaxed font-medium">{toastMessage.text}</span>
                         </div>
                         <button
-                            onClick={() => {
-                                setErrorMessage(null);
-                                setServerError(null);
-                            }}
-                            className="text-zinc-400 hover:text-zinc-200 font-bold px-2 py-0.5 shrink-0"
-                            title="Dismiss error"
+                            onClick={() => setToastMessage(null)}
+                            className="text-zinc-400 hover:text-white font-bold px-1.5"
                         >
-                            ×
+                            X
                         </button>
                     </div>
                 )}
 
-                {/* ACTIVE POSITION WARNING / BLOCKER BANNER */}
-                {heartBeat?.ActiveTrade && (
-                    <div className="p-4 sm:p-5 bg-rose-950/30 border border-rose-800/80 rounded-lg space-y-3 font-mono">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-start gap-3">
-                                <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-                                <div>
-                                    <h3 className="text-xs sm:text-sm font-semibold text-rose-200 uppercase tracking-wide">
-                                        Active Position Detected — Backtest Locked
-                                    </h3>
-                                    <p className="text-xs text-rose-300/90 mt-1 leading-relaxed max-w-3xl">
-                                        Backtest simulation can only run when the active position is empty. An open position is currently held on the bot engine:
-                                    </p>
-                                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs">
-                                        <span className="bg-rose-950/80 border border-rose-700/80 px-2 py-0.5 rounded text-rose-300 font-bold">
-                                            {heartBeat.ActiveTrade.symbol}
-                                        </span>
-                                        <span className="text-zinc-300">
-                                            Side: <strong>{(heartBeat.ActiveTrade.side === Direction.Long) ? 'LONG' : 'SHORT'}</strong>
-                                        </span>
-                                        <span className="text-zinc-300">
-                                            Entry: <strong>${formatCurrency(heartBeat.ActiveTrade.entryPrice, 2)}</strong>
-                                        </span>
-                                        <span className="text-zinc-300">
-                                            Unrealized PnL: <strong className={(heartBeat.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                                {(heartBeat.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? '+' : ''}USDT {formatCurrency(heartBeat.ActiveTrade.unrealizedPnl ?? 0, 2)}
-                                            </strong>
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={handleOpenForceCloseModal}
-                                disabled={isBacktesting}
-                                className="px-3 py-2 rounded bg-rose-600 hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-semibold shrink-0 transition-colors shadow-sm flex items-center gap-1.5"
-                            >
-                                <XCircle className="w-4 h-4" />
-                                <span>Liquidate Position to Backtest</span>
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {/* ONGOING BACKTEST NOTICE BANNER (NO PROGRESS BAR) */}
-                {isBacktesting && (
-                    <div className="p-4 sm:p-5 bg-gradient-to-r from-[#0b192e] via-[#0e1f3d] to-[#0b192e] border border-blue-500/60 rounded-lg font-mono shadow-xl relative overflow-hidden">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div className="flex items-start sm:items-center gap-3.5">
-                                <div className="w-10 h-10 rounded-lg bg-blue-900/40 border border-blue-500/60 flex items-center justify-center shrink-0 shadow-inner">
-                                    <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                                </div>
-                                <div className="space-y-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2">
-                                            <span>Computing Backtest on Backend Engine</span>
-                                        </h3>
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-950/80 text-blue-300 border border-blue-700/80 uppercase tracking-wider">
-                                            Asynchronous Request
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-blue-200/90 leading-relaxed">
-                                        Strategy algorithms, candle history simulation, and performance calculations are actively executing on the server.
-                                    </p>
-                                    <p className="text-[11px] text-zinc-400">
-                                        {currentStep ? (
-                                            <span className="text-blue-300 font-semibold">{currentStep}</span>
-                                        ) : (
-                                            'The client is awaiting completion from the server...'
-                                        )}{' '}
-                                        All action buttons are temporarily disabled until the result is produced.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-blue-950/90 border border-blue-600/70 text-blue-300 text-xs shrink-0 self-start sm:self-center font-mono">
-                                <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                {/* Live Active Position Warning / Status Indicator */}
+                {heartBeat?.ActiveTrade ? (
+                    <div className="p-3.5 sm:p-4 bg-amber-950/30 border border-amber-800/80 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs">
+                        <div className="flex items-start sm:items-center gap-2.5">
+                            <AlertOctagon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+                            <div>
+                                <span className="font-semibold text-amber-300 block sm:inline">Active Trade in Progress: </span>
+                                <span className="text-zinc-300">
+                                    {heartBeat.ActiveTrade.symbol} ({(heartBeat.ActiveTrade.side === Direction.Long) ? 'LONG' : 'SHORT'}) @ <small>USDT</small> {formatCurrency(heartBeat.ActiveTrade.entryPrice, 2)}
+                                    <strong className={(heartBeat.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                                        {(heartBeat.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(heartBeat.ActiveTrade.unrealizedPnl ?? 0, 2)}
+                                    </strong>
                                 </span>
-                                <span className="font-semibold tracking-wide">Awaiting Results</span>
+                                <p className="text-[11px] text-zinc-400 mt-0.5">
+                                    Applying any strategy will open a confirmation modal to liquidate this position at market price before saving the strategy to your profile.
+                                </p>
                             </div>
                         </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-amber-950 border border-amber-700 text-amber-300 uppercase tracking-wider shrink-0 self-start sm:self-auto font-bold">
+                            Position Open
+                        </span>
+                    </div>
+                ) : (
+                    <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg flex items-center justify-between gap-3 font-mono text-xs text-zinc-400">
+                        <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>
+                                <strong>Flat Market Exposure:</strong> No active positions open on bot {User?.BotID}. You can apply any benchmarked strategy directly to your bot profile in the database.
+                            </span>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800 text-emerald-400 shrink-0">
+                            Ready to Apply
+                        </span>
                     </div>
                 )}
 
-                {/* TAB 1: RUN BACKTEST PARAMETERS */}
-                {activeTab === 'run' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Left 2 Cols: Configuration Form */}
-                        <div className="lg:col-span-2 space-y-5">
-                            <section className="bg-[#121214] border border-[#27272a] rounded-lg p-4 sm:p-6 space-y-5 shadow-sm">
-                                <div className="border-b border-[#27272a] pb-3 flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <SlidersHorizontal className="w-4 h-4 text-blue-400 shrink-0" />
-                                        <div>
-                                            <h2 className="text-xs font-mono uppercase tracking-wider font-semibold text-zinc-200">
-                                                Simulation Parameters
-                                            </h2>
-                                            <p className="text-[11px] text-zinc-500 font-mono">
-                                                Select asset, timeframe, and capital parameters to benchmark strategies
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">
-                                        Step-Ratchet Enabled
+                {viewMode === 'history' && (
+                    <div className="space-y-4">
+                        {/* History Header & Navigation */}
+                        <div className="bg-[#121214] border border-[#27272a] rounded-lg p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-mono shadow-sm">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                    <History className="w-4 h-4 text-blue-400 shrink-0" />
+                                    <h2 className="text-xs sm:text-sm uppercase tracking-wider font-bold text-white">
+                                        Daily Backtest History Archive
+                                    </h2>
+                                    <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-800">
+                                        {dailyRuns.length} Runs Logged
                                     </span>
                                 </div>
+                                <p className="text-xs text-zinc-400">
+                                    Select any historical backtest run to inspect its complete strategy metrics and apply its model to your bot profile.
+                                </p>
+                            </div>
 
-                                <form onSubmit={handleRunBacktest} className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {/* Symbol Selection */}
-                                        {/* <div className="space-y-1.5">
-                                            <label className="text-xs font-mono text-zinc-400">Target Trading Pair</label>
-                                            <select
-                                                value={symbol}
-                                                onChange={(e) => setSymbol(e.target.value)}
-                                                disabled={isBacktesting}
-                                                className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded px-3 py-2 text-xs font-mono text-zinc-200 outline-none cursor-pointer"
-                                            >
-                                                <option value="BTCUSDT">BTCUSDT (Bitcoin Perpetual)</option>
-                                                <option value="ETHUSDT">ETHUSDT (Ethereum Perpetual)</option>
-                                                <option value="SOLUSDT">SOLUSDT (Solana Perpetual)</option>
-                                                <option value="BNBUSDT">BNBUSDT (BNB Perpetual)</option>
-                                            </select>
-                                        </div> */}
-
-                                        {/* Starting Capital Balance */}
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-mono text-zinc-400">Virtual Starting Balance (USDT)</label>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-2 text-xs font-mono text-zinc-500">$</span>
-                                                <input
-                                                    type="number"
-                                                    min="100"
-                                                    max="100000"
-                                                    step="100"
-                                                    value={startingBalance}
-                                                    onChange={(e) => setStartingBalance(Number(e.target.value))}
-                                                    disabled={isBacktesting}
-                                                    className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed rounded pl-7 pr-3 py-2 text-xs font-mono text-zinc-200 outline-none"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Hardcoded & Strategy-Driven Specifications */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono pt-1">
-                                        {/* Hardcoded Historical Lookback Window */}
-                                        <div className="p-3 bg-[#09090b] border border-[#27272a] rounded space-y-1">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] text-zinc-500 uppercase block">Lookback Window</span>
-                                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                                                    HARDCODED
-                                                </span>
-                                            </div>
-                                            <div className="text-sm font-bold text-zinc-200">30 Days (720 Bars)</div>
-                                            <p className="text-[10.5px] text-zinc-500">Fixed institutional interval (no user override)</p>
-                                        </div>
-
-                                        {/* KLine Bar Interval from Strategy JSON */}
-                                        <div className="p-3 bg-[#09090b] border border-[#27272a] rounded space-y-1">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] text-zinc-500 uppercase block">KLine Bar Interval</span>
-                                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-950 text-blue-400 border border-blue-800">
-                                                    FROM STRATEGY JSON
-                                                </span>
-                                            </div>
-                                            <div className="text-sm font-bold text-blue-300">Strategy Defined</div>
-                                            <p className="text-[10.5px] text-zinc-500">Intervals taken from pre-built strategies</p>
-                                        </div>
-
-                                        {/* Default Compounding Mode */}
-                                        <div className="p-3 bg-[#09090b] border border-[#27272a] rounded space-y-1">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] text-zinc-500 uppercase block">Compound Profits</span>
-                                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-                                                    DEFAULT
-                                                </span>
-                                            </div>
-                                            <div className="text-sm font-bold text-zinc-200">Standard Sizing</div>
-                                            <p className="text-[10.5px] text-zinc-500">Default fractional position sizing model</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Step-Ratchet Trailing System Toggle */}
-                                    <div className="pt-1">
-                                        <div className="p-3 bg-[#09090b] border border-[#27272a] rounded flex items-center justify-between text-xs font-mono">
-                                            <div className="space-y-0.5 pr-2">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className="font-semibold text-zinc-200 block">Step-Ratchet Trailing System</span>
-                                                    <span className="text-[9px] px-1 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">
-                                                        PROFIT
-                                                    </span>
-                                                </div>
-                                                <span className="text-[10px] text-zinc-500 block">Ratchet profit floor dynamically upward as price advances</span>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsTrailing(!isTrailing)}
-                                                disabled={isBacktesting}
-                                                className={`w-10 h-5 rounded-full transition-colors relative p-0.5 border shrink-0 disabled:opacity-40 disabled:cursor-not-allowed ${isTrailing ? 'bg-emerald-600 border-emerald-500' : 'bg-zinc-800 border-zinc-700'
-                                                    }`}
-                                                title={`Toggle Step-Ratchet Trailing ${isTrailing ? 'OFF' : 'ON'}`}
-                                            >
-                                                <span
-                                                    className={`block w-3.5 h-3.5 rounded-full bg-white transition-transform ${isTrailing ? 'translate-x-5' : 'translate-x-0.5'
-                                                        }`}
-                                                />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Submit Action */}
-                                    <div className="pt-3 flex items-center justify-end gap-3">
-                                        <button
-                                            type="submit"
-                                            disabled={isBacktesting || Boolean(heartBeat?.ActiveTrade)}
-                                            className="w-full sm:w-auto px-6 py-2.5 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-mono text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm"
-                                        >
-                                            {isBacktesting ? (
-                                                <>
-                                                    <Loader2 className="w-4 h-4 animate-spin text-blue-200" />
-                                                    <span>Computing on Backend...</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Play className="w-4 h-4 fill-white" />
-                                                    <span>Execute Quant Backtest</span>
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
-                                </form>
-                            </section>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedRunIndex(0);
+                                        setSelectedStrategyIndex(0);
+                                        setViewMode('detail');
+                                    }}
+                                    className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                                >
+                                    <Award className="w-3.5 h-3.5" />
+                                    <span>View Latest Result</span>
+                                </button>
+                            </div>
                         </div>
 
-                        {/* Right Col: Backtest Engine Info & Pre-flight Checklist */}
-                        <div className="space-y-4">
-                            <div className="bg-[#121214] border border-[#27272a] rounded-lg p-4 sm:p-5 space-y-3 font-mono text-xs">
-                                <h3 className="font-semibold text-zinc-200 uppercase tracking-wider flex items-center gap-2 border-b border-[#27272a] pb-2.5">
-                                    <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
-                                    <span>Execution Rules & Constraints</span>
-                                </h3>
+                        {/* Vertical List of Daily Backtest Runs */}
+                        <div className="space-y-3 font-mono">
+                            {dailyRuns.map((run, idx) => {
+                                const isLatest = idx === 0;
+                                const isCurrentlySelected = idx === selectedRunIndex;
+                                const bestStrat = run.rankedResults[0];
+                                const startingBal = bestStrat?.startingBalance || 1000;
+                                const endingBal = bestStrat?.endingBalance || 1000;
+                                const netProfit = bestStrat?.netProfit ?? 0;
+                                const profitPercent = bestStrat?.netProfitPercent ?? 0;
+                                const winRate = bestStrat?.metrics?.winRatePercent ?? 0;
+                                const wins = bestStrat?.metrics?.wins ?? 0;
+                                const losses = bestStrat?.metrics?.losses ?? 0;
+                                const totalTrades = bestStrat?.metrics?.totalTrades ?? 0;
+                                const profitFactor = bestStrat?.metrics?.profitFactor ?? 0;
+                                const maxDd = bestStrat?.metrics?.maxDrawdownPercent ?? 0;
 
-                                <ul className="space-y-2.5 text-zinc-400 text-[11px] leading-relaxed">
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-emerald-400 font-bold shrink-0">✓</span>
-                                        <span><strong>Flat Exposure Rule:</strong> Backtesting strictly requires no open position to ensure margin simulation remains isolated.</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-amber-400 font-bold shrink-0">⚡</span>
-                                        <span><strong>Trading Lock:</strong> While running, trade entry/exit on the live engine is temporarily locked until results return.</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-blue-400 font-bold shrink-0">📊</span>
-                                        <span><strong>Multi-Strategy Ranking:</strong> All 3 quant models (EMA-RSI, Mean Reversion, Mean Reversion Filtered) are simulated concurrently and ranked by net return.</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-purple-400 font-bold shrink-0">📜</span>
-                                        <span><strong>Persistent Summary:</strong> Completed tests are saved into the Historical Archive with full itemized trade breakdowns.</span>
-                                    </li>
-                                </ul>
+                                const dateLabel = isLatest ? 'Today' : idx === 1 ? 'Yesterday' : `${new Date(run.executedAt).toLocaleDateString()}`;
 
-                                {historyList.length > 0 && (
-                                    <div className="pt-2 border-t border-[#27272a]">
-                                        <button
-                                            type="button"
-                                            disabled={isBacktesting}
-                                            onClick={() => {
-                                                setSummary(historyList[0]);
-                                                setActiveTab('results');
-                                            }}
-                                            className="w-full py-2 px-3 rounded bg-zinc-900 hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed border border-zinc-800 text-zinc-300 text-xs font-mono flex items-center justify-center gap-2 transition-colors"
-                                        >
-                                            <Award className="w-3.5 h-3.5 text-amber-400" />
-                                            <span>View Latest Results ({historyList[0].symbol})</span>
-                                        </button>
+                                return (
+                                    <div
+                                        key={run.executedAt.getTime()}
+                                        onClick={() => handleSelectHistoryRun(idx)}
+                                        className={`bg-[#121214] border transition-all rounded-lg p-4 sm:p-5 cursor-pointer group hover:bg-[#151518] hover:border-blue-500/80 shadow-md ${isCurrentlySelected
+                                            ? 'border-blue-500 bg-blue-950/10 ring-1 ring-blue-500/50'
+                                            : 'border-[#27272a]'
+                                            }`}
+                                    >
+                                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                            <div className="space-y-2 min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <div className="flex items-center gap-1.5 text-xs text-white font-bold">
+                                                        <Calendar className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                                                        <span>{dateLabel}</span>
+                                                    </div>
+
+                                                    {isLatest && (
+                                                        <span className="text-[9.5px] px-2 py-0.5 rounded font-bold uppercase tracking-wider bg-emerald-950 text-emerald-400 border border-emerald-800">
+                                                            LATEST RESULT
+                                                        </span>
+                                                    )}
+
+                                                    {isCurrentlySelected && (
+                                                        <span className="text-[9.5px] px-2 py-0.5 rounded font-bold uppercase tracking-wider bg-blue-950 text-blue-300 border border-blue-700">
+                                                            CURRENTLY SELECTED
+                                                        </span>
+                                                    )}
+
+                                                    <span className="text-[10px] text-zinc-500">
+                                                        Symbol: <strong className="text-zinc-300">{run.symbol}</strong> • {run.period.days} Days Lookback
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex flex-wrap items-center gap-2 text-xs">
+                                                    <span className="text-zinc-400">Best Ranked Strategy:</span>
+                                                    <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-amber-300 font-semibold flex items-center gap-1">
+                                                        <Award className="w-3 h-3 text-amber-400" />
+                                                        <span>{run.bestStrategy}</span>
+                                                    </span>
+                                                    <span className="text-[11px] text-zinc-500 hidden sm:inline">
+                                                        Tested across {run.rankedResults.length} quant models
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-wrap items-center gap-3 sm:gap-6 self-start lg:self-auto">
+                                                <div className="space-y-0.5 min-w-[140px]">
+                                                    <span className="text-[10px] text-zinc-500 uppercase block">Capital Delta</span>
+                                                    <div className="flex items-baseline gap-1.5">
+                                                        <span className={`text-base font-bold ${profitPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                            {profitPercent >= 0 ? '+' : ''}{profitPercent.toFixed(2)}%
+                                                        </span>
+                                                        <span className="text-[11px] text-zinc-400 font-medium">
+                                                            ({netProfit >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(netProfit, 2)})
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-[10px] text-zinc-500 block">
+                                                        <small>USDT</small> {formatCurrency(startingBal, 0)} → <small>USDT</small> {formatCurrency(endingBal, 2)}
+                                                    </span>
+                                                </div>
+
+                                                <div className="space-y-0.5 min-w-[120px]">
+                                                    <span className="text-[10px] text-zinc-500 uppercase block">Win Rate</span>
+                                                    <span className="text-base font-bold text-blue-400 block">
+                                                        {winRate.toFixed(1)}%
+                                                    </span>
+                                                    <span className="text-[10px] text-zinc-400 block">
+                                                        {wins}W / {losses}L ({totalTrades} Trades)
+                                                    </span>
+                                                </div>
+
+                                                <div className="space-y-0.5 min-w-[110px] hidden sm:block">
+                                                    <span className="text-[10px] text-zinc-500 uppercase block">Risk Profile</span>
+                                                    <span className="text-xs font-semibold text-purple-400 block">
+                                                        PF: {profitFactor.toFixed(2)}
+                                                    </span>
+                                                    <span className="text-[10px] text-rose-400 block">
+                                                        Max DD: -{maxDd.toFixed(2)}%
+                                                    </span>
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleSelectHistoryRun(idx);
+                                                    }}
+                                                    className="px-3.5 py-2 rounded bg-zinc-900 border border-zinc-700 text-zinc-200 group-hover:bg-blue-600 group-hover:border-blue-500 group-hover:text-white transition-all text-xs font-semibold flex items-center gap-1.5 shadow-sm ml-auto"
+                                                >
+                                                    <span>Inspect Result</span>
+                                                    <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Secondary Strategy Mini-Pills */}
+                                        <div className="mt-3 pt-2.5 border-t border-zinc-800/80 flex flex-wrap items-center gap-2 text-[11px] text-zinc-400">
+                                            <span className="text-[10px] text-zinc-500 uppercase">Other Models:</span>
+                                            {run.rankedResults.slice(1).map((subStrat, sIdx) => (
+                                                <div
+                                                    key={sIdx}
+                                                    className="px-2 py-0.5 rounded bg-[#09090b] border border-zinc-800/90 flex items-center gap-1.5"
+                                                >
+                                                    <span className="text-zinc-300">#{sIdx + 2} {subStrat.strategyName}:</span>
+                                                    <span className={subStrat.netProfitPercent >= 0 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold'}>
+                                                        {subStrat.netProfitPercent >= 0 ? '+' : ''}{subStrat.netProfitPercent.toFixed(2)}% ROI
+                                                    </span>
+                                                    <span className="text-zinc-500">({subStrat.metrics.winRatePercent.toFixed(1)}% WR)</span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                )}
-                            </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
 
-                {/* TAB 2: BACKTEST RESULTS VIEWER */}
-                {activeTab === 'results' && summary && (
+                {viewMode === 'detail' && activeSummary && (
                     <div className="space-y-6">
-                        {/* Summary Top Banner */}
-                        <section className="bg-[#121214] border border-[#27272a] rounded-lg p-4 sm:p-6 space-y-4 shadow-sm">
+                        {/* Historical vs Latest Breadcrumb / Switcher Bar */}
+                        <div className="bg-[#121214] border border-[#27272a] rounded-lg p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <Calendar className="w-4 h-4 text-blue-400 shrink-0" />
+                                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                    <span className="text-zinc-400">Backtest Result</span>
+                                    <span className="font-bold text-white">
+                                        {isViewingLatest ? `Today (${new Date(activeSummary.executedAt).toLocaleDateString()})` : `${new Date(activeSummary.executedAt).toLocaleDateString()}`}
+                                    </span>
+                                    {isViewingLatest ? (
+                                        <span className="text-[9.5px] px-2 py-0.5 rounded font-bold uppercase tracking-wider bg-emerald-950 text-emerald-400 border border-emerald-800">
+                                            LATEST RUN
+                                        </span>
+                                    ) : (
+                                        <span className="text-[9.5px] px-2 py-0.5 rounded font-bold uppercase tracking-wider bg-purple-950 text-purple-300 border border-purple-800">
+                                            HISTORICAL RUN
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                                {!isViewingLatest && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedRunIndex(0);
+                                            setSelectedStrategyIndex(0);
+                                        }}
+                                        className="px-2.5 py-1.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                                        title="Return to latest daily backtest"
+                                    >
+                                        <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+                                        <span>Switch to Latest</span>
+                                    </button>
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('history')}
+                                    className="px-3 py-1.5 rounded bg-blue-950/80 hover:bg-blue-900 border border-blue-700/80 text-blue-300 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                                    title="Open vertical list of all historical runs"
+                                >
+                                    <History className="w-3.5 h-3.5" />
+                                    <span>Check History</span>
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-900 text-blue-200 border border-blue-600">
+                                        {dailyRuns.length}
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <section className="bg-[#121214] border border-[#27272a] rounded-lg p-4 sm:p-6 space-y-5 shadow-sm font-mono">
                             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[#27272a] pb-4">
                                 <div className="flex items-start sm:items-center gap-3">
                                     <div className="w-10 h-10 rounded-lg bg-amber-950/80 border border-amber-700/80 flex items-center justify-center font-bold text-amber-400 shrink-0">
@@ -523,118 +497,124 @@ const BacktestPage = () => {
                                     </div>
                                     <div>
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <h2 className="text-sm sm:text-base font-mono font-bold text-white">
-                                                Backtest Summary: {summary.symbol}
+                                            <h2 className="text-sm sm:text-base font-bold text-white">
+                                                Backtest Summary: {new Date(activeSummary.executedAt).toLocaleDateString()} ({activeSummary.symbol})
                                             </h2>
-                                            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800">
-                                                BEST: {summary.bestStrategy}
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-800">
+                                                RANK #1: {activeSummary.bestStrategy}
                                             </span>
-                                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-700">
-                                                {summary.timeframe} • {summary.period.days} Days ({summary.period.totalCandles} Candles)
+                                            <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-900 text-zinc-400 border border-zinc-700">
+                                                {activeSummary.timeframe} • {activeSummary.period.days} Days ({activeSummary.period.totalCandles} Candles)
                                             </span>
                                         </div>
-                                        <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
-                                            Period: {new Date(summary.period.from).toLocaleDateString()} to {new Date(summary.period.to).toLocaleDateString()}
+                                        <p className="text-[11px] text-zinc-400 mt-1">
+                                            Evaluated Period: {new Date(activeSummary.period.from).toLocaleDateString()} to {new Date(activeSummary.period.to).toLocaleDateString()} • Automated Daily Cron Engine
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        disabled={isBacktesting}
-                                        onClick={() => setActiveTab('run')}
-                                        className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-mono text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                                    >
-                                        <Play className="w-3.5 h-3.5" />
-                                        <span>Run Another Test</span>
-                                    </button>
-                                </div>
+                                {/* <div className="flex items-center gap-2 self-start lg:self-center">
+                                    <div className="px-3 py-1.5 rounded bg-[#09090b] border border-zinc-800 text-xs text-zinc-300 flex items-center gap-2">
+                                        <Database className="w-3.5 h-3.5 text-purple-400" />
+                                        <span>Bot Profile: <strong className="text-white">{botID}</strong></span>
+                                    </div>
+                                </div> */}
                             </div>
 
-                            {/* KPI Metrics Grid for the Top / Best Strategy */}
+                            {/* KPI Metrics Grid for Currently Inspected Strategy */}
                             {activeStrategy && (
-                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-1 font-mono">
-                                    {/* Net Profit */}
-                                    <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
-                                        <span className="text-[10px] text-zinc-500 uppercase block">Net Profit</span>
-                                        <span className={`text-base sm:text-lg font-bold block ${activeStrategy.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                            {activeStrategy.netProfit >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(activeStrategy.netProfit, 2)}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                                        <span className="font-semibold uppercase text-[10.5px] text-zinc-300">
+                                            Inspecting Metrics: <strong className="text-white">{activeStrategy.strategyName}</strong>
                                         </span>
-                                        <span className="text-[10px] text-zinc-400 block">
-                                            {activeStrategy.netProfitPercent >= 0 ? '+' : ''}{activeStrategy.netProfitPercent.toFixed(2)}% ROI
+                                        <span className="text-[11px] text-zinc-500">
+                                            Baseline Virtual Capital: <small>USDT</small> {formatCurrency(activeStrategy.startingBalance, 2)} USDT
                                         </span>
                                     </div>
 
-                                    {/* Win Rate */}
-                                    <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
-                                        <span className="text-[10px] text-zinc-500 uppercase block">Win Rate</span>
-                                        <span className="text-base sm:text-lg font-bold text-blue-400 block">
-                                            {activeStrategy.metrics.winRatePercent.toFixed(1)}%
-                                        </span>
-                                        <span className="text-[10px] text-zinc-400 block">
-                                            {activeStrategy.metrics.wins}W / {activeStrategy.metrics.losses}L ({activeStrategy.metrics.totalTrades} Trades)
-                                        </span>
-                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
+                                        {/* Net Profit & % Difference */}
+                                        <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
+                                            <span className="text-[10px] text-zinc-500 uppercase block">Net Profit / Delta</span>
+                                            <span className={`text-base sm:text-lg font-bold block ${activeStrategy.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                {activeStrategy.netProfit >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(activeStrategy.netProfit, 2)}
+                                            </span>
+                                            <span className="text-[10px] text-zinc-400 block font-semibold">
+                                                {activeStrategy.netProfitPercent >= 0 ? '+' : ''}{activeStrategy.netProfitPercent.toFixed(2)}% ROI
+                                            </span>
+                                        </div>
 
-                                    {/* Profit Factor */}
-                                    <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
-                                        <span className="text-[10px] text-zinc-500 uppercase block">Profit Factor</span>
-                                        <span className="text-base sm:text-lg font-bold text-purple-400 block">
-                                            {activeStrategy.metrics.profitFactor.toFixed(2)}
-                                        </span>
-                                        <span className="text-[10px] text-zinc-400 block">
-                                            Gross Win / Loss ratio
-                                        </span>
-                                    </div>
+                                        {/* Win Rate */}
+                                        <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
+                                            <span className="text-[10px] text-zinc-500 uppercase block">Win Rate</span>
+                                            <span className="text-base sm:text-lg font-bold text-blue-400 block">
+                                                {activeStrategy.metrics.winRatePercent.toFixed(1)}%
+                                            </span>
+                                            <span className="text-[10px] text-zinc-400 block">
+                                                {activeStrategy.metrics.wins}W / {activeStrategy.metrics.losses}L ({activeStrategy.metrics.totalTrades} Trades)
+                                            </span>
+                                        </div>
 
-                                    {/* Max Drawdown */}
-                                    <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
-                                        <span className="text-[10px] text-zinc-500 uppercase block">Max Drawdown</span>
-                                        <span className="text-base sm:text-lg font-bold text-rose-400 block">
-                                            -{activeStrategy.metrics.maxDrawdownPercent.toFixed(2)}%
-                                        </span>
-                                        <span className="text-[10px] text-zinc-400 block">
-                                            -{formatCurrency(activeStrategy.metrics.maxDrawdownUSDT, 2)} <small>USDT</small>
-                                        </span>
-                                    </div>
+                                        {/* Profit Factor */}
+                                        <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
+                                            <span className="text-[10px] text-zinc-500 uppercase block">Profit Factor</span>
+                                            <span className="text-base sm:text-lg font-bold text-purple-400 block">
+                                                {activeStrategy.metrics.profitFactor.toFixed(2)}
+                                            </span>
+                                            <span className="text-[10px] text-zinc-400 block">
+                                                Gross Win / Loss ratio
+                                            </span>
+                                        </div>
 
-                                    {/* Ending Balance */}
-                                    <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
-                                        <span className="text-[10px] text-zinc-500 uppercase block">Final Capital</span>
-                                        <span className="text-base sm:text-lg font-bold text-zinc-100 block">
-                                            <small>USDT</small> {formatCurrency(activeStrategy.endingBalance, 2)}
-                                        </span>
-                                        <span className="text-[10px] text-zinc-400 block">
-                                            From <small>USDT</small> {formatCurrency(activeStrategy.startingBalance, 2)}
-                                        </span>
-                                    </div>
+                                        {/* Max Drawdown */}
+                                        <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
+                                            <span className="text-[10px] text-zinc-500 uppercase block">Max Drawdown</span>
+                                            <span className="text-base sm:text-lg font-bold text-rose-400 block">
+                                                -{activeStrategy.metrics.maxDrawdownPercent.toFixed(2)}%
+                                            </span>
+                                            <span className="text-[10px] text-zinc-400 block">
+                                                -{formatCurrency(activeStrategy.metrics.maxDrawdownUSDT, 2)} USDT
+                                            </span>
+                                        </div>
 
-                                    {/* Service Fees Paid */}
-                                    <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
-                                        <span className="text-[10px] text-zinc-500 uppercase block">Platform Fees</span>
-                                        <span className="text-base sm:text-lg font-bold text-amber-400 block">
-                                            <small>USDT</small> {formatCurrency(activeStrategy.metrics.totalFeesPaid, 2)}
-                                        </span>
-                                        <span className="text-[10px] text-zinc-400 block">
-                                            {summary.serviceFee * 100} performance fee
-                                        </span>
+                                        {/* Final Capital */}
+                                        <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
+                                            <span className="text-[10px] text-zinc-500 uppercase block">Final Capital</span>
+                                            <span className="text-base sm:text-lg font-bold text-zinc-100 block">
+                                                <small>USDT</small> {formatCurrency(activeStrategy.endingBalance, 2)}
+                                            </span>
+                                            <span className="text-[10px] text-zinc-400 block">
+                                                From <small>USDT</small> {formatCurrency(activeStrategy.startingBalance, 2)}
+                                            </span>
+                                        </div>
+
+                                        {/* Platform Service Fees */}
+                                        <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
+                                            <span className="text-[10px] text-zinc-500 uppercase block">Platform Fees</span>
+                                            <span className="text-base sm:text-lg font-bold text-amber-400 block">
+                                                <small>USDT</small> {formatCurrency(activeStrategy.metrics.totalFeesPaid, 2)}
+                                            </span>
+                                            <span className="text-[10px] text-zinc-400 block">
+                                                {activeSummary.serviceFee * 100}% performance fee
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             )}
                         </section>
 
-                        {/* Ranked Strategy Comparison Table */}
+                        {/* Ranked Strategy Leaderboard with "Apply Strategy" capability */}
                         <section className="bg-[#121214] border border-[#27272a] rounded-lg p-4 sm:p-5 space-y-4 shadow-sm font-mono">
-                            <div className="flex items-center justify-between border-b border-[#27272a] pb-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#27272a] pb-3">
                                 <div className="flex items-center gap-2">
                                     <Layers className="w-4 h-4 text-blue-400 shrink-0" />
                                     <h3 className="text-xs uppercase tracking-wider font-semibold text-zinc-200">
                                         Ranked Strategy Leaderboard
                                     </h3>
                                 </div>
-                                <span className="text-[11px] text-zinc-500">
-                                    Click a strategy to inspect detailed trades & risk
+                                <span className="text-[11px] text-zinc-400">
+                                    Ranked by Net Return
                                 </span>
                             </div>
 
@@ -650,13 +630,15 @@ const BacktestPage = () => {
                                             <th className="py-2.5 px-3">Trades</th>
                                             <th className="py-2.5 px-3">Profit Factor</th>
                                             <th className="py-2.5 px-3">Max DD</th>
-                                            <th className="py-2.5 px-3">Action</th>
+                                            <th className="py-2.5 px-3 text-right">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-zinc-800/60">
-                                        {summary.rankedResults.map((strat, idx) => {
+                                        {activeSummary.rankedResults.map((strat, idx) => {
                                             const isSelected = idx === selectedStrategyIndex;
                                             const isTop = idx === 0;
+                                            const isCurrentBotStrategy = User?.StrategyName === strat.strategyName;
+
                                             return (
                                                 <tr
                                                     key={strat.strategyName}
@@ -666,9 +648,10 @@ const BacktestPage = () => {
                                                         : 'hover:bg-zinc-900/60 text-zinc-300'
                                                         }`}
                                                 >
+                                                    {/* Rank */}
                                                     <td className="py-3 px-3">
                                                         <span
-                                                            className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold ${isTop
+                                                            className={`inline-flex items-center justify-center w-6 h-6 rounded text-[10px] font-bold ${isTop
                                                                 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
                                                                 : 'bg-zinc-800 text-zinc-400'
                                                                 }`}
@@ -676,52 +659,87 @@ const BacktestPage = () => {
                                                             #{idx + 1}
                                                         </span>
                                                     </td>
+
+                                                    {/* Strategy Name & Tag */}
                                                     <td className="py-3 px-3 font-semibold text-zinc-100">
-                                                        <div className="flex items-center gap-1.5">
+                                                        <div className="flex flex-wrap items-center gap-1.5">
                                                             <span>{strat.strategyName}</span>
                                                             {isTop && (
                                                                 <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-950 text-amber-400 border border-amber-800">
-                                                                    BEST
+                                                                    TOP RANK
+                                                                </span>
+                                                            )}
+                                                            {isCurrentBotStrategy && (
+                                                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
+                                                                    <Check className="w-2.5 h-2.5" />
+                                                                    <span>CURRENT ACTIVE</span>
                                                                 </span>
                                                             )}
                                                         </div>
-                                                        <span className="text-[10px] text-zinc-500 font-normal block truncate max-w-xs">
+                                                        <span className="text-[10.5px] text-zinc-500 font-normal block truncate max-w-sm mt-0.5">
                                                             {strat.description}
                                                         </span>
                                                     </td>
+
+                                                    {/* Net Profit */}
                                                     <td className={`py-3 px-3 font-bold ${strat.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                         {strat.netProfit >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(strat.netProfit, 2)}
                                                     </td>
+
+                                                    {/* ROI % */}
                                                     <td className={`py-3 px-3 font-bold ${strat.netProfitPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                         {strat.netProfitPercent >= 0 ? '+' : ''}{strat.netProfitPercent.toFixed(2)}%
                                                     </td>
+
+                                                    {/* Win Rate */}
                                                     <td className="py-3 px-3 text-blue-400 font-semibold">
                                                         {strat.metrics.winRatePercent.toFixed(1)}%
                                                     </td>
+
+                                                    {/* Total Trades */}
                                                     <td className="py-3 px-3 text-zinc-300">
                                                         {strat.metrics.totalTrades} ({strat.metrics.wins}W / {strat.metrics.losses}L)
                                                     </td>
+
+                                                    {/* Profit Factor */}
                                                     <td className="py-3 px-3 text-purple-400 font-semibold">
                                                         {strat.metrics.profitFactor.toFixed(2)}
                                                     </td>
+
+                                                    {/* Max Drawdown */}
                                                     <td className="py-3 px-3 text-rose-400">
                                                         -{strat.metrics.maxDrawdownPercent.toFixed(2)}%
                                                     </td>
-                                                    <td className="py-3 px-3">
-                                                        <button
-                                                            type="button"
-                                                            disabled={isBacktesting}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setSelectedStrategyIndex(idx);
-                                                            }}
-                                                            className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${isSelected
-                                                                ? 'bg-blue-600 text-white'
-                                                                : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'
-                                                                }`}
-                                                        >
-                                                            {isSelected ? 'Inspecting' : 'Inspect'}
-                                                        </button>
+
+                                                    {/* Action Buttons */}
+                                                    <td className="py-3 px-3 text-right">
+                                                        <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setSelectedStrategyIndex(idx)}
+                                                                className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors ${isSelected
+                                                                    ? 'bg-zinc-800 text-white border border-zinc-700'
+                                                                    : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border border-zinc-800'
+                                                                    }`}
+                                                            >
+                                                                {isSelected ? 'Inspecting' : 'Inspect'}
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleInitiateApplyStrategy(strat)}
+                                                                className={`px-2.5 py-1 rounded text-[10px] font-semibold flex items-center gap-1 transition-all shadow-sm ${isCurrentBotStrategy
+                                                                    ? 'bg-emerald-950/80 border border-emerald-700 text-emerald-300 hover:bg-emerald-900/90'
+                                                                    : isTop
+                                                                        ? 'bg-blue-600 hover:bg-blue-500 text-white font-bold'
+                                                                        : 'bg-zinc-800 hover:bg-blue-600 text-zinc-200 hover:text-white border border-zinc-700'
+                                                                    }`}
+                                                                title={`Apply ${strat.strategyName} to bot profile in database`}
+                                                            >
+                                                                <Database className="w-3 h-3" />
+                                                                <span>{isCurrentBotStrategy ? 'Applied' : 'Apply Strategy'}</span>
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             );
@@ -731,36 +749,52 @@ const BacktestPage = () => {
                             </div>
                         </section>
 
-                        {/* Deep-Dive Inspection: Selected Strategy Breakdown & Trade History */}
+                        {/* Deep-Dive Strategy Detail & Trade Ledger */}
                         {activeStrategy && (
                             <section className="bg-[#121214] border border-[#27272a] rounded-lg p-4 sm:p-5 space-y-4 shadow-sm font-mono">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#27272a] pb-3">
-                                    <div className="flex items-center gap-2">
-                                        <Activity className="w-4 h-4 text-emerald-400 shrink-0" />
+                                {/* Strategy Title & Apply CTA Banner */}
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#27272a] pb-3">
+                                    <div className="flex items-start sm:items-center gap-2.5">
+                                        <Activity className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5 sm:mt-0" />
                                         <div>
-                                            <h3 className="text-xs uppercase tracking-wider font-semibold text-zinc-200">
-                                                Detailed Trade Ledger: {activeStrategy.strategyName}
-                                            </h3>
-                                            <p className="text-[11px] text-zinc-500">
-                                                Long vs Short performance and itemized recent backtest executions
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <h3 className="text-xs uppercase tracking-wider font-semibold text-zinc-200">
+                                                    Strategy Deep-Dive: {activeStrategy.strategyName}
+                                                </h3>
+                                                {User?.StrategyName === activeStrategy.strategyName ? (
+                                                    <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold">
+                                                        ACTIVE ON BOT
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[10px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                                        BENCHMARKED
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-[11px] text-zinc-500 mt-0.5">
+                                                Long vs Short performance and itemized simulated execution log
                                             </p>
                                         </div>
                                     </div>
 
-                                    {/* Long vs Short Pill Breakdown */}
-                                    <div className="flex items-center gap-2 text-xs">
-                                        <div className="px-2.5 py-1 rounded bg-[#09090b] border border-zinc-800 flex items-center gap-1.5">
-                                            <span className="text-emerald-400 font-bold">LONG:</span>
-                                            <span>{activeStrategy.breakdown.long.wins}/{activeStrategy.breakdown.long.total} ({activeStrategy.breakdown.long.winRatePercent.toFixed(1)}%)</span>
-                                        </div>
-                                        <div className="px-2.5 py-1 rounded bg-[#09090b] border border-zinc-800 flex items-center gap-1.5">
-                                            <span className="text-rose-400 font-bold">SHORT:</span>
-                                            <span>{activeStrategy.breakdown.short.wins}/{activeStrategy.breakdown.short.total} ({activeStrategy.breakdown.short.winRatePercent.toFixed(1)}%)</span>
-                                        </div>
+                                    {/* Apply Strategy Button from Deep-Dive */}
+                                    <div className="flex items-center gap-2 self-start md:self-auto">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleInitiateApplyStrategy(activeStrategy)}
+                                            className="px-3.5 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                                        >
+                                            <Database className="w-3.5 h-3.5" />
+                                            <span>
+                                                {User?.StrategyName === activeStrategy.strategyName
+                                                    ? 'Applied'
+                                                    : `Apply ${activeStrategy.strategyName} to Profile`}
+                                            </span>
+                                        </button>
                                     </div>
                                 </div>
 
-                                {/* Additional Risk & Strategy Detail Cards */}
+                                {/* Risk & Configuration Parameters Cards */}
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                                     <div className="bg-[#09090b] border border-[#27272a] p-2.5 rounded space-y-0.5">
                                         <span className="text-[10px] text-zinc-500 uppercase block">Take Profit Target</span>
@@ -773,7 +807,7 @@ const BacktestPage = () => {
                                     <div className="bg-[#09090b] border border-[#27272a] p-2.5 rounded space-y-0.5">
                                         <span className="text-[10px] text-zinc-500 uppercase block">Trailing Ratchet</span>
                                         <span className={`font-bold block ${activeStrategy.riskConfig.isTrailing ? 'text-emerald-400' : 'text-zinc-500'}`}>
-                                            {activeStrategy.riskConfig.isTrailing ? 'Step-Ratchet ACTIVE' : 'OFF'}
+                                            {activeStrategy.riskConfig.isTrailing ? 'Step-Ratchet ACTIVE' : 'Standard'}
                                         </span>
                                     </div>
                                     <div className="bg-[#09090b] border border-[#27272a] p-2.5 rounded space-y-0.5">
@@ -782,15 +816,40 @@ const BacktestPage = () => {
                                     </div>
                                 </div>
 
-                                {/* Simulated Recent Trades Table */}
+                                {/* Long vs Short Breakdown Row */}
+                                <div className="flex flex-wrap items-center gap-3 p-3 bg-[#09090b] border border-[#27272a] rounded text-xs">
+                                    <span className="text-zinc-500 uppercase text-[10.5px]">Directional Performance:</span>
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800">
+                                        <span className="text-emerald-400 font-bold">LONG:</span>
+                                        <span>
+                                            {activeStrategy.breakdown.long.wins}/{activeStrategy.breakdown.long.total} (
+                                            {activeStrategy.breakdown.long.winRatePercent.toFixed(1)}% win rate)
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-900 border border-zinc-800">
+                                        <span className="text-rose-400 font-bold">SHORT:</span>
+                                        <span>
+                                            {activeStrategy.breakdown.short.wins}/{activeStrategy.breakdown.short.total} (
+                                            {activeStrategy.breakdown.short.winRatePercent.toFixed(1)}% win rate)
+                                        </span>
+                                    </div>
+                                    <div className="ml-auto text-[11px] text-zinc-500">
+                                        Largest Win: <strong className="text-emerald-400">+<small>USDT</small> {activeStrategy.metrics.largestWin.toFixed(2)}</strong> • Largest Loss:{activeStrategy.metrics.largestLoss.toFixed(2)}
+                                        <strong className="text-rose-400">${activeStrategy.metrics.largestLoss.toFixed(2)}</strong>
+                                    </div>
+                                </div>
+
+                                {/* Itemized Recent Trades Table */}
                                 <div className="space-y-2 pt-1">
                                     <div className="flex items-center justify-between text-xs text-zinc-400">
-                                        <span className="font-semibold uppercase text-[10.5px]">Itemized Trades ({activeStrategy.recentTrades.length} samples)</span>
+                                        <span className="font-semibold uppercase text-[10.5px]">
+                                            Itemized Executions ({activeStrategy.recentTrades.length} samples)
+                                        </span>
                                     </div>
 
                                     {activeStrategy.recentTrades.length === 0 ? (
                                         <div className="p-4 bg-[#09090b] border border-zinc-800 rounded text-center text-zinc-500 text-xs">
-                                            No trades triggered during this simulation interval.
+                                            No trade executions in this sample window.
                                         </div>
                                     ) : (
                                         <div className="overflow-x-auto border border-zinc-800/80 rounded">
@@ -855,105 +914,9 @@ const BacktestPage = () => {
                         )}
                     </div>
                 )}
-
-                {/* TAB 3: HISTORICAL ARCHIVE */}
-                {activeTab === 'history' && (
-                    <section className="bg-[#121214] border border-[#27272a] rounded-lg p-4 sm:p-6 space-y-4 shadow-sm font-mono">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#27272a] pb-3">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-purple-400 shrink-0" />
-                                    <h2 className="text-xs uppercase tracking-wider font-semibold text-zinc-200">
-                                        Historical Backtest Archive
-                                    </h2>
-                                </div>
-                                <p className="text-[11px] text-zinc-500 mt-0.5">
-                                    Archived quant simulations with best performing models and parameters
-                                </p>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => setActiveTab('run')}
-                                className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                            >
-                                <Play className="w-3.5 h-3.5" />
-                                <span>Run New Backtest</span>
-                            </button>
-                        </div>
-
-                        {historyList.length === 0 ? (
-                            <div className="p-8 text-center text-zinc-500 text-xs">
-                                No historical backtests found. Run your first simulation to generate benchmark data.
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left text-xs">
-                                    <thead>
-                                        <tr className="border-b border-zinc-800 text-zinc-400 text-[10.5px] uppercase">
-                                            <th className="py-2.5 px-3">Date Executed</th>
-                                            <th className="py-2.5 px-3">Symbol</th>
-                                            <th className="py-2.5 px-3">Timeframe</th>
-                                            <th className="py-2.5 px-3">Period</th>
-                                            <th className="py-2.5 px-3">Best Strategy</th>
-                                            <th className="py-2.5 px-3">Top Net Profit</th>
-                                            <th className="py-2.5 px-3">ROI %</th>
-                                            <th className="py-2.5 px-3">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-zinc-800/60">
-                                        {historyList.map((item, idx) => {
-                                            const topStrat = item.rankedResults[0];
-                                            return (
-                                                <tr key={item.executedAt.toString()} className="hover:bg-zinc-900/50">
-                                                    <td className="py-3 px-3 text-zinc-400 text-[11px]">
-                                                        {item.executedAt ? new Date(item.executedAt).toLocaleString() : 'Pre-seeded'}
-                                                    </td>
-                                                    <td className="py-3 px-3 font-bold text-zinc-100">
-                                                        {item.symbol}
-                                                    </td>
-                                                    <td className="py-3 px-3 text-blue-400">
-                                                        {item.timeframe}
-                                                    </td>
-                                                    <td className="py-3 px-3 text-zinc-400">
-                                                        {item.period.days} Days ({item.period.totalCandles} bars)
-                                                    </td>
-                                                    <td className="py-3 px-3 font-semibold text-amber-400">
-                                                        {item.bestStrategy}
-                                                    </td>
-                                                    <td className={`py-3 px-3 font-bold ${(topStrat?.netProfit ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        {(topStrat?.netProfit ?? 0) >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(topStrat?.netProfit ?? 0, 2)}
-                                                    </td>
-                                                    <td className={`py-3 px-3 font-bold ${(topStrat?.netProfitPercent ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        {(topStrat?.netProfitPercent ?? 0) >= 0 ? '+' : ''}<small>USDT</small> {(topStrat?.netProfitPercent ?? 0).toFixed(2)}%
-                                                    </td>
-                                                    <td className="py-3 px-3">
-                                                        <button
-                                                            type="button"
-                                                            disabled={isBacktesting}
-                                                            onClick={() => {
-                                                                setSummary(item);
-                                                                setSelectedStrategyIndex(0);
-                                                                setActiveTab('results');
-                                                            }}
-                                                            className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-200 text-[11px] font-semibold flex items-center gap-1 transition-colors"
-                                                        >
-                                                            <Eye className="w-3 h-3" />
-                                                            <span>Inspect Results</span>
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </section>
-                )}
             </main>
 
-            {/* Confirmation Modal */}
+            {/* Confirmation Modal (Handles both Active Position Liquidation and Flat Exposure Confirmation) */}
             <ConfirmationModal
                 isOpen={confirmModal.isOpen}
                 title={confirmModal.title}
@@ -961,13 +924,14 @@ const BacktestPage = () => {
                 description={confirmModal.description}
                 confirmText={confirmModal.confirmText}
                 cancelText={confirmModal.cancelText}
-                variant="danger"
+                variant={confirmModal.variant}
                 isLoading={confirmModal.isLoading}
                 details={confirmModal.details}
                 onConfirm={confirmModal.onConfirm}
-                onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+                onClose={() => setConfirmModal((prev) => ({ ...prev, isOpen: false, isLoading: false }))}
             />
 
+            {/* Footer */}
             <Footer />
         </div>
     )
