@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { getUserByBotID } from '@/app/actions/user.actions';
 import AuthProvider from '@/app/AuthProvider';
 import { SUPER_USER_ROLE } from '@/constants';
@@ -8,6 +9,18 @@ import React from 'react'
 interface TargetUserTradesProps {
     children: React.ReactNode,
     params: Promise<{ botid: string }>
+}
+
+export async function generateMetadata({
+    params,
+}: {
+    params: Promise<{ botid: string }>;
+}): Promise<Metadata> {
+    const { botid } = await params;
+    return {
+        title: `Trades - Bot ${botid}`,
+        description: `Trade execution history and orders log for bot ${botid}.`,
+    };
 }
 
 const TargetUserTrades = async ({ children, params }: TargetUserTradesProps) => {

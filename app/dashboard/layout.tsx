@@ -1,7 +1,13 @@
+import type { Metadata } from 'next';
 import { getSession } from '@/lib/nextauth'
 import { redirect } from 'next/navigation';
 import React from 'react'
 import AuthProvider from '../AuthProvider';
+
+export const metadata: Metadata = {
+    title: 'Dashboard',
+    description: 'Real-time performance metrics, balance, active positions, and recent trades.',
+};
 
 const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
     const session = await getSession();
