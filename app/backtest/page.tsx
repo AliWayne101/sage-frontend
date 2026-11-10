@@ -1,5 +1,5 @@
 "use client"
-import { History, AlertTriangle, ArrowLeft, Award, CheckCircle2, Zap, Layers, Activity, Sparkles, AlertOctagon, Calendar, ArrowRight, RotateCcw, Check, Database, TrendingUp, RefreshCw, FileDown } from 'lucide-react';
+import { History, AlertTriangle, ArrowLeft, Award, CheckCircle2, Zap, Layers, Activity, Sparkles, AlertOctagon, Calendar, ArrowRight, RotateCcw, Check, Database, TrendingUp, RefreshCw, FileDown, PieChartIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../AuthProvider';
 import { BotHeartbeat, Direction, IUserInfoRuntime, StrategyBacktestResult } from '@/interfaces';
@@ -14,6 +14,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { IBacktestSummaryDocument } from '@/schema/backtest';
 import CustomLineChart, { CustomLineChartInsideData } from '@/components/CustomLineChart';
 import { exportBacktestPdf } from '@/lib/pdfGenerator/backtest';
+import CustomPieChart, { PieChartSlice } from '@/components/CustomPieChart';
+import CustomBarChart, { CustomBarChartData, CustomBarChartMetric } from '@/components/CustomBarChart';
 
 const BacktestPage = () => {
     const router = useRouter();
@@ -26,7 +28,7 @@ const BacktestPage = () => {
     const [User, setUser] = useState<IUserInfoRuntime | null>(null);
     const [heartBeat, setHeartBeat] = useState<BotHeartbeat | undefined>(undefined);
     const [selectedStrategyIndex, setSelectedStrategyIndex] = useState<number>(0);
-    const [strategyViewMode, setStrategyViewMode] = useState<'chart' | 'trades'>('chart');
+    const [strategyViewMode, setStrategyViewMode] = useState<'chart' | 'analytics' | 'trades'>('chart');
     const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false);
 
     const [confirmModal, setConfirmModal] = useState<{
@@ -272,6 +274,78 @@ const BacktestPage = () => {
             setIsExportingPdf(false);
         }
     };
+
+    const profitPieData: PieChartSlice[] = useMemo(() => {
+        if (!activeStrategy) return [];
+        const netProfit = Math.max(0, activeStrategy.netProfit);
+        const serviceFee = Math.max(0, activeStrategy.metrics.totalFeesPaid);
+        const binanceCommission = Math.max(0, activeStrategy.metrics.totalCommissionsPaid);
+
+        return [
+            {
+                name: 'Net Profit',
+                value: netProfit,
+                color: '#10b981',
+                formattedValue: `$${formatCurrency(netProfit, 2)}`,
+            },
+            {
+                name: `Sage Service Fee (${(activeSummary?.serviceFee || 0.2) * 100}%)`,
+                value: serviceFee,
+                color: '#38bdf8',
+                formattedValue: `$${formatCurrency(serviceFee, 2)}`,
+            },
+            {
+                name: 'Binance Commission',
+                value: binanceCommission,
+                color: '#fbbf24',
+                formattedValue: `$${formatCurrency(binanceCommission, 2)}`,
+            },
+        ];
+    }, [activeStrategy]);
+
+    const orderBarData: CustomBarChartData[] = useMemo(() => {
+        if (!activeStrategy) return [];
+        return [
+            {
+                direction: 'LONG',
+                orders: activeStrategy.breakdown.long.total,
+                winRate: Math.round(activeStrategy.breakdown.long.winRatePercent * 10) / 10,
+                wins: activeStrategy.breakdown.long.wins,
+                losses: Math.max(0, activeStrategy.breakdown.long.total - activeStrategy.breakdown.long.wins),
+            },
+            {
+                direction: 'SHORT',
+                orders: activeStrategy.breakdown.short.total,
+                winRate: Math.round(activeStrategy.breakdown.short.winRatePercent * 10) / 10,
+                wins: activeStrategy.breakdown.short.wins,
+                losses: Math.max(0, activeStrategy.breakdown.short.total - activeStrategy.breakdown.short.wins),
+            },
+        ];
+    }, [activeStrategy]);
+
+    const orderBarMetrics: CustomBarChartMetric[] = useMemo(() => [
+        {
+            key: 'orders',
+            text: 'Total Orders',
+            color: '#38bdf8',
+            icon: Layers,
+            description: 'Execution count and order volume distribution for Long vs Short positions',
+        },
+        {
+            key: 'winRate',
+            text: 'Win Rate %',
+            color: '#10b981',
+            icon: TrendingUp,
+            description: 'Directional hit-rate percentage based on profitable trades closed',
+        },
+        {
+            key: 'wins',
+            text: 'Wins Count',
+            color: '#a855f7',
+            icon: CheckCircle2,
+            description: 'Total number of profitable trade setups triggered by direction',
+        },
+    ], []);
 
     return (
         <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans">
@@ -928,7 +1002,7 @@ const BacktestPage = () => {
                                             )}
                                             <span>{isExportingPdf ? 'Exporting...' : 'Export Strategy PDF'}</span>
                                         </button>
-                                        
+
                                         <button
                                             type="button"
                                             onClick={() => handleInitiateApplyStrategy(activeStrategy)}
@@ -938,7 +1012,7 @@ const BacktestPage = () => {
                                             <span>
                                                 {User?.StrategyName === activeStrategy.strategyName
                                                     ? 'Applied'
-                                                    : `Apply ${activeStrategy.strategyName} to Profile`}
+                                                    : `Apply Strategy to Profile`}
                                             </span>
                                         </button>
                                     </div>
@@ -1005,6 +1079,18 @@ const BacktestPage = () => {
 
                                         <button
                                             type="button"
+                                            onClick={() => setStrategyViewMode('analytics')}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${strategyViewMode === 'analytics'
+                                                ? 'bg-blue-950/80 text-blue-300 border border-blue-700/80 font-semibold shadow-sm'
+                                                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                                                }`}
+                                        >
+                                            <PieChartIcon className="w-3.5 h-3.5" />
+                                            <span>Profit & Volume Analytics</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
                                             onClick={() => setStrategyViewMode('trades')}
                                             className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${strategyViewMode === 'trades'
                                                 ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 font-semibold shadow-sm'
@@ -1036,6 +1122,47 @@ const BacktestPage = () => {
                                             data={dayWiseChartData}
                                             valueLabel="Cumulative PnL"
                                             valueFormatter={(val) => `${val >= 0 ? '+' : '-'}${formatCurrency(val, 2)} USDT`}
+                                        />
+                                    </div>
+                                ) : strategyViewMode === 'analytics' ? (
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1">
+                                        <CustomPieChart
+                                            title="Profit Allocation Breakdown"
+                                            description={`Net Profit, ${activeSummary.serviceFee * 100}% Sage Service Fee, and Binance Commissions`}
+                                            overviewTitle="Net Yield:"
+                                            overviewData={`+$${formatCurrency(activeStrategy.netProfit, 2)}`}
+                                            data={profitPieData}
+                                            centerLabel="Gross PnL"
+                                            centerValue={`$${formatCurrency(activeStrategy.netProfit + activeStrategy.metrics.totalCommissionsPaid, 2)}`}
+                                        />
+
+                                        <CustomBarChart
+                                            title="Order Direction & Volume"
+                                            description="Long vs Short execution quantity from total trades"
+                                            data={orderBarData}
+                                            metrics={orderBarMetrics}
+                                            defaultMetric="orders"
+                                            xDataKey="direction"
+                                            overviewTitle={(metricKey) => {
+                                                if (metricKey === 'winRate') return 'Avg Win Rate:';
+                                                if (metricKey === 'wins') return 'Total Wins:';
+                                                return 'Total Orders:';
+                                            }}
+                                            overviewData={(metricKey) => {
+                                                if (metricKey === 'winRate') return `${activeStrategy.metrics.winRatePercent.toFixed(1)}%`;
+                                                if (metricKey === 'wins') return `${activeStrategy.metrics.wins} Wins`;
+                                                return `${activeStrategy.metrics.totalTrades} Orders`;
+                                            }}
+                                            cellColor={(_val, entry, metricKey) => {
+                                                if (metricKey === 'orders') {
+                                                    return entry.direction === 'LONG' ? '#10b981' : '#f43f5e';
+                                                }
+                                                if (metricKey === 'winRate') {
+                                                    return Number(entry.winRate) >= 50 ? '#10b981' : '#fbbf24';
+                                                }
+                                                return entry.direction === 'LONG' ? '#34d399' : '#fb7185';
+                                            }}
+                                            valueFormatter={(val) => `${val}`}
                                         />
                                     </div>
                                 ) : (

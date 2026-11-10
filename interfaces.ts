@@ -264,6 +264,7 @@ export interface StrategyBacktestResult {
         maxDrawdownPercent: number;
         maxDrawdownUSDT: number;
         totalFeesPaid: number;
+        totalCommissionsPaid: number;
         avgTradeDurationBars: number;
         avgTradePnL: number;
         largestWin: number;

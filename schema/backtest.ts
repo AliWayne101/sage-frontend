@@ -33,6 +33,7 @@ const MetricsSchema = new Schema({
     maxDrawdownPercent: { type: Number, required: true },
     maxDrawdownUSDT: { type: Number, required: true },
     totalFeesPaid: { type: Number, required: true },
+    totalCommissionsPaid: { type: Number, required: true },
     avgTradeDurationBars: { type: Number, required: true },
     avgTradePnL: { type: Number, required: true },
     largestWin: { type: Number, required: true },
