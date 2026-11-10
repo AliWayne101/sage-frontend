@@ -507,7 +507,7 @@ const BacktestPage = () => {
 
                                 return (
                                     <div
-                                        key={run.createdAt.getTime()}
+                                        key={run.UID}
                                         onClick={() => handleSelectHistoryRun(idx)}
                                         className={`bg-[#121214] border transition-all rounded-lg p-4 sm:p-5 cursor-pointer group hover:bg-[#151518] hover:border-blue-500/80 shadow-md ${isCurrentlySelected
                                             ? 'border-blue-500 bg-blue-950/10 ring-1 ring-blue-500/50'
