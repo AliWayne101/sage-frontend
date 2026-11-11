@@ -13,7 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SAGE",
+  title: {
+    default: "SAGE - Automated Trading Bot Dashboard",
+    template: "%s | SAGE",
+  },
   description: "Private automated Binance Futures trading bot dashboard and control terminal for Sage.",
 };
 
