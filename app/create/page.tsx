@@ -123,6 +123,8 @@ const CreateUser = () => {
         return;
       }
       setCreatedItem(createdUser);
+
+      await server({ request: "reloadBot", targetBot: createdUser.BotID }, "GET");
     } catch (error) {
       console.log(error);
       setErrorMessage(`There seems to be an error creating the user`);

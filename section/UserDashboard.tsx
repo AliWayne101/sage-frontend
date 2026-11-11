@@ -166,6 +166,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 return;
             }
         } catch (error) {
+            console.log(error);
             setActionNotice("Error: Unable to send request to server");
         } finally {
             setLoadingAction("null");
@@ -310,16 +311,16 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
                     {/* Read-Only Live / Demo Badge (Requested: keep it only readable, switch is in settings) */}
                     <div
-                        className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[11px] sm:text-xs font-mono font-semibold border cursor-default select-none ${!User?.Demo
-                            ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800/80'
-                            : 'bg-amber-950/50 text-amber-400 border-amber-800/80'
+                        className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[11px] sm:text-xs font-mono font-semibold border cursor-default select-none ${User?.Demo || User?.Sandbox
+                                ? 'bg-amber-950/50 text-amber-400 border-amber-800/80'
+                                : 'bg-emerald-950/50 text-emerald-400 border-emerald-800/80'
                             }`}
-                        title={`Execution Protocol: ${User?.Demo ? 'DEMO' : 'LIVE'} (Configure in Bot Engine Configuration)`}
+                        title={`Execution Protocol: ${User?.Sandbox ? 'SANDBOX' : User?.Demo ? 'DEMO' : 'LIVE'} (Configure in Bot Engine Configuration)`}
                     >
                         <span
-                            className={`w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full ${User?.Demo ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500  animate-pulse'}`}
+                            className={`w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full ${User?.Demo || User?.Sandbox ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500 animate-pulse'}`}
                         />
-                        <span>{User?.Demo ? 'DEMO' : 'LIVE'}</span>
+                        <span>{User?.Sandbox ? 'SANDBOX' : User?.Demo ? 'DEMO' : 'LIVE'}</span>
                     </div>
 
                     {/* User Profile Dropdown */}
