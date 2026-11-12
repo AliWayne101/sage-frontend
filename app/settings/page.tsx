@@ -660,14 +660,14 @@ const Settings = () => {
                                                             Local Offline Sandbox Simulation
                                                         </h3>
                                                         <span className="text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border bg-amber-950/80 text-amber-300 border-amber-800">
-                                                            LOCAL 1,000 USDT BALANCE
+                                                            LOCAL 100 USDT BALANCE
                                                         </span>
                                                         <span className="text-[9.5px] font-mono px-1.5 py-0.5 rounded border bg-zinc-900 text-zinc-400 border-zinc-700">
                                                             ZERO EXCHANGE CALLS
                                                         </span>
                                                     </div>
                                                     <p className="text-xs text-zinc-300 font-mono leading-relaxed">
-                                                        The bot will use a <strong className="text-amber-300">local balance of 1,000 USDT</strong> and test the strategy completely offline without making calls on the exchange.
+                                                        The bot will use a <strong className="text-amber-300">local balance of 100 USDT</strong> and test the strategy completely offline without making calls on the exchange.
                                                     </p>
                                                 </div>
                                             </div>
@@ -683,7 +683,7 @@ const Settings = () => {
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs font-mono">
                                             <div className="bg-[#121214] border border-[#27272a] rounded p-3 space-y-1">
                                                 <span className="text-[10px] text-zinc-500 uppercase block">Virtual Starting Balance</span>
-                                                <div className="text-base font-bold text-amber-400">$1,000.00 USDT</div>
+                                                <div className="text-base font-bold text-amber-400">$100.00 USDT</div>
                                                 <p className="text-[10.5px] text-zinc-400 leading-normal">
                                                     Isolated local paper margin. PnL and trade statistics accumulate purely in client memory.
                                                 </p>

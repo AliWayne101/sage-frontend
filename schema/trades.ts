@@ -17,6 +17,7 @@ export interface ITrades {
     realizedProfit: number;
     serviceFee: number;
     isFilled: boolean;
+    isolatedWallet: number;
     closeTime: Date | undefined;
     Reason: string;
     Exchange: Exchange;
@@ -33,6 +34,7 @@ const Trades = new Schema<ITrades>({
     // store as number matching the Direction enum (0 = Long, 1 = Short)
     side: { type: Number, enum: [Direction.Long, Direction.Short], required: true },
     notional: { type: Number, required: true },
+    isolatedWallet: { type: Number, required: true },
     liquidationPrice: { type: Number, required: true },
     commission: { type: Number, required: true },
     BotID: { type: String, required: true },

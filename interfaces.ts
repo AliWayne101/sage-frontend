@@ -197,6 +197,7 @@ export type Position = {
     margin: number;
     entryBarIndex?: number;
     closeBarIndex?: number;
+    markPrice?: number;
 }
 
 export type Candle = {

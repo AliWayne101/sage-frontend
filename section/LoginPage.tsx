@@ -5,7 +5,7 @@ import { AlertCircle, Mail, Terminal, Lock, ArrowRight } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { AUTH_ERROR_MESSAGES, AuthErrorCode } from '@/constants';
-import { seedMockDataAction } from '@/app/actions/seeder.actions';
+import { server } from '@/app/actions/server.actions';
 
 const LoginPage = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -14,11 +14,11 @@ const LoginPage = () => {
         email: "",
         password: ""
     });
+    const [serverStatus, setServerStatus] = useState<"Offline" | "Online">("Offline");
 
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    // Check for callback status messages in URL from Google OAuth
     useEffect(() => {
         const msgCode = searchParams.get('msg') || searchParams.get('error');
         if (msgCode && AUTH_ERROR_MESSAGES[msgCode as AuthErrorCode]) {
@@ -62,9 +62,23 @@ const LoginPage = () => {
         });
     }
 
-    const handleSeed = async () => {
-        // await seedMockDataAction();
-    }
+    useEffect(() => {
+        const checkServer = async () => {
+            try {
+                const response = await server({ request: "ping" }, "GET");
+                if (response.success)
+                    setServerStatus("Online");
+                else
+                    setServerStatus("Offline");
+            } catch (error) {
+                console.error("Error checking server status:", error);
+                setServerStatus("Offline");
+            }
+        }
+        checkServer();
+    }, [])
+
+    const isOnline = serverStatus === "Online";
 
     return (
         <div className="min-h-screen bg-[#09090b] flex flex-col justify-between items-center relative overflow-hidden font-sans">
@@ -85,10 +99,24 @@ const LoginPage = () => {
                             Private Binance Futures Bot Control Node
                         </p>
 
-                        <div className="pt-2 flex items-center justify-center">
+                        {/* <div className="pt-2 flex items-center justify-center">
                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-900/60 text-[11px] font-mono text-emerald-400">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                                 <span>Express Backend: Online</span>
+                            </div>
+                        </div> */}
+                        <div className="pt-2 flex items-center justify-center">
+                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono transition-colors ${isOnline
+                                ? "bg-emerald-950/40 border-emerald-900/60 text-emerald-400"
+                                : "bg-rose-950/40 border-rose-900/60 text-rose-400"
+                                }`}>
+                                <span className="relative flex h-1.5 w-1.5">
+                                    {isOnline && (
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                    )}
+                                    <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isOnline ? "bg-emerald-400" : "bg-rose-400"}`}></span>
+                                </span>
+                                <span>Server Status: {serverStatus}</span>
                             </div>
                         </div>
                     </div>

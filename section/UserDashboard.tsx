@@ -686,10 +686,13 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         title="Cumulative Realized PnL"
                         description="Net profit curve across closed futures trades"
                         overviewTitle="Total Net:"
-                        overviewData={`+$${formatCurrency(tradeAnalytics?.cumulativePnlData.reduce((acc, item) => acc + (item.value2 ?? 0), 0) ?? 0, 2)} USDT`}
+                        overviewData={`
+                            ${(tradeAnalytics?.cumulativePnlData.reduce((acc, item) => acc + (item.value2 ?? 0), 0) ?? 0) > 0 ? "+" : "-"}
+                            ${formatCurrency(tradeAnalytics?.cumulativePnlData.reduce((acc, item) => acc + (item.value2 ?? 0), 0) ?? 0, 2)} USDT`
+                        }
                         data={tradeAnalytics?.cumulativePnlData ?? []}
                         valueLabel="Cumulative PnL"
-                        valueFormatter={(value) => `$${value} USDT`}
+                        valueFormatter={(value) => `${value} USDT`}
                     />
 
                     {/* Chart 2: Binance Commission Breakdown with PnL and Fee switcher */}
@@ -713,10 +716,10 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         overviewTitle={(active) => active === 'pnl' ? 'Total Net PnL:' : 'Total Fees Paid:'}
                         overviewData={(active) =>
                             active === 'pnl'
-                                ? `${(tradeAnalytics?.breakdownData.totalNetPnl ?? 0) >= 0 ? '+' : ''}$${formatCurrency((tradeAnalytics?.breakdownData.totalNetPnl ?? 0), 2)} USDT`
-                                : `$${formatCurrency((tradeAnalytics?.breakdownData.totalFees ?? 0), 2)} USDT`
+                                ? `${(tradeAnalytics?.breakdownData.totalNetPnl ?? 0) >= 0 ? '+' : '-'}${formatCurrency((tradeAnalytics?.breakdownData.totalNetPnl ?? 0), 2)} USDT`
+                                : `${formatCurrency((tradeAnalytics?.breakdownData.totalFees ?? 0), 2)} USDT`
                         }
-                        valueFormatter={(val) => `$${val} USDT`}
+                        valueFormatter={(val) => `${val} USDT`}
                         cellColor={(val, entry, active) => active === 'pnl' ? (val >= 0 ? '#10b981' : '#f43f5e') : '#3b82f6'}
                     />
                 </section>
@@ -798,25 +801,25 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-300 font-mono">
-                                                    {(((t.realizedProfit + t.commission) / t.notional) * 100) > 0 ? "+" : "-"}{((Math.abs(t.realizedProfit + t.commission) / t.notional) * 100).toFixed(2)}%
+                                                    {(((t.realizedProfit + t.commission) / (t.notional ?? t.isolatedWallet)) * 100) > 0 ? "+" : "-"}{((Math.abs(t.realizedProfit + t.commission) / (t.notional ?? t.isolatedWallet)) * 100).toFixed(2)}%
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-400 font-mono">
                                                     {t.quantity}
                                                 </td>
                                                 <td className="py-3 px-3 text-right font-semibold font-mono">
                                                     <span className={t.realizedProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                                        {t.realizedProfit >= 0 ? '+' : ''}${formatCurrency((t.realizedProfit + t.commission), 2)}
+                                                        {t.realizedProfit >= 0 ? '+' : '-'}{formatCurrency((t.realizedProfit + t.commission), 2)}<small> USDT</small>
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-amber-400 font-mono">
-                                                    ${formatCurrency(t.serviceFee, 2)}
+                                                    {formatCurrency(t.serviceFee, 2)}<small> USDT</small>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-blue-400 font-mono">
-                                                    ${formatCurrency(t.commission, 2)}
+                                                    {formatCurrency(t.commission, 2)}<small> USDT</small>
                                                 </td>
                                                 <td className="py-3 px-3 text-right font-bold font-mono">
                                                     <span className={(t.realizedProfit - t.serviceFee) > 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                                        {(t.realizedProfit - t.serviceFee) > 0 ? '+' : ''}${formatCurrency(t.realizedProfit - t.serviceFee, 2)}
+                                                        {(t.realizedProfit - t.serviceFee) > 0 ? '+' : '-'}{formatCurrency(t.realizedProfit - t.serviceFee, 2)}<small> USDT</small>
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3">

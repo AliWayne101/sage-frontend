@@ -20,6 +20,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
     const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
     const candleSeriesRef = useRef<ISeriesApi<'Candlestick', any> | null>(null);
     const volumeSeriesRef = useRef<ISeriesApi<'Histogram', any> | null>(null);
+    const candlesRef = useRef(candles);
     const markersPluginRef = useRef<any>(null);
     const priceLinesRef = useRef<IPriceLine[]>([]);
     const initialFitDoneRef = useRef<boolean>(false);
@@ -126,6 +127,10 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
             console.warn('Failed to set lightweight-charts markers:', err);
         }
     }, [candles, position, trades, showMarkers]);
+
+    useEffect(() => {
+        candlesRef.current = candles;
+    }, [candles]);
 
     // Initialize and mount Lightweight Chart
     useEffect(() => {
@@ -241,10 +246,11 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
             const candlePoint = param.seriesData.get(candleSeries) as any;
             if (candlePoint) {
                 // Find corresponding candle from input dataset to display exact barIndex
-                const matched = candles.find((c) => Math.floor(c.open_time / 1000) === (param.time as number));
+                const matched = candlesRef.current.find((c) => Math.floor(c.open_time / 1000) === (param.time as number));
                 if (matched) {
                     setHoveredCandle(matched);
                 } else {
+                    const volumePoint = param.seriesData.get(volumeSeriesRef.current!) as any;
                     setHoveredCandle({
                         symbol,
                         open_time: (param.time as number) * 1000,
@@ -254,7 +260,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                         high: candlePoint.high,
                         low: candlePoint.low,
                         close: candlePoint.close,
-                        volume: 0,
+                        volume: volumePoint?.value ?? 0,
                         barIndex: undefined,
                     });
                 }
@@ -451,7 +457,6 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                                 className={`text-[11px] ${isCandleBullish ? 'text-emerald-400' : 'text-rose-400'
                                     }`}
                             >
-                                {isCandleBullish ? '+' : ''}
                                 {formatPercent(priceChangePercent, 2)}
                             </span>
                         </div>
@@ -461,7 +466,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                 {/* Action Controls & Toggles */}
                 <div className="flex items-center gap-1.5 sm:gap-2">
                     {/* Marker Toggle */}
-                    <button
+                    {/* <button
                         type="button"
                         onClick={() => setShowMarkers(!showMarkers)}
                         title="Toggle Entry and Exit Markers"
@@ -473,7 +478,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                         <Tag className="w-3 h-3" />
                         <span className="hidden sm:inline">Markers</span>
                         <span className="text-[9px] uppercase opacity-75">{showMarkers ? 'ON' : 'OFF'}</span>
-                    </button>
+                    </button> */}
 
                     {/* Price Lines Toggle */}
                     <button
@@ -561,8 +566,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                                 className={`font-semibold ${isCandleBullish ? 'text-emerald-400' : 'text-rose-400'
                                     }`}
                             >
-                                {priceChange >= 0 ? '+' : ''}${formatCurrency(priceChange, 2)} ({priceChangePercent >= 0 ? '+' : ''}
-                                {formatPercent(priceChangePercent, 2)})
+                                {priceChange > 0 ? "+" : "-"} ${formatCurrency(Math.abs(priceChange), 2)} ({formatPercent(priceChangePercent, 2)})
                             </span>
                         </span>
                         <span>
