@@ -7,7 +7,7 @@ import CustomLineChart from '@/components/CustomLineChart';
 import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
 import { TERMINAL_VER } from '@/configs';
-import { BotHeartbeat, ConfirmModalProps, Direction, IUserInfoRuntime, Log, TradeAnalytics } from '@/interfaces';
+import { BotHeartbeat, ConfirmModalProps, Direction, IUserInfoRuntime, Log, Strategy, TradeAnalytics } from '@/interfaces';
 import { useRouter } from 'next/navigation';
 import { ITrades } from '@/schema/trades';
 import LogTerminal from '@/components/LogTerminal';
@@ -29,6 +29,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const [User, setUser] = useState<IUserInfoRuntime | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [heartbeatData, setHeartbeatData] = useState<BotHeartbeat | undefined>(undefined);
+    const [userStrategy, setUserStrategy] = useState<Strategy | undefined>(undefined);
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
     const [loadingAction, setLoadingAction] = useState("null");
     const [lastTrades, setLastTrades] = useState<ITrades[]>([]);
@@ -159,7 +160,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             log => !excludedLogs.some(exLog => exLog.timestamp.getTime() === log.timestamp.getTime())
         );
         return newLogs;
-    }, [heartbeatData?.Logs])
+    }, [heartbeatData, excludedLogs])
 
     const handleToggleTrading = async () => {
         if (!User) return;
@@ -201,6 +202,9 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             const _user = await getUserByBotID(BotID);
             if (!_user) return;
             setUser(_user);
+
+            const _strategy = await server<Strategy | undefined>({ request: "getStrategy", BotID: BotID});
+            setUserStrategy(_strategy);
         }
         loadUser();
     }, [BotID])
@@ -524,6 +528,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         trades={heartbeatData?.Trades || []} symbol={User?.Symbol || heartbeatData?.Candles?.[0]?.symbol || "undefined"}
                         interval={heartbeatData && heartbeatData.Candles?.length > 0 ? heartbeatData.Candles[0].interval : "undefined"}
                         isLoading={heartbeatData === undefined}
+                        strategy={userStrategy}
                     />
                 </section>
 
@@ -725,7 +730,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 </section>
 
                 <section>
-                    <LogTerminal logs={heartbeatData?.Logs || []} onClear={handleClearLogs} />
+                    <LogTerminal logs={botLogs} onClear={handleClearLogs} />
                 </section>
 
                 {/* 6. Recent Closed Trades Table (with separate Fee, Commission, and Net Profit columns) */}

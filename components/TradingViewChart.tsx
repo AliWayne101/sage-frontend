@@ -1,5 +1,5 @@
 "use client"
-import { Candle, Direction, HeartbeatActiveTrade, Position } from '@/interfaces'
+import { Candle, Direction, HeartbeatActiveTrade, Position, Strategy } from '@/interfaces'
 import { formatCurrency, formatPercent } from '@/utils'
 import { CandlestickSeries, ColorType, createChart, createSeriesMarkers, CrosshairMode, HistogramSeries, IPriceLine, ISeriesApi, LineStyle, PriceScaleMode, UTCTimestamp } from 'lightweight-charts'
 import { Activity, BarChart2, Compass, Layers, Maximize2, Minimize2, Tag } from 'lucide-react'
@@ -11,10 +11,11 @@ export interface TradingViewChartInterface {
     trades: Position[],
     symbol: string,
     interval: string,
-    isLoading: boolean
+    isLoading: boolean,
+    strategy: Strategy | undefined
 }
 
-const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trades }: TradingViewChartInterface) => {
+const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trades, strategy }: TradingViewChartInterface) => {
 
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
@@ -107,7 +108,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                         position: isLong ? 'aboveBar' : 'belowBar',
                         color: isWin ? '#10b981' : '#f43f5e',
                         shape: isLong ? 'arrowDown' : 'arrowUp',
-                        text: `${isWin ? 'TP' : 'SL'} #${trade.closeBarIndex} (${isWin ? '+' : ''}$${Math.round(trade.realizedPnl ?? 0)})`,
+                        text: `${isWin ? 'TP' : 'SL'} #${trade.closeBarIndex} (${isWin ? '+' : '-'}${formatCurrency(Math.round(trade.realizedPnl ?? 0), 2)}) USDT`,
                         size: 1.1,
                         id: `trade_exit_${trade.uid || trade.orderId}`,
                     });
@@ -379,15 +380,14 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                 lineWidth: 1,
                 lineStyle: LineStyle.Dashed,
                 axisLabelVisible: true,
-                title: `ENTRY: $${formatCurrency(position.entryPrice, 2)}`,
+                title: `ENTRY: ${formatCurrency(position.entryPrice, 2)}`,
             });
             priceLinesRef.current.push(entryLine);
         }
 
-        // 2. Take-Profit Estimated Line (+2.0% default or calculated)
         const tpPrice = isLong
-            ? position.entryPrice * 1.02
-            : position.entryPrice * 0.98;
+            ? position.entryPrice * (1 + (strategy?.risk.tpPerc || 0))
+            : position.entryPrice * (1 - (strategy?.risk.tpPerc || 0));
 
         const tpLine = series.createPriceLine({
             price: Math.round(tpPrice * 100) / 100,
@@ -395,7 +395,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
             lineWidth: 1,
             lineStyle: LineStyle.SparseDotted,
             axisLabelVisible: true,
-            title: `TP TARGET: $${formatCurrency(tpPrice, 2)}`,
+            title: `TP TARGET: ${formatCurrency(tpPrice, 2)}`,
         });
         priceLinesRef.current.push(tpLine);
 
