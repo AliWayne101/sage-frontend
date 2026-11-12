@@ -159,6 +159,8 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
     const handleButtonEvents = async (actionState: string) => {
         setLoadingAction(actionState);
+        console.log(actionState);
+        console.log(BotID);
         try {
             const serverResponse = await server({ request: actionState, targetBot: BotID });
             if (!serverResponse.success) {
