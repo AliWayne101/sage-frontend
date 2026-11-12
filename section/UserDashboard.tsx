@@ -19,7 +19,6 @@ import { server } from '@/app/actions/server.actions';
 import { getUserByBotID } from '@/app/actions/user.actions';
 import { useAuth } from '@/app/AuthProvider';
 import TradingViewChart from '@/components/TradingViewChart';
-import MOCK_CANDLE_DATA, { SAMPLE_ACTIVE_POSITION, SAMPLE_HISTORICAL_TRADES } from '@/mock/mockTradingViewData';
 
 export interface UserDashboardProps {
     BotID: string;
@@ -49,37 +48,11 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         try {
             const _hData = await server<BotHeartbeat>({ request: "heartbeat" });
             if (!_hData) {
-                // FALLBACK TO MOCK DATA IF SERVER FAILS OR RETURNS NULL
-                // setHeartbeatData({
-                //     BotID: BotID || "mock-ali-wains-001",
-                //     Balance: 12450.50,
-                //     Demo: true,
-                //     Status: "MOCK_DEV_MODE (Server Offline)",
-                //     Logs: [
-                //         { timestamp: new Date(), type: "system", message: "Loaded mock heartbeat state because backend server is offline." }
-                //     ],
-                //     Candles: MOCK_CANDLE_DATA,
-                //     Trades: SAMPLE_HISTORICAL_TRADES,
-                //     ActiveTrade: SAMPLE_ACTIVE_POSITION,
-                // });
                 setActionNotice("Unable to load the heartbeat data");
             } else {
                 setHeartbeatData(_hData);
             }
         } catch (error) {
-            // FALLBACK TO MOCK DATA IF SERVER THROWS AN ERROR/EXCEPTION
-            // setHeartbeatData({
-            //     BotID: BotID || "mock-ali-wains-001",
-            //     Balance: 12450.50,
-            //     Demo: true,
-            //     Status: "MOCK_DEV_MODE (Server Error)",
-            //     Logs: [
-            //         { timestamp: new Date(), type: "system", message: "Loaded mock heartbeat due to network exception." }
-            //     ],
-            //     Candles: MOCK_CANDLE_DATA,
-            //     Trades: SAMPLE_HISTORICAL_TRADES,
-            //     ActiveTrade: SAMPLE_ACTIVE_POSITION,
-            // });
             setActionNotice("Seems to be an error refreshing");
             console.log(error);
         } finally {
@@ -504,7 +477,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
                         {/* UTILITY BUTTON 3: Sync Exchange Risk */}
                         <button
-                            onClick={() => handleButtonEvents("syncPosition")}
+                            onClick={() => fetchData()}
                             disabled={loadingAction === 'syncPosition'}
                             className="flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md font-mono text-xs text-zinc-300 bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 hover:text-white transition-colors"
                             title="Synchronize margin buffer and mark price from Binance"
