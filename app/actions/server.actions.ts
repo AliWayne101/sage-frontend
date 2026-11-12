@@ -60,9 +60,6 @@ export const server = async <T = DefaultResponse>(data: any, method: requestType
         throw new Error(`Backend returned ${response.status}`);
     }
 
-    console.log(`Request to ${url} with method ${method} was successful.`);
-    console.log(data);
-
     const result = await response.json();
 
     return result as T;

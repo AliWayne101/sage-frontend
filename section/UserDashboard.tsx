@@ -160,7 +160,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const handleButtonEvents = async (actionState: string) => {
         setLoadingAction(actionState);
         try {
-            const serverResponse = await server({ request: actionState, targetBot: BotID });
+            const serverResponse = await server({ request: actionState, BotID: BotID });
 
             if (!serverResponse || typeof serverResponse.success === 'undefined') {
                 setActionNotice("Error: Invalid response from server");
@@ -168,14 +168,13 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             }
 
             if (!serverResponse.success) {
-                setActionNotice(serverResponse.message || "Unknown server error");
+                setActionNotice("Unknown server error");
                 return;
             }
 
             setActionNotice(`${actionState} executed successfully!`);
         } catch (error: any) {
-            console.log(error);
-            setActionNotice("Error: " + (error?.message || "Unable to send request to server"));
+            setActionNotice("Error: Unable to send request to server");
         } finally {
             setLoadingAction("null");
         }
