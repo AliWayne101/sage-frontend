@@ -596,7 +596,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                 )}
 
                 {/* Markers Legend Hint at Bottom Left */}
-                {/* {showMarkers && (
+                {showMarkers && (
                     <div className="absolute bottom-2 left-2 z-10 pointer-events-none hidden sm:flex items-center gap-2 px-2 py-1 rounded bg-[#09090b]/80 border border-zinc-800/80 font-mono text-[10px] text-zinc-400 backdrop-blur-xs">
                         <span className="flex items-center gap-1 text-emerald-400">
                             <span>▲</span> Long Entry
@@ -610,7 +610,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                             <span>▼/▲</span> Exit (TP/SL)
                         </span>
                     </div>
-                )} */}
+                )}
 
                 {/* Active Position Overlay Banner if Position is Active */}
                 {/* {position && (
