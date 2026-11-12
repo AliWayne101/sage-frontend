@@ -457,7 +457,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                                 className={`text-[11px] ${isCandleBullish ? 'text-emerald-400' : 'text-rose-400'
                                     }`}
                             >
-                                {formatPercent(priceChangePercent, 2)}
+                                {formatPercent(Math.abs(priceChangePercent), 2)}
                             </span>
                         </div>
                     )}
@@ -566,7 +566,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                                 className={`font-semibold ${isCandleBullish ? 'text-emerald-400' : 'text-rose-400'
                                     }`}
                             >
-                                {priceChange > 0 ? "+" : "-"} ${formatCurrency(Math.abs(priceChange), 2)} ({formatPercent(priceChangePercent, 2)})
+                                {priceChange > 0 ? "+" : "-"}${formatCurrency(Math.abs(priceChange), 2)} ({formatPercent(Math.abs(priceChangePercent), 2)})
                             </span>
                         </span>
                         <span>
