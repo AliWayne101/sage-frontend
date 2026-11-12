@@ -61,52 +61,41 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
             barIndexToCandleMap.set(idx, c);
         });
 
-        if (position) {
-            const entryBarIdx = position.entryBarIndex;
-            const entryCandle =
-                entryBarIdx !== undefined ? barIndexToCandleMap.get(entryBarIdx) : candles[Math.max(0, candles.length - 25)];
-
-            if (entryCandle !== undefined && entryBarIdx !== 0) {
-                const isLong = position.side === Direction.Long;
-                markers.push({
-                    time: Math.floor(entryCandle.open_time / 1000) as UTCTimestamp,
-                    position: isLong ? 'belowBar' : 'aboveBar',
-                    color: isLong ? '#10b981' : '#f43f5e',
-                    shape: isLong ? 'arrowUp' : 'arrowDown',
-                    text: isLong ? `LONG #${entryBarIdx ?? ''}` : `SHORT #${entryBarIdx ?? ''}`,
-                    size: 1.2,
-                    id: `pos_entry_${position.orderId || 'active'}`,
-                });
-            }
-        }
-
+        // Process trades array (which contains historical closed trades and the active trade from botTrades)
         trades.forEach((trade) => {
-            if (trade.entryBarIndex === undefined || trade.entryBarIndex === 0) return;
-
             const openBar = trade.entryBarIndex;
-            const isLong = trade.side === Direction.Long;
-            const candle = barIndexToCandleMap.get(openBar);
+            if (openBar === undefined || openBar === 0) return;
 
+            const isLong = trade.side === Direction.Long;
+            const isOpen = trade.closeBarIndex === undefined || trade.closeBarIndex === null;
+
+            // 1. Entry Marker (Open trades get a slightly distinct active shade)
+            const candle = barIndexToCandleMap.get(openBar);
             if (candle) {
                 markers.push({
                     time: Math.floor(candle.open_time / 1000) as UTCTimestamp,
                     position: isLong ? 'belowBar' : 'aboveBar',
-                    color: isLong ? '#10b981' : '#f43f5e',
+                    color: isOpen
+                        ? (isLong ? '#2dd4bf' : '#f472b6')
+                        : (isLong ? '#059669' : '#e11d48'),
                     shape: isLong ? 'arrowUp' : 'arrowDown',
-                    text: isLong ? `BUY #${openBar}` : `SELL #${openBar}`,
-                    size: 1.1,
+                    text: isOpen
+                        ? (isLong ? `OPEN LONG #${openBar}` : `OPEN SHORT #${openBar}`)
+                        : (isLong ? `BUY #${openBar}` : `SELL #${openBar}`),
+                    size: isOpen ? 1.3 : 1.1,
                     id: `trade_entry_${trade.uid || trade.orderId}`,
                 });
             }
 
-            if (trade.closeBarIndex !== undefined) {
+            // 2. Exit Marker (Only rendered for closed trades)
+            if (!isOpen && trade.closeBarIndex !== undefined && trade.closeBarIndex > 0) {
                 const exitCandle = barIndexToCandleMap.get(trade.closeBarIndex);
                 if (exitCandle) {
                     const isWin = (trade.realizedPnl ?? 0) >= 0;
                     markers.push({
                         time: Math.floor(exitCandle.open_time / 1000) as UTCTimestamp,
                         position: isLong ? 'aboveBar' : 'belowBar',
-                        color: isWin ? '#10b981' : '#f43f5e',
+                        color: isWin ? '#059669' : '#e11d48',
                         shape: isLong ? 'arrowDown' : 'arrowUp',
                         text: `${isWin ? 'TP' : 'SL'} #${trade.closeBarIndex} (${isWin ? '+' : '-'}${formatCurrency(Math.round(trade.realizedPnl ?? 0), 2)}) USDT`,
                         size: 1.1,
@@ -115,6 +104,24 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                 }
             }
         });
+
+        // Fallback: If position prop exists and isn't captured in trades
+        if (position && position.entryBarIndex && !trades.some(t => t.orderId === Number(position.orderId))) {
+            const entryBarIdx = position.entryBarIndex;
+            const candle = barIndexToCandleMap.get(entryBarIdx);
+            if (candle) {
+                const isLong = position.side === Direction.Long;
+                markers.push({
+                    time: Math.floor(candle.open_time / 1000) as UTCTimestamp,
+                    position: isLong ? 'belowBar' : 'aboveBar',
+                    color: isLong ? '#2dd4bf' : '#f472b6', // Open active color
+                    shape: isLong ? 'arrowUp' : 'arrowDown',
+                    text: isLong ? `OPEN LONG #${entryBarIdx}` : `OPEN SHORT #${entryBarIdx}`,
+                    size: 1.3,
+                    id: `pos_entry_${position.orderId || 'active'}`,
+                });
+            }
+        }
 
         const sortedMarkers = [...markers].sort((a, b) => {
             const diff = (a.time as number) - (b.time as number);
@@ -466,7 +473,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                 {/* Action Controls & Toggles */}
                 <div className="flex items-center gap-1.5 sm:gap-2">
                     {/* Marker Toggle */}
-                    {/* <button
+                    <button
                         type="button"
                         onClick={() => setShowMarkers(!showMarkers)}
                         title="Toggle Entry and Exit Markers"
@@ -478,7 +485,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                         <Tag className="w-3 h-3" />
                         <span className="hidden sm:inline">Markers</span>
                         <span className="text-[9px] uppercase opacity-75">{showMarkers ? 'ON' : 'OFF'}</span>
-                    </button> */}
+                    </button>
 
                     {/* Price Lines Toggle */}
                     <button
