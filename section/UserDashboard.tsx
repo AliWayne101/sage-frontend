@@ -159,17 +159,23 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
     const handleButtonEvents = async (actionState: string) => {
         setLoadingAction(actionState);
-        console.log(actionState);
-        console.log(BotID);
         try {
             const serverResponse = await server({ request: actionState, targetBot: BotID });
-            if (!serverResponse.success) {
-                setActionNotice(serverResponse.message!);
+
+            if (!serverResponse || typeof serverResponse.success === 'undefined') {
+                setActionNotice("Error: Invalid response from server");
                 return;
             }
-        } catch (error) {
+
+            if (!serverResponse.success) {
+                setActionNotice(serverResponse.message || "Unknown server error");
+                return;
+            }
+
+            setActionNotice(`${actionState} executed successfully!`);
+        } catch (error: any) {
             console.log(error);
-            setActionNotice("Error: Unable to send request to server");
+            setActionNotice("Error: " + (error?.message || "Unable to send request to server"));
         } finally {
             setLoadingAction("null");
         }
@@ -314,8 +320,8 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                     {/* Read-Only Live / Demo Badge (Requested: keep it only readable, switch is in settings) */}
                     <div
                         className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[11px] sm:text-xs font-mono font-semibold border cursor-default select-none ${User?.Demo || User?.Sandbox
-                                ? 'bg-amber-950/50 text-amber-400 border-amber-800/80'
-                                : 'bg-emerald-950/50 text-emerald-400 border-emerald-800/80'
+                            ? 'bg-amber-950/50 text-amber-400 border-amber-800/80'
+                            : 'bg-emerald-950/50 text-emerald-400 border-emerald-800/80'
                             }`}
                         title={`Execution Protocol: ${User?.Sandbox ? 'SANDBOX' : User?.Demo ? 'DEMO' : 'LIVE'} (Configure in Bot Engine Configuration)`}
                     >
