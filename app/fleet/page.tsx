@@ -163,7 +163,7 @@ const Fleet = () => {
                 return;
             }
 
-            await server({ request: "restart" });
+            await server({ request: "restart", targetBot: BotID });
 
             const restBots = fleetData.filter((e) => e !== selectedBot);
             setFleetData([
@@ -328,7 +328,7 @@ const Fleet = () => {
                         <div className="flex items-baseline justify-between">
                             <span className="text-xl sm:text-2xl font-bold font-mono text-zinc-100">{fleetData.length}</span>
                             <span className="text-[11px] font-mono text-zinc-500">
-                                {fleetData.filter((e) => e.Demo === false).length} Live / {fleetData.filter((e) => e.Demo === true).length} Demo
+                                {fleetData.filter((e) => e.Demo === false && e.Sandbox === false).length} Live / {fleetData.filter((e) => e.Demo === true && e.Sandbox === false).length} Demo / {fleetData.filter((e) => e.Sandbox === true).length} Sandbox
                             </span>
                         </div>
                     </div>
@@ -578,7 +578,7 @@ const Fleet = () => {
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
                                     <div className="bg-[#09090b] border border-[#27272a] p-2.5 rounded">
                                         <span className="text-[10px] text-zinc-500 uppercase block">Bot Status</span>
-                                        <span className="text-zinc-300 font-medium">{selectedBot.IsHalted === true ? "Trading" : "Halted"}</span>
+                                        <span className="text-zinc-300 font-medium">{selectedBot.IsHalted === false ? "Trading" : "Halted"}</span>
                                     </div>
                                     <div className="bg-[#09090b] border border-[#27272a] p-2.5 rounded">
                                         <span className="text-[10px] text-zinc-500 uppercase block">System Status</span>
