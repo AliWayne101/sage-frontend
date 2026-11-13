@@ -617,7 +617,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                 <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Margin Buffer</span>
                                 <div className="flex items-center gap-1">
                                     <span className="font-mono text-sm font-semibold text-emerald-400">
-                                        {`${(heartbeatData.ActiveTrade.marginBuffer ?? 0).toFixed(1)}%`}
+                                        {`${(heartbeatData.ActiveTrade.marginBuffer ?? 0).toFixed(3)}`}<small> USDT</small>
                                     </span>
                                     {User?.AvoidLiquidation && (
                                         <span className="text-[9px] px-1 bg-blue-950 text-blue-400 border border-blue-800 rounded">
@@ -635,11 +635,10 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                     const isPos = unPnl >= 0;
                                     return (
                                         <span
-                                            className={`font-mono text-sm font-bold flex items-center gap-0.5 ${isPos ? 'text-emerald-400' : 'text-rose-400'
-                                                }`}
+                                            className={`font-mono text-sm font-bold flex items-center gap-0.5 ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}
                                         >
                                             {isPos ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                                            {isPos ? '+' : ''}${formatCurrency(unPnl, 3)}
+                                            {isPos ? '+' : ''}{formatCurrency(unPnl, 3)}<small> USDT</small>
                                         </span>
                                     );
                                 })()}
