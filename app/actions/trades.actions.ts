@@ -34,16 +34,39 @@ export const getRecentTrades = async (targetEmail: string, limit: number = 10): 
 export const generateDailyTradeAnalytics = async (
     targetEmail: string,
     days: number = 7
-): Promise<TradeAnalytics | null> => {
+): Promise<TradeAnalytics> => {
     await connectDB();
     const session = await getSession();
-    if (!session) return null;
+    if (!session)
+        return {
+            cumulativePnlData: [],
+            breakdownData: {
+                chartData: [],
+                totalFees: 0,
+                totalNetPnl: 0
+            }
+        };
 
     const user = await UserModel.findOne({ Email: targetEmail }).lean();
-    if (!user) return null;
+    if (!user)
+        return {
+            cumulativePnlData: [],
+            breakdownData: {
+                chartData: [],
+                totalFees: 0,
+                totalNetPnl: 0
+            }
+        };
 
     if (targetEmail !== session.user.email && session.user.accountType !== SUPER_USER_ROLE)
-        return null;
+        return {
+            cumulativePnlData: [],
+            breakdownData: {
+                chartData: [],
+                totalFees: 0,
+                totalNetPnl: 0
+            }
+        };
 
     const now = new Date();
     const startDate = new Date(now);
@@ -60,14 +83,14 @@ export const generateDailyTradeAnalytics = async (
         Timestamp: { $gte: startDate }
     }).sort({ Timestamp: 1 }).lean();
 
-    const dailyMap = new Map<string, { fee: number; pnl: number }>();
+    const dailyMap = new Map<string, { fee: number; netPnl: number; grossPnl: number }>();
 
     for (let i = 0; i < days; i++) {
         const d = new Date(startDate);
         d.setDate(d.getDate() + i);
 
         const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        dailyMap.set(dateKey, { fee: 0, pnl: 0 });
+        dailyMap.set(dateKey, { fee: 0, netPnl: 0, grossPnl: 0 });
     }
 
     trades.forEach((t) => {
@@ -75,25 +98,27 @@ export const generateDailyTradeAnalytics = async (
         const dateKey = `${tradeDate.getFullYear()}-${String(tradeDate.getMonth() + 1).padStart(2, '0')}-${String(tradeDate.getDate()).padStart(2, '0')}`;
 
         const feeVal = (t.commission || 0) + (t.serviceFee || 0);
-        const netProfit = (t.realizedProfit || 0) - feeVal;
+        const realizedProfit = t.realizedProfit || 0;
+        const netProfit = realizedProfit - feeVal;
 
         if (dailyMap.has(dateKey)) {
             const current = dailyMap.get(dateKey)!;
             dailyMap.set(dateKey, {
                 fee: current.fee + feeVal,
-                pnl: current.pnl + netProfit
+                netPnl: current.netPnl + netProfit,
+                grossPnl: current.grossPnl + realizedProfit
             });
         }
     });
 
-    let runningPnl = 0;
+    let runningGrossPnl = 0;
     let totalFees = 0;
 
     const cumulativePnlData: CustomLineChartInsideData[] = [];
     const breakdownChartData: { day: string; fee: number; pnl: number }[] = [];
 
     Array.from(dailyMap.entries()).forEach(([dateStr, metrics], idx) => {
-        runningPnl += metrics.pnl;
+        runningGrossPnl += metrics.grossPnl;
         totalFees += metrics.fee;
 
         const [year, month, day] = dateStr.split('-').map(Number);
@@ -105,22 +130,24 @@ export const generateDailyTradeAnalytics = async (
         cumulativePnlData.push({
             id: idx + 1,
             date: formattedDate,
-            value: parseFloat(runningPnl.toFixed(2)),
-            value2: parseFloat(metrics.pnl.toFixed(2))
+            value: parseFloat(runningGrossPnl.toFixed(2)),
+            value2: parseFloat(metrics.grossPnl.toFixed(2))
         });
 
         breakdownChartData.push({
             day: formattedDate,
             fee: parseFloat(metrics.fee.toFixed(3)),
-            pnl: parseFloat(metrics.pnl.toFixed(2))
+            pnl: parseFloat(metrics.netPnl.toFixed(2))
         });
     });
+
+    const totalNetPnl = runningGrossPnl - totalFees;
 
     return {
         cumulativePnlData,
         breakdownData: {
             chartData: breakdownChartData,
-            totalNetPnl: parseFloat(runningPnl.toFixed(2)),
+            totalNetPnl: parseFloat(totalNetPnl.toFixed(2)),
             totalFees: parseFloat(totalFees.toFixed(3))
         }
     };

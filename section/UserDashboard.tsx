@@ -33,7 +33,14 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
     const [loadingAction, setLoadingAction] = useState("null");
     const [lastTrades, setLastTrades] = useState<ITrades[]>([]);
-    const [tradeAnalytics, setTradeAnalytics] = useState<TradeAnalytics | null>(null);
+    const [tradeAnalytics, setTradeAnalytics] = useState<TradeAnalytics>({
+        cumulativePnlData: [],
+        breakdownData: {
+            chartData: [],
+            totalFees: 0,
+            totalNetPnl: 0
+        }
+    });
     const [excludedLogs, setExcludedLogs] = useState<Log[]>([]);
     const [confirmModal, setConfirmModal] = useState<ConfirmModalProps>({
         isOpen: false,
@@ -47,7 +54,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const fetchData = useCallback(async () => {
         setRefreshing(true);
         try {
-            const _hData = await server<BotHeartbeat>({ request: "heartbeat" });
+            const _hData = await server<BotHeartbeat>({ request: "heartbeat", targetBot: BotID });
             if (!_hData) {
                 setActionNotice("Unable to load the heartbeat data");
             } else {
@@ -59,20 +66,24 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         } finally {
             setRefreshing(false);
         }
-
-        if (User) {
-            const trades = await getRecentTrades(User.Email, 10);
-            if (!trades)
-                setActionNotice("There seems to be an issue loading user trades");
-            else
-                setLastTrades(trades);
-
-            const _tradeAnalytics = await generateDailyTradeAnalytics(User.Email, 7);
-            if (_tradeAnalytics)
-                setTradeAnalytics(_tradeAnalytics);
-        }
     }, [User, BotID])
 
+    useEffect(() => {
+        const _data = async () => {
+            if (User) {
+                const trades = await getRecentTrades(User.Email, 10);
+                if (!trades)
+                    setActionNotice("There seems to be an issue loading user trades");
+                else
+                    setLastTrades(trades);
+
+                const _tradeAnalytics = await generateDailyTradeAnalytics(User.Email, 7);
+                if (_tradeAnalytics)
+                    setTradeAnalytics(_tradeAnalytics);
+            }
+        }
+        _data();
+    }, [User])
 
     const closeConfirmModal = () => {
         setConfirmModal({ isOpen: false, message: "", onConfirm: () => { } });
@@ -134,7 +145,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const handleButtonEvents = async (actionState: string) => {
         setLoadingAction(actionState);
         try {
-            const serverResponse = await server({ request: actionState, BotID: BotID });
+            const serverResponse = await server({ request: actionState, targetBot: BotID });
 
             if (!serverResponse || typeof serverResponse.success === 'undefined') {
                 setActionNotice("Error: Invalid response from server");
@@ -167,7 +178,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         setLoadingAction("trading");
         try {
             const newTradingState = !User.IsHalted;
-            const serverResponse = await server({ request: "halt", value: newTradingState });
+            const serverResponse = await server({ request: "halt", value: newTradingState, targetBot: BotID });
             if (serverResponse.success) {
                 setUser({
                     ...User,
@@ -203,7 +214,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             if (!_user) return;
             setUser(_user);
 
-            const _strategy = await server<Strategy | undefined>({ request: "getStrategy", BotID: BotID});
+            const _strategy = await server<Strategy | undefined>({ request: "getStrategy", targetBot: BotID });
             setUserStrategy(_strategy);
         }
         loadUser();
@@ -691,18 +702,18 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         description="Net profit curve across closed futures trades"
                         overviewTitle="Total Net:"
                         overviewData={`
-                            ${(tradeAnalytics?.cumulativePnlData.reduce((acc, item) => acc + (item.value2 ?? 0), 0) ?? 0) > 0 ? "+" : "-"}
-                            ${formatCurrency(tradeAnalytics?.cumulativePnlData.reduce((acc, item) => acc + (item.value2 ?? 0), 0) ?? 0, 2)} USDT`
+                            ${(tradeAnalytics.cumulativePnlData.reduce((acc, item) => acc + (item.value2 ?? 0), 0) ?? 0) > 0 ? "+" : "-"}
+                            ${formatCurrency(tradeAnalytics.cumulativePnlData.reduce((acc, item) => acc + (item.value2 ?? 0), 0) ?? 0, 2)} USDT`
                         }
-                        data={tradeAnalytics?.cumulativePnlData ?? []}
+                        data={tradeAnalytics.cumulativePnlData}
                         valueLabel="Cumulative PnL"
                         valueFormatter={(value) => `${value} USDT`}
                     />
 
                     {/* Chart 2: Binance Commission Breakdown with PnL and Fee switcher */}
                     <CustomBarChart
-                        title="Binance Commission Breakdown"
-                        data={tradeAnalytics?.breakdownData.chartData ?? []}
+                        title="Net Profit Breakdown"
+                        data={tradeAnalytics.breakdownData.chartData}
                         metrics={[{
                             key: 'pnl',
                             text: 'PnL',
@@ -720,8 +731,8 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         overviewTitle={(active) => active === 'pnl' ? 'Total Net PnL:' : 'Total Fees Paid:'}
                         overviewData={(active) =>
                             active === 'pnl'
-                                ? `${(tradeAnalytics?.breakdownData.totalNetPnl ?? 0) >= 0 ? '+' : '-'}${formatCurrency((tradeAnalytics?.breakdownData.totalNetPnl ?? 0), 2)} USDT`
-                                : `${formatCurrency((tradeAnalytics?.breakdownData.totalFees ?? 0), 2)} USDT`
+                                ? `${tradeAnalytics.breakdownData.totalNetPnl >= 0 ? '+' : '-'}${formatCurrency(tradeAnalytics.breakdownData.totalNetPnl, 2)} USDT`
+                                : `${formatCurrency(tradeAnalytics.breakdownData.totalFees, 2)} USDT`
                         }
                         valueFormatter={(val) => `${val} USDT`}
                         cellColor={(val, entry, active) => active === 'pnl' ? (val >= 0 ? '#10b981' : '#f43f5e') : '#3b82f6'}
