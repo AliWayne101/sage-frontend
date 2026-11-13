@@ -5,6 +5,7 @@ import { AlertCircle, Mail, Terminal, Lock, ArrowRight } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { AUTH_ERROR_MESSAGES, AuthErrorCode, SERVER_ADDRESS } from '@/constants';
+import { pingServer } from '@/app/actions/server.actions';
 
 const LoginPage = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -64,16 +65,8 @@ const LoginPage = () => {
     useEffect(() => {
         const checkServerStatus = async () => {
             try {
-                const response = await fetch(`${SERVER_ADDRESS}?request=ping`, {
-                    method: "GET",
-                });
-                let serverStatus: "Offline" | "Online" = "Offline";
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success)
-                        serverStatus = "Online";
-                }
-                setServerStatus(serverStatus);
+                const result = await pingServer();
+                setServerStatus(result ? "Online" : "Offline");
             } catch {
                 setServerStatus("Offline");
             }

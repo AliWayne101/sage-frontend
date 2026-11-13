@@ -64,3 +64,16 @@ export const server = async <T = DefaultResponse>(data: any, method: requestType
 
     return result as T;
 };
+
+export const pingServer = async (): Promise<boolean> => {
+    try {
+        const response = await fetch(`${SERVER_ADDRESS}?request=ping`, {
+            method: "GET",
+        });
+        if (!response.ok) return false;
+        const result = await response.json();
+        return result.success;
+    } catch {
+        return false;
+    }
+};
