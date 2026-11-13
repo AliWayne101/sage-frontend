@@ -4,8 +4,7 @@ import Footer from './Footer'
 import { AlertCircle, Mail, Terminal, Lock, ArrowRight } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { AUTH_ERROR_MESSAGES, AuthErrorCode } from '@/constants';
-import { server } from '@/app/actions/server.actions';
+import { AUTH_ERROR_MESSAGES, AuthErrorCode, SERVER_ADDRESS } from '@/constants';
 
 const LoginPage = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -63,19 +62,24 @@ const LoginPage = () => {
     }
 
     useEffect(() => {
-        const checkServer = async () => {
+        const checkServerStatus = async () => {
             try {
-                const response = await server({ request: "ping" }, "GET");
-                if (response.success)
-                    setServerStatus("Online");
-                else
-                    setServerStatus("Offline");
-            } catch (error) {
-                console.error("Error checking server status:", error);
+                const response = await fetch(`${SERVER_ADDRESS}?request=ping`, {
+                    method: "GET",
+                });
+                let serverStatus: "Offline" | "Online" = "Offline";
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success)
+                        serverStatus = "Online";
+                }
+                setServerStatus(serverStatus);
+            } catch {
                 setServerStatus("Offline");
             }
-        }
-        checkServer();
+        };
+
+        checkServerStatus();
     }, [])
 
     const isOnline = serverStatus === "Online";
