@@ -823,7 +823,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                                 </td>
                                                 <td className="py-3 px-3 text-right font-semibold font-mono">
                                                     <span className={t.realizedProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                                        {t.realizedProfit >= 0 ? '+' : '-'}{formatCurrency((t.realizedProfit + t.commission), 2)}<small> USDT</small>
+                                                        {t.realizedProfit >= 0 ? '+' : '-'}{formatCurrency((t.realizedProfit), 2)}<small> USDT</small>
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-amber-400 font-mono">
@@ -833,8 +833,8 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                                     {formatCurrency(t.commission, 2)}<small> USDT</small>
                                                 </td>
                                                 <td className="py-3 px-3 text-right font-bold font-mono">
-                                                    <span className={(t.realizedProfit - t.serviceFee) > 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                                        {(t.realizedProfit - t.serviceFee) > 0 ? '+' : '-'}{formatCurrency(t.realizedProfit - t.serviceFee, 2)}<small> USDT</small>
+                                                    <span className={(t.realizedProfit - (t.serviceFee + t.commission)) > 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                                                        {(t.realizedProfit - (t.serviceFee + t.commission)) > 0 ? '+' : '-'}{formatCurrency(t.realizedProfit - (t.serviceFee + t.commission), 2)}<small> USDT</small>
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3">
