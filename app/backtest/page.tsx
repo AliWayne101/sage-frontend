@@ -283,11 +283,12 @@ const BacktestPage = () => {
         const netProfit = Math.max(0, activeStrategy.netProfit);
         const serviceFee = Math.max(0, activeStrategy.metrics.totalFeesPaid);
         const binanceCommission = Math.max(0, activeStrategy.metrics.totalCommissionsPaid);
+        const trueNetProfit = Math.max(0, netProfit - serviceFee);
 
         return [
             {
                 name: 'Net Profit',
-                value: netProfit,
+                value: trueNetProfit,
                 color: '#10b981',
                 formattedValue: `${formatCurrency(netProfit - serviceFee, 2)} USDT`,
             },
@@ -426,9 +427,9 @@ const BacktestPage = () => {
                             <div>
                                 <span className="font-semibold text-amber-300 block sm:inline">Active Trade in Progress: </span>
                                 <span className="text-zinc-300">
-                                    {heartBeat.ActiveTrade.symbol} ({(heartBeat.ActiveTrade.side === Direction.Long) ? 'LONG' : 'SHORT'}) @ <small>USDT</small> {formatCurrency(heartBeat.ActiveTrade.entryPrice, 2)}
+                                    {heartBeat.ActiveTrade.symbol} ({(heartBeat.ActiveTrade.side === Direction.Long) ? 'LONG' : 'SHORT'}) @ {formatCurrency(heartBeat.ActiveTrade.entryPrice, 2)}<small> USDT  </small>
                                     <strong className={(heartBeat.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                        {(heartBeat.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? '+' : ''}<small>USDT</small> {formatCurrency(heartBeat.ActiveTrade.unrealizedPnl ?? 0, 2)}
+                                        ({(heartBeat.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? '+' : ''}{formatCurrency(heartBeat.ActiveTrade.unrealizedPnl ?? 0, 2)}<small> USDT</small>)
                                     </strong>
                                 </span>
                                 <p className="text-[11px] text-zinc-400 mt-0.5">
