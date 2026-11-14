@@ -47,13 +47,16 @@ const Fleet = () => {
                 return fleetData.filter((e) => e.IsActive === false);
                 break;
             case "demo":
-                return fleetData.filter((e) => e.Demo === true);
+                return fleetData.filter((e) => e.Demo === true && e.Sandbox === false);
                 break;
             case "live":
-                return fleetData.filter((e) => e.Demo === false);
+                return fleetData.filter((e) => e.Demo === false && e.Sandbox === false);
                 break;
             case "forced":
                 return fleetData.filter((e) => e.SUKillSwitch === true);
+                break;
+            case "sandbox":
+                return fleetData.filter((e) => e.Sandbox === true);
                 break;
             default:
                 return fleetData;
@@ -405,6 +408,7 @@ const Fleet = () => {
                             <div className="flex flex-wrap gap-1 text-[10px] font-mono">
                                 {[
                                     { key: 'all', label: 'All' },
+                                    { key: 'sandbox', label: 'Sandbox'},
                                     { key: 'live', label: 'Live' },
                                     { key: 'demo', label: 'Demo' },
                                     { key: 'inactive', label: 'Inacive' },
