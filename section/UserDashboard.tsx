@@ -68,21 +68,26 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         }
     }, [User, BotID])
 
-    useEffect(() => {
-        const _data = async () => {
-            if (User) {
-                const trades = await getRecentTrades(User.Email, 10);
-                if (!trades)
-                    setActionNotice("There seems to be an issue loading user trades");
-                else
-                    setLastTrades(trades);
+    const manualRefresh = async () => {
+        await fetchData();
+        await loadAnalyticsAndTrades();
+    }
 
-                const _tradeAnalytics = await generateDailyTradeAnalytics(User.Email, 7);
-                if (_tradeAnalytics)
-                    setTradeAnalytics(_tradeAnalytics);
-            }
-        }
-        _data();
+    const loadAnalyticsAndTrades = async () => {
+        if (!User) return;
+        const trades = await getRecentTrades(User.Email, 10);
+        if (!trades)
+            setActionNotice("There seems to be an issue loading user trades");
+        else
+            setLastTrades(trades);
+
+        const _tradeAnalytics = await generateDailyTradeAnalytics(User.Email, 7);
+        if (_tradeAnalytics)
+            setTradeAnalytics(_tradeAnalytics);
+    }
+
+    useEffect(() => {
+        loadAnalyticsAndTrades();
     }, [User])
 
     const closeConfirmModal = () => {
@@ -286,7 +291,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
                     {/* Refresh Button */}
                     <button
-                        onClick={fetchData}
+                        onClick={manualRefresh}
                         disabled={refreshing}
                         className="p-1.5 sm:p-2 rounded border border-[#27272a] bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 transition-colors"
                         title="Refresh Data"
