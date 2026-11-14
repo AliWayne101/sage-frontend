@@ -199,6 +199,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     }
 
     const handleClearLogs = () => {
+        if (!heartbeatData) return;
         // setConfirmModal({
         //     isOpen: true,
         //     title: 'Clear Logs',
@@ -209,7 +210,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         //     variant: 'danger',
         //     onConfirm: () => handleButtonEvents("clearLogs"),
         // });
-        setExcludedLogs(heartbeatData?.Logs || []);
+        setExcludedLogs(heartbeatData.Logs);
     }
 
     useEffect(() => {
