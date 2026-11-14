@@ -217,7 +217,7 @@ const BacktestPage = () => {
             const dateKey = `${tradeDate.getFullYear()}-${String(tradeDate.getMonth() + 1).padStart(2, '0')}-${String(tradeDate.getDate()).padStart(2, '0')}`;
 
             const fee = t.commission;
-            const realizedProfit = t.grossPnl;
+            const realizedProfit = (t.grossPnl - t.commission);
 
             if (dailyMap.has(dateKey)) {
                 const current = dailyMap.get(dateKey)!;
@@ -289,19 +289,19 @@ const BacktestPage = () => {
                 name: 'Net Profit',
                 value: netProfit,
                 color: '#10b981',
-                formattedValue: `$${formatCurrency(netProfit - serviceFee, 2)}`,
+                formattedValue: `${formatCurrency(netProfit - serviceFee, 2)} USDT`,
             },
             {
                 name: `Sage Service Fee (${(activeSummary?.serviceFee || 0.2) * 100}%)`,
                 value: serviceFee,
                 color: '#38bdf8',
-                formattedValue: `$${formatCurrency(serviceFee, 2)}`,
+                formattedValue: `${formatCurrency(serviceFee, 2)} USDT`,
             },
             {
                 name: 'Binance Commission',
                 value: binanceCommission,
                 color: '#fbbf24',
-                formattedValue: `$${formatCurrency(binanceCommission, 2)}`,
+                formattedValue: `${formatCurrency(binanceCommission, 2)} USDT`,
             },
         ];
     }, [activeStrategy]);
@@ -1132,11 +1132,11 @@ const BacktestPage = () => {
                                         <CustomPieChart
                                             title="Profit Allocation Breakdown"
                                             description={`Net Profit, ${activeSummary.serviceFee * 100}% Sage Service Fee, and Binance Commissions`}
-                                            overviewTitle="Net Yield:"
-                                            overviewData={`+$${formatCurrency(activeStrategy.netProfit, 2)}`}
+                                            overviewTitle="Overall Yield:"
+                                            overviewData={`+${formatCurrency(activeStrategy.netProfit + activeStrategy.metrics.totalCommissionsPaid, 2)} USDT`}
                                             data={profitPieData}
                                             centerLabel="Gross PnL"
-                                            centerValue={`$${formatCurrency(activeStrategy.netProfit + activeStrategy.metrics.totalCommissionsPaid + activeStrategy.metrics.totalFeesPaid, 2)}`}
+                                            centerValue={`${formatCurrency(activeStrategy.netProfit + activeStrategy.metrics.totalCommissionsPaid, 2)} USDT`}
                                         />
 
                                         <CustomBarChart
