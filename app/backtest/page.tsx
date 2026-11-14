@@ -199,56 +199,59 @@ const BacktestPage = () => {
     const dayWiseChartData: CustomLineChartInsideData[] = useMemo(() => {
         if (!activeStrategy || !activeSummary) return [];
 
-        const totalDays = activeSummary.period?.days || 30;
-        const endDate = activeSummary.period?.to ? new Date(activeSummary.period.to) : new Date();
-        const startDate = activeSummary.period?.from
-            ? new Date(activeSummary.period.from)
-            : new Date(endDate.getTime() - totalDays * 24 * 60 * 60 * 1000);
+        const now = new Date();
+        const startDate = new Date(now);
+        startDate.setDate(now.getDate() - (activeSummary.period.days - 1));
+        startDate.setHours(0, 0, 0, 0);
+        const dailyMap = new Map<string, { fee: number, grossPnl: number }>();
+        for (let i = 0; i < activeSummary.period.days; i++) {
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
 
-        const dayPnlMap = new Map<string, number>();
-        if (activeStrategy.recentTrades && activeStrategy.recentTrades.length > 0) {
-            activeStrategy.recentTrades.forEach((tr) => {
-                const trDate = new Date(tr.exitTime || tr.entryTime);
-                const dateKey = `${String(trDate.getMonth() + 1).padStart(2, '0')}/${String(trDate.getDate()).padStart(2, '0')}`;
-                dayPnlMap.set(dateKey, (dayPnlMap.get(dateKey) || 0) + (tr.netPnl || 0));
-            });
+            const dataKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            dailyMap.set(dataKey, { fee: 0, grossPnl: 0 });
         }
 
+        activeStrategy.recentTrades.forEach((t) => {
+            const tradeDate = new Date(t.entryTime);
+            const dateKey = `${tradeDate.getFullYear()}-${String(tradeDate.getMonth() + 1).padStart(2, '0')}-${String(tradeDate.getDate()).padStart(2, '0')}`;
 
-        const points: CustomLineChartInsideData[] = [];
-        let runningCumulative = 0;
-        const totalTargetProfit = activeStrategy.netProfit || 0;
+            const fee = t.commission;
+            const realizedProfit = t.grossPnl;
 
-        for (let i = 0; i < totalDays; i++) {
-            const currentDay = new Date(startDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
-            const dateKey = `${String(currentDay.getMonth() + 1).padStart(2, '0')}/${String(currentDay.getDate()).padStart(2, '0')}`;
-
-            const ratio = (i + 1) / totalDays;
-            const wave = Math.sin((i / 5) * Math.PI) * (totalTargetProfit * 0.04);
-            const baseProgress = totalTargetProfit * (ratio * 0.95) + wave;
-
-            const recordedDayPnl = dayPnlMap.get(dateKey);
-            if (recordedDayPnl !== undefined) {
-                runningCumulative += recordedDayPnl;
+            if (dailyMap.has(dateKey)) {
+                const current = dailyMap.get(dateKey)!;
+                dailyMap.set(dateKey, {
+                    fee: current.fee + fee,
+                    grossPnl: current.grossPnl + realizedProfit
+                });
             }
+        });
 
-            let dayVal = recordedDayPnl !== undefined
-                ? Math.round(runningCumulative * 100) / 100
-                : Math.round(baseProgress * 100) / 100;
+        let runningGrossPnl = 0;
+        let totalFees = 0;
+        const cumulativePnlData: CustomLineChartInsideData[] = [];
 
-            if (i === totalDays - 1) {
-                dayVal = Math.round(totalTargetProfit * 100) / 100;
-            }
+        Array.from(dailyMap.entries()).forEach(([dateStr, metrics], idx) => {
+            runningGrossPnl += metrics.grossPnl;
+            totalFees += metrics.fee;
 
-            points.push({
-                id: i + 1,
-                date: dateKey,
-                value: dayVal,
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const formattedDate = new Date(year, month - 1, day).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
             });
-        }
 
-        return points;
-    }, [activeStrategy, activeSummary]);
+            cumulativePnlData.push({
+                id: idx + 1,
+                date: formattedDate,
+                value: parseFloat(runningGrossPnl.toFixed(2)),
+                value2: parseFloat(metrics.grossPnl.toFixed(2))
+            });
+        });
+
+        return cumulativePnlData;
+    }, [activeStrategy, activeSummary])
 
     const handleExportPdf = async (targetStrategy?: StrategyBacktestResult | null, targetSummary?: IBacktestSummaryDocument | null) => {
         const strat = targetStrategy || activeStrategy;
@@ -286,7 +289,7 @@ const BacktestPage = () => {
                 name: 'Net Profit',
                 value: netProfit,
                 color: '#10b981',
-                formattedValue: `$${formatCurrency(netProfit, 2)}`,
+                formattedValue: `$${formatCurrency(netProfit - serviceFee, 2)}`,
             },
             {
                 name: `Sage Service Fee (${(activeSummary?.serviceFee || 0.2) * 100}%)`,
@@ -1133,7 +1136,7 @@ const BacktestPage = () => {
                                             overviewData={`+$${formatCurrency(activeStrategy.netProfit, 2)}`}
                                             data={profitPieData}
                                             centerLabel="Gross PnL"
-                                            centerValue={`$${formatCurrency(activeStrategy.netProfit + activeStrategy.metrics.totalCommissionsPaid, 2)}`}
+                                            centerValue={`$${formatCurrency(activeStrategy.netProfit + activeStrategy.metrics.totalCommissionsPaid + activeStrategy.metrics.totalFeesPaid, 2)}`}
                                         />
 
                                         <CustomBarChart
