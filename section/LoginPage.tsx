@@ -4,7 +4,7 @@ import Footer from './Footer'
 import { AlertCircle, Mail, Terminal, Lock, ArrowRight } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { AUTH_ERROR_MESSAGES, AuthErrorCode, SERVER_ADDRESS } from '@/constants';
+import { AUTH_ERROR_MESSAGES, AuthErrorCode } from '@/constants';
 import { pingServer } from '@/app/actions/server.actions';
 
 const LoginPage = () => {
@@ -14,7 +14,7 @@ const LoginPage = () => {
         email: "",
         password: ""
     });
-    const [serverStatus, setServerStatus] = useState<"Offline" | "Online">("Offline");
+    const [serverStatus, setServerStatus] = useState<"Offline" | "Online" | "Checking..">("Checking..");
 
     const router = useRouter();
     const searchParams = useSearchParams();
