@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Footer from '@/section/Footer';
-import { Activity, ArrowDownRight, ArrowUpRight, Calendar, CheckCircle, ChevronDown, DollarSign, Layers, LogOut, Pause, Play, Receipt, RefreshCw, RotateCcw, Sliders, TrendingUp, UserPlus, Users, XCircle, Zap } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowUpRight, Calendar, CheckCircle, ChevronDown, Copy, DollarSign, Eye, Layers, LogOut, Pause, Play, Receipt, RefreshCw, RotateCcw, Sliders, TrendingUp, UserPlus, Users, X, XCircle, Zap } from 'lucide-react';
 import CustomLineChart from '@/components/CustomLineChart';
 import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
@@ -31,6 +31,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const [heartbeatData, setHeartbeatData] = useState<BotHeartbeat | undefined>(undefined);
     const [userStrategy, setUserStrategy] = useState<Strategy | undefined>(undefined);
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+    const [stratDrawerOpen, setStratDrawerOpen] = useState(false);
     const [loadingAction, setLoadingAction] = useState("null");
     const [lastTrades, setLastTrades] = useState<ITrades[]>([]);
     const [tradeAnalytics, setTradeAnalytics] = useState<TradeAnalytics>({
@@ -50,6 +51,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
     const router = useRouter();
     const { user } = useAuth();
+    const prevTradeRef = useRef<boolean>(false);
 
     const fetchData = useCallback(async () => {
         setRefreshing(true);
@@ -89,6 +91,29 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     useEffect(() => {
         loadAnalyticsAndTrades();
     }, [User])
+
+    // Audio Alert Hook when active position closes
+    useEffect(() => {
+        const hasActiveNow = heartbeatData?.ActiveTrade !== null && heartbeatData?.ActiveTrade !== undefined;
+        if (prevTradeRef.current && !hasActiveNow) {
+            try {
+                const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                gain.gain.setValueAtTime(0.05, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+            } catch (e) {
+                // Audio context suppressed
+            }
+        }
+        prevTradeRef.current = hasActiveNow;
+    }, [heartbeatData?.ActiveTrade]);
 
     const closeConfirmModal = () => {
         setConfirmModal({ isOpen: false, message: "", onConfirm: () => { } });
@@ -200,16 +225,6 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
     const handleClearLogs = () => {
         if (!heartbeatData) return;
-        // setConfirmModal({
-        //     isOpen: true,
-        //     title: 'Clear Logs',
-        //     message: 'Do you want to clear the logs?',
-        //     description: 'This will clear all logs from server and bots immediately, Do you still want to remove the logs?',
-        //     confirmText: 'Yes, Clear Logs',
-        //     cancelText: 'Cancel',
-        //     variant: 'danger',
-        //     onConfirm: () => handleButtonEvents("clearLogs"),
-        // });
         setExcludedLogs(heartbeatData.Logs);
     }
 
@@ -233,7 +248,6 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     }, [fetchData])
 
     useEffect(() => {
-        //This is to clear the action notice after some delay
         if (!actionNotice) return;
         setTimeout(() => setActionNotice(null), 3500);
     }, [actionNotice])
@@ -245,6 +259,85 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 <div className="fixed bottom-5 right-5 z-50 bg-[#18181b] border border-blue-500/50 shadow-2xl px-4 py-2.5 rounded-md flex items-center gap-2.5 text-xs font-mono text-white animate-in fade-in slide-in-from-bottom-2 duration-200">
                     <CheckCircle className="w-4 h-4 text-emerald-400" />
                     <span>{actionNotice}</span>
+                </div>
+            )}
+
+            {/* QOL Feature: Strategy Parameter Inspector Drawer */}
+            {stratDrawerOpen && userStrategy && (
+                <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+                    <div className="w-full max-w-md bg-[#0c0c0e] border-l border-[#27272a] h-full flex flex-col shadow-2xl">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-[#27272a]">
+                            <div>
+                                <h3 className="text-sm font-mono font-bold text-white flex items-center gap-2">
+                                    <Sliders className="w-4 h-4 text-blue-400" />
+                                    <span>{userStrategy.name}</span>
+                                </h3>
+                                <p className="text-[11px] font-mono text-zinc-500 mt-0.5">Active Strategy Parameters (Read-Only)</p>
+                            </div>
+                            <button
+                                onClick={() => setStratDrawerOpen(false)}
+                                className="p-1.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-5 space-y-5 font-mono text-xs">
+                            {userStrategy.description && (
+                                <div className="bg-zinc-900/70 border border-zinc-800 p-3 rounded text-zinc-300 text-[11px] leading-relaxed">
+                                    {userStrategy.description}
+                                </div>
+                            )}
+
+                            {/* General Config */}
+                            <div className="space-y-2">
+                                <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold block">Execution Specs</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="bg-[#121214] border border-[#27272a] p-2.5 rounded">
+                                        <span className="text-[10px] text-zinc-500 block">Timeframe</span>
+                                        <span className="text-blue-400 font-bold">{userStrategy.KLine || '1m'}</span>
+                                    </div>
+                                    <div className="bg-[#121214] border border-[#27272a] p-2.5 rounded">
+                                        <span className="text-[10px] text-zinc-500 block">Min Balance</span>
+                                        <span className="text-zinc-200 font-bold">${userStrategy.MinBalanceRequired} USDT</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Risk Config */}
+                            <div className="space-y-2">
+                                <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold block">Risk & Exit Controls</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="bg-[#121214] border border-[#27272a] p-2.5 rounded">
+                                        <span className="text-[10px] text-zinc-500 block">Allocation ({userStrategy.risk.riskType})</span>
+                                        <span className="text-zinc-200 font-bold">
+                                            {userStrategy.risk.riskType === 'percent'
+                                                ? `${(userStrategy.risk.risk * 100).toFixed(1)}%`
+                                                : `$${userStrategy.risk.risk} USDT`}
+                                        </span>
+                                    </div>
+                                    <div className="bg-[#121214] border border-[#27272a] p-2.5 rounded">
+                                        <span className="text-[10px] text-zinc-500 block">Take Profit Target</span>
+                                        <span className="text-emerald-400 font-bold">
+                                            {userStrategy.risk.tpPerc ? `${(userStrategy.risk.tpPerc * 100).toFixed(2)}%` : 'Dynamic'}
+                                        </span>
+                                    </div>
+                                    <div className="bg-[#121214] border border-[#27272a] p-2.5 rounded">
+                                        <span className="text-[10px] text-zinc-500 block">Stop Loss Mode</span>
+                                        <span className="text-amber-400 font-bold">
+                                            {userStrategy.risk.slCondition === 0 ? 'Dynamic SL' : 'Liquidation Limit'}
+                                        </span>
+                                    </div>
+                                    {userStrategy.risk.slPerc !== undefined && (
+                                        <div className="bg-[#121214] border border-[#27272a] p-2.5 rounded">
+                                            <span className="text-[10px] text-zinc-500 block">Stop Loss %</span>
+                                            <span className="text-rose-400 font-bold">{(userStrategy.risk.slPerc * 100).toFixed(2)}%</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -273,22 +366,29 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                             <span className="text-zinc-200 font-semibold">{User?.BotID}</span>
                         </div>
 
-                        {/* Active Symbol Badge - Hidden on smaller screens (< lg) */}
+                        {/* Active Symbol Badge */}
                         <div className="hidden lg:flex items-center gap-1.5 bg-zinc-900 border border-[#27272a] px-2.5 py-1 rounded text-xs font-mono shrink-0">
                             <span className="text-zinc-500">PAIR:</span>
                             <span className="text-blue-400 font-bold">{User?.Symbol || 'NONE'}</span>
                             <span className="text-[10px] text-zinc-400 bg-zinc-800 px-1 rounded">{User?.Leverage || 10}x</span>
                         </div>
 
-                        {/* Active Strategy Badge - Hidden on smaller screens (< xl) */}
-                        <div className="hidden xl:flex items-center gap-1 bg-zinc-900 border border-[#27272a] px-2.5 py-1 rounded text-[11px] font-mono text-zinc-400 shrink-0">
+                        {/* Interactive Strategy Inspector Badge */}
+                        <button
+                            type="button"
+                            onClick={() => userStrategy && setStratDrawerOpen(true)}
+                            disabled={!userStrategy}
+                            className={`hidden xl:flex items-center gap-1.5 bg-zinc-900 border border-[#27272a] px-2.5 py-1 rounded text-[11px] font-mono text-zinc-400 shrink-0 transition-colors ${userStrategy ? 'hover:border-blue-500/50 hover:text-zinc-200 cursor-pointer' : 'cursor-default'}`}
+                            title={userStrategy ? 'Click to inspect active strategy parameters' : 'Strategy parameters unavailable'}
+                        >
                             <span className="text-zinc-500">STRAT:</span>
                             <span className="text-zinc-200 truncate max-w-[140px]">{User?.StrategyName || 'Undefined'}</span>
-                        </div>
+                            {userStrategy && <Eye className="w-3 h-3 text-blue-400 ml-0.5" />}
+                        </button>
                     </div>
                 </div>
 
-                {/* Right Section: Balance Widget, READ-ONLY Live/Demo badge, Profile (Trades by Date button removed from Navbar as requested) */}
+                {/* Right Section: Balance Widget, READ-ONLY Live/Demo badge, Profile */}
                 <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
                     {/* Refresh Button */}
                     <button
@@ -310,13 +410,13 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         </div>
                     </div>
 
-                    {/* Read-Only Live / Demo Badge (Requested: keep it only readable, switch is in settings) */}
+                    {/* Read-Only Live / Demo Badge */}
                     <div
                         className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[11px] sm:text-xs font-mono font-semibold border cursor-default select-none ${User?.Demo || User?.Sandbox
                             ? 'bg-amber-950/50 text-amber-400 border-amber-800/80'
                             : 'bg-emerald-950/50 text-emerald-400 border-emerald-800/80'
                             }`}
-                        title={`Execution Protocol: ${User?.Sandbox ? 'SANDBOX' : User?.Demo ? 'DEMO' : 'LIVE'} (Configure in Bot Engine Configuration)`}
+                        title={`Execution Protocol: ${User?.Sandbox ? 'SANDBOX' : User?.Demo ? 'DEMO' : 'LIVE'}`}
                     >
                         <span
                             className={`w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full ${User?.Demo || User?.Sandbox ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500 animate-pulse'}`}
@@ -431,10 +531,9 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
             {/* Main Content Body */}
             <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto space-y-4 sm:space-y-6">
-                {/* 2. Bot Action Control Bar (with Utility Buttons: Force Close, Cancel Orders, Sync, Killswitch) */}
+                {/* 2. Bot Action Control Bar */}
                 <section className="bg-[#121214] border border-[#27272a] rounded-lg p-3 sm:p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4 shadow-md">
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap items-center gap-2 sm:gap-2.5 w-full md:w-auto">
-                        {/* Start / Stop Trading Button */}
                         <button
                             onClick={handleToggleTrading}
                             disabled={loadingAction === "trading"}
@@ -460,7 +559,6 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                             )}
                         </button>
 
-                        {/* Restart Engine Button */}
                         <button
                             onClick={() => handleButtonEvents("restart")}
                             disabled={loadingAction === "restart"}
@@ -471,7 +569,6 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                             <span>Restart Engine</span>
                         </button>
 
-                        {/* UTILITY BUTTON 1: Force Close Position */}
                         <button
                             onClick={handleForceClose}
                             disabled={loadingAction === "forceClose" || heartbeatData?.ActiveTrade === null}
@@ -485,18 +582,6 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                             <span>Force Close</span>
                         </button>
 
-                        {/* UTILITY BUTTON 2: Cancel Open Orders */}
-                        {/* <button
-                            onClick={handleCancelOpenOrders}
-                            disabled={isActionLoading}
-                            className="flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md font-mono text-xs text-zinc-300 bg-zinc-900 border border-[#27272a] hover:bg-zinc-800 hover:text-white transition-colors"
-                            title="Cancel all conditional and take-profit limit orders on exchange"
-                        >
-                            <Ban className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                            <span>Cancel Orders</span>
-                        </button> */}
-
-                        {/* UTILITY BUTTON 3: Sync Exchange Risk */}
                         <button
                             onClick={() => fetchData()}
                             disabled={loadingAction === 'syncPosition'}
@@ -506,23 +591,8 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                             <RefreshCw className={`w-3.5 h-3.5 shrink-0 ${loadingAction === 'syncPosition' ? 'animate-spin' : 'text-blue-400'}`} />
                             <span>Sync Risk</span>
                         </button>
-
-                        {/* UTILITY BUTTON 4: Emergency Kill Switch */}
-                        {/* {User?.AccountType === "SUPER" && (
-                            <button
-                                onClick={handleKillSwitch}
-                                disabled={loadingAction === 'killswitch'}
-                                className="flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md font-mono text-xs text-amber-300 bg-amber-950/40 border border-amber-800/60 hover:bg-amber-900/50 transition-colors col-span-2 sm:col-span-1 md:w-auto"
-                                title="Emergency shutdown: halt all execution immediately"
-                            >
-                                <AlertOctagon className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                                <span>Kill Switch</span>
-                            </button>
-                        )} */}
-
                     </div>
 
-                    {/* Engine Status Pill */}
                     <div className="flex items-center justify-between md:justify-start gap-2 bg-[#09090b] border border-[#27272a] px-3.5 py-1.5 rounded-full w-full md:w-auto">
                         <span className="text-[11px] font-mono text-zinc-500 uppercase">Engine Status:</span>
                         <span className="text-xs font-mono font-semibold text-zinc-200 flex items-center gap-1.5">
@@ -537,19 +607,20 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                     </div>
                 </section>
 
-                {/* Real-time TradingView Candlestick Chart with Entry/Exit Markers */}
+                {/* Real-time TradingView Candlestick Chart */}
                 <section className="w-full">
                     <TradingViewChart
                         candles={heartbeatData?.Candles || []}
                         position={heartbeatData?.ActiveTrade}
-                        trades={heartbeatData?.Trades || []} symbol={User?.Symbol || heartbeatData?.Candles?.[0]?.symbol || "undefined"}
+                        trades={heartbeatData?.Trades || []}
+                        symbol={User?.Symbol || heartbeatData?.Candles?.[0]?.symbol || "undefined"}
                         interval={heartbeatData && heartbeatData.Candles?.length > 0 ? heartbeatData.Candles[0].interval : "undefined"}
                         isLoading={heartbeatData === undefined}
                         strategy={userStrategy}
                     />
                 </section>
 
-                {/* 3. Live Position Card (Top Row) */}
+                {/* 3. Live Position Card with Embedded QOL Progress Bar */}
                 <section className="bg-[#121214] border border-[#27272a] rounded-lg p-3.5 sm:p-5">
                     <div className="flex flex-wrap items-center justify-between mb-3 border-b border-[#27272a] pb-2.5 gap-2">
                         <div className="flex items-center gap-2">
@@ -575,108 +646,130 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                     </div>
 
                     {heartbeatData?.ActiveTrade ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-4 pt-1">
-                            {/* Pair & Side */}
-                            <div className="space-y-1">
-                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Symbol / Side</span>
-                                <div className="flex items-center gap-1.5">
-                                    <span className="font-bold text-sm font-mono text-white">{heartbeatData.ActiveTrade.symbol}</span>
-                                    <span
-                                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${heartbeatData?.ActiveTrade.side === Direction.Long
-                                            ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
-                                            : 'text-rose-400 bg-rose-950/60 border-rose-800'
-                                            }`}
-                                    >
-                                        {heartbeatData.ActiveTrade.side === Direction.Long ? 'LONG' : 'SHORT'}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Entry Price */}
-                            <div className="space-y-1">
-                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Entry Price</span>
-                                <span className="font-mono text-sm font-semibold text-zinc-200">
-                                    ${formatCurrency(heartbeatData.ActiveTrade.entryPrice, 2)}
-                                </span>
-                            </div>
-
-                            {/* Mark Price */}
-                            <div className="space-y-1">
-                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Mark Price</span>
-                                <span className="font-mono text-sm font-semibold text-zinc-200">
-                                    ${formatCurrency(heartbeatData.ActiveTrade.markPrice, 2)}
-                                </span>
-                            </div>
-
-                            {/* Size / Notional */}
-                            <div className="space-y-1">
-                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Size (Notional)</span>
-                                <div className="flex flex-col">
-                                    <span className="font-mono text-sm font-semibold text-zinc-200">
-                                        {heartbeatData.ActiveTrade.size}
-                                    </span>
-                                    <span className="font-mono text-[10.5px] text-zinc-500">
-                                        ≈ ${formatCurrency(heartbeatData.ActiveTrade.notional, 2)}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Liquidation Price */}
-                            <div className="space-y-1">
-                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Liq. Price</span>
-                                <span className="font-mono text-sm font-semibold text-amber-400">
-                                    ${formatCurrency(heartbeatData.ActiveTrade.liqPrice, 2)}
-                                </span>
-                            </div>
-
-                            {/* Margin Buffer */}
-                            <div className="space-y-1">
-                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Margin Buffer</span>
-                                <div className="flex items-center gap-1">
-                                    <span className="font-mono text-sm font-semibold text-emerald-400">
-                                        {`${(heartbeatData.ActiveTrade.marginBuffer ?? 0).toFixed(3)}`}<small> USDT</small>
-                                    </span>
-                                    {User?.AvoidLiquidation && (
-                                        <span className="text-[9px] px-1 bg-blue-950 text-blue-400 border border-blue-800 rounded">
-                                            AUTO-ADD
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Un-realized PnL (USDT) */}
-                            <div className="space-y-1">
-                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Unrealized PnL</span>
-                                {(() => {
-                                    const unPnl = heartbeatData.ActiveTrade.unrealizedPnl;
-                                    const isPos = unPnl >= 0;
-                                    return (
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-4 pt-1">
+                                <div className="space-y-1">
+                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Symbol / Side</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="font-bold text-sm font-mono text-white">{heartbeatData.ActiveTrade.symbol}</span>
                                         <span
-                                            className={`font-mono text-sm font-bold flex items-center gap-0.5 ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}
-                                        >
-                                            {isPos ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                                            {isPos ? '+' : ''}{formatCurrency(unPnl, 3)}<small> USDT</small>
-                                        </span>
-                                    );
-                                })()}
-                            </div>
-
-                            {/* ROE % */}
-                            <div className="space-y-1">
-                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">ROE %</span>
-                                {(() => {
-                                    const roe = heartbeatData.ActiveTrade.roe;
-                                    const isPos = roe >= 0;
-                                    return (
-                                        <span
-                                            className={`font-mono text-sm font-bold ${isPos ? 'text-emerald-400' : 'text-rose-400'
+                                            className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${heartbeatData?.ActiveTrade.side === Direction.Long
+                                                ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
+                                                : 'text-rose-400 bg-rose-950/60 border-rose-800'
                                                 }`}
                                         >
-                                            {heartbeatData.ActiveTrade.roe.toFixed(2)}%
+                                            {heartbeatData.ActiveTrade.side === Direction.Long ? 'LONG' : 'SHORT'}
                                         </span>
-                                    );
-                                })()}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Entry Price</span>
+                                    <span className="font-mono text-sm font-semibold text-zinc-200">
+                                        ${formatCurrency(heartbeatData.ActiveTrade.entryPrice, 2)}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Mark Price</span>
+                                    <span className="font-mono text-sm font-semibold text-zinc-200">
+                                        ${formatCurrency(heartbeatData.ActiveTrade.markPrice, 2)}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Size (Notional)</span>
+                                    <div className="flex flex-col">
+                                        <span className="font-mono text-sm font-semibold text-zinc-200">
+                                            {heartbeatData.ActiveTrade.size}
+                                        </span>
+                                        <span className="font-mono text-[10.5px] text-zinc-500">
+                                            ≈ ${formatCurrency(heartbeatData.ActiveTrade.notional, 2)}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Liq. Price</span>
+                                    <span className="font-mono text-sm font-semibold text-amber-400">
+                                        ${formatCurrency(heartbeatData.ActiveTrade.liqPrice, 2)}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Margin Buffer</span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="font-mono text-sm font-semibold text-emerald-400">
+                                            {`${(heartbeatData.ActiveTrade.marginBuffer ?? 0).toFixed(3)}`}<small> USDT</small>
+                                        </span>
+                                        {User?.AvoidLiquidation && (
+                                            <span className="text-[9px] px-1 bg-blue-950 text-blue-400 border border-blue-800 rounded">
+                                                AUTO-ADD
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Unrealized PnL</span>
+                                    {(() => {
+                                        const unPnl = heartbeatData.ActiveTrade.unrealizedPnl;
+                                        const isPos = unPnl >= 0;
+                                        return (
+                                            <span
+                                                className={`font-mono text-sm font-bold flex items-center gap-0.5 ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}
+                                            >
+                                                {isPos ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                                                {isPos ? '+' : ''}{formatCurrency(unPnl, 3)}<small> USDT</small>
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
+
+                                <div className="space-y-1">
+                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">ROE %</span>
+                                    {(() => {
+                                        const roe = heartbeatData.ActiveTrade.roe;
+                                        const isPos = roe >= 0;
+                                        return (
+                                            <span
+                                                className={`font-mono text-sm font-bold ${isPos ? 'text-emerald-400' : 'text-rose-400'
+                                                    }`}
+                                            >
+                                                {heartbeatData.ActiveTrade.roe.toFixed(2)}%
+                                            </span>
+                                        );
+                                    })()}
+                                </div>
                             </div>
+
+                            {/* QOL Enhancement: Live Risk / Reward Progress Bar */}
+                            {(() => {
+                                const pos = heartbeatData.ActiveTrade;
+                                const isLong = pos.side === Direction.Long;
+                                const tpPerc = userStrategy?.risk?.tpPerc || 0.02;
+                                const tpPrice = isLong ? pos.entryPrice * (1 + tpPerc) : pos.entryPrice * (1 - tpPerc);
+                                const totalDistance = Math.abs(tpPrice - pos.liqPrice);
+                                const currentProgress = totalDistance > 0
+                                    ? Math.min(Math.max(((pos.markPrice - pos.liqPrice) / totalDistance) * 100, 0), 100)
+                                    : 50;
+
+                                return (
+                                    <div className="mt-3 pt-3 border-t border-[#27272a]/60 space-y-1.5">
+                                        <div className="flex justify-between items-center text-[10px] font-mono text-zinc-400">
+                                            <span className="text-rose-400">Liq: ${formatCurrency(pos.liqPrice, 2)}</span>
+                                            <span className="text-zinc-300">Entry: ${formatCurrency(pos.entryPrice, 2)}</span>
+                                            <span className="text-emerald-400">TP Target: ${formatCurrency(tpPrice, 2)}</span>
+                                        </div>
+                                        <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden border border-zinc-800 relative">
+                                            <div
+                                                className={`h-full transition-all duration-500 ${isLong ? 'bg-gradient-to-r from-rose-500 via-blue-500 to-emerald-500' : 'bg-gradient-to-r from-emerald-500 via-blue-500 to-rose-500'}`}
+                                                style={{ width: `${currentProgress}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     ) : (
                         <div className="py-8 flex flex-col items-center justify-center text-center space-y-2">
@@ -702,7 +795,6 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
                 {/* 4. Analytics & Performance Charts Grid */}
                 <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                    {/* Chart 1: Cumulative Realized PnL */}
                     <CustomLineChart
                         title="Cumulative Realized PnL"
                         description="Net profit curve across closed futures trades"
@@ -716,7 +808,6 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         valueFormatter={(value) => `${value} USDT`}
                     />
 
-                    {/* Chart 2: Binance Commission Breakdown with PnL and Fee switcher */}
                     <CustomBarChart
                         title="Net Profit Breakdown"
                         data={tradeAnalytics.breakdownData.chartData}
@@ -749,7 +840,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                     <LogTerminal logs={botLogs} onClear={handleClearLogs} />
                 </section>
 
-                {/* 6. Recent Closed Trades Table (with separate Fee, Commission, and Net Profit columns) */}
+                {/* 6. Recent Closed Trades Table with One-Click Share/Copy Button */}
                 <section id="recent-trades-section" className="bg-[#121214] border border-[#27272a] rounded-lg p-3.5 sm:p-5">
                     <div className="flex flex-wrap items-center justify-between mb-4 border-b border-[#27272a] pb-2.5 gap-2">
                         <div>
@@ -760,10 +851,11 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                 Audit record of executed Binance futures orders with itemized Service Fee and Binance Commission
                             </p>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs font-mono text-zinc-500">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                            <span className="text-xs font-mono text-zinc-500 hidden sm:inline">
                                 Total: {lastTrades.length}
                             </span>
+
                             <button
                                 onClick={() => {
                                     router.push(BotID === user?.uid! ? '/trades' : `/trades/${BotID}`);
