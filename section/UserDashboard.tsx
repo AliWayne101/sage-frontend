@@ -743,29 +743,83 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                 </div>
                             </div>
 
-                            {/* QOL Enhancement: Live Risk / Reward Progress Bar */}
+                            {/* QOL Enhancement: Center-Anchored Bi-Directional Risk / Reward Bar */}
                             {(() => {
                                 const pos = heartbeatData.ActiveTrade;
                                 const isLong = pos.side === Direction.Long;
+
+                                // 1. Calculate Take Profit Target
                                 const tpPerc = userStrategy?.risk?.tpPerc || 0.02;
-                                const tpPrice = isLong ? pos.entryPrice * (1 + tpPerc) : pos.entryPrice * (1 - tpPerc);
-                                const totalDistance = Math.abs(tpPrice - pos.liqPrice);
-                                const currentProgress = totalDistance > 0
-                                    ? Math.min(Math.max(((pos.markPrice - pos.liqPrice) / totalDistance) * 100, 0), 100)
-                                    : 50;
+                                const tpPrice = isLong
+                                    ? pos.entryPrice * (1 + tpPerc)
+                                    : pos.entryPrice * (1 - tpPerc);
+
+                                // 2. Determine Downside Target (Dynamic SL vs. Liquidation Limit)
+                                const isDynamicSL = userStrategy?.risk?.slCondition === 0; // SLCondition.DynamicSL
+                                const slPerc = userStrategy?.risk?.slPerc || 0.01;
+                                const dangerPrice = isDynamicSL
+                                    ? (isLong ? pos.entryPrice * (1 - slPerc) : pos.entryPrice * (1 + slPerc))
+                                    : pos.liqPrice;
+                                const dangerLabel = isDynamicSL ? 'Stop Loss' : 'Liquidation';
+
+                                // 3. Calculate Directional Progress (0% to 100% of respective half)
+                                const priceDelta = isLong
+                                    ? (pos.markPrice - pos.entryPrice)
+                                    : (pos.entryPrice - pos.markPrice);
+
+                                const isWinning = priceDelta >= 0;
+
+                                let halfWidthPercent = 0;
+                                if (isWinning) {
+                                    const maxRewardDist = Math.abs(tpPrice - pos.entryPrice);
+                                    halfWidthPercent = maxRewardDist > 0
+                                        ? Math.min((priceDelta / maxRewardDist) * 100, 100)
+                                        : 0;
+                                } else {
+                                    const maxRiskDist = Math.abs(pos.entryPrice - dangerPrice);
+                                    halfWidthPercent = maxRiskDist > 0
+                                        ? Math.min((Math.abs(priceDelta) / maxRiskDist) * 100, 100)
+                                        : 0;
+                                }
+
+                                // Map half-width (0-100%) to actual track width (0-50% of full container)
+                                const trackFillWidth = halfWidthPercent * 0.5;
 
                                 return (
                                     <div className="mt-3 pt-3 border-t border-[#27272a]/60 space-y-1.5">
+                                        {/* Top Labels */}
                                         <div className="flex justify-between items-center text-[10px] font-mono text-zinc-400">
-                                            <span className="text-rose-400">Liq: ${formatCurrency(pos.liqPrice, 2)}</span>
-                                            <span className="text-zinc-300">Entry: ${formatCurrency(pos.entryPrice, 2)}</span>
-                                            <span className="text-emerald-400">TP Target: ${formatCurrency(tpPrice, 2)}</span>
+                                            <span className="text-rose-400">
+                                                {dangerLabel}
+                                            </span>
+                                            <span className="text-emerald-400">
+                                                TP Target
+                                            </span>
                                         </div>
-                                        <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden border border-zinc-800 relative">
-                                            <div
-                                                className={`h-full transition-all duration-500 ${isLong ? 'bg-gradient-to-r from-rose-500 via-blue-500 to-emerald-500' : 'bg-gradient-to-r from-emerald-500 via-blue-500 to-rose-500'}`}
-                                                style={{ width: `${currentProgress}%` }}
-                                            />
+
+                                        {/* Center-Anchored Track */}
+                                        <div className="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden border border-zinc-800 relative flex items-center">
+                                            {/* Center Entry Anchor Marker */}
+                                            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-zinc-400 z-10 -translate-x-1/2" />
+
+                                            {isWinning ? (
+                                                /* Expands Right from 50% -> 100% (Green) */
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500 rounded-r-full"
+                                                    style={{
+                                                        marginLeft: '50%',
+                                                        width: `${trackFillWidth}%`,
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div
+                                                    className="h-full bg-gradient-to-l from-rose-600 to-rose-400 transition-all duration-500 rounded-l-full"
+                                                    style={{
+                                                        marginLeft: `${50 - trackFillWidth}%`,
+                                                        width: `${trackFillWidth}%`,
+                                                    }}
+                                                />
+                                            )}
                                         </div>
                                     </div>
                                 );
