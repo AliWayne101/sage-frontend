@@ -7,7 +7,7 @@ import CustomLineChart from '@/components/CustomLineChart';
 import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
 import { TERMINAL_VER } from '@/configs';
-import { BotHeartbeat, ConfirmModalProps, Direction, IUserInfoRuntime, Log, Strategy, TradeAnalytics } from '@/interfaces';
+import { BotHeartbeat, ConfirmModalProps, Direction, IUserInfoRuntime, Log, SLCondition, Strategy, TradeAnalytics } from '@/interfaces';
 import { useRouter } from 'next/navigation';
 import { ITrades } from '@/schema/trades';
 import LogTerminal from '@/components/LogTerminal';
@@ -748,18 +748,18 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                 const pos = heartbeatData.ActiveTrade;
                                 const isLong = pos.side === Direction.Long;
 
-                                // 1. Calculate Take Profit Target
                                 const tpPerc = userStrategy?.risk?.tpPerc || 0.02;
                                 const tpPrice = isLong
                                     ? pos.entryPrice * (1 + tpPerc)
                                     : pos.entryPrice * (1 - tpPerc);
 
-                                // 2. Determine Downside Target (Dynamic SL vs. Liquidation Limit)
-                                const isDynamicSL = userStrategy?.risk?.slCondition === 0; // SLCondition.DynamicSL
+                                const isDynamicSL = userStrategy?.risk?.slCondition === SLCondition.DynamicSL;
                                 const slPerc = userStrategy?.risk?.slPerc || 0.01;
+
                                 const dangerPrice = isDynamicSL
                                     ? (isLong ? pos.entryPrice * (1 - slPerc) : pos.entryPrice * (1 + slPerc))
                                     : pos.liqPrice;
+
                                 const dangerLabel = isDynamicSL ? 'Stop Loss' : 'Liquidation';
 
                                 // 3. Calculate Directional Progress (0% to 100% of respective half)
@@ -776,13 +776,12 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                         ? Math.min((priceDelta / maxRewardDist) * 100, 100)
                                         : 0;
                                 } else {
-                                    const maxRiskDist = Math.abs(pos.entryPrice - dangerPrice);
+                                    const maxRiskDist = Math.abs(dangerPrice - pos.entryPrice);
                                     halfWidthPercent = maxRiskDist > 0
                                         ? Math.min((Math.abs(priceDelta) / maxRiskDist) * 100, 100)
                                         : 0;
                                 }
 
-                                // Map half-width (0-100%) to actual track width (0-50% of full container)
                                 const trackFillWidth = halfWidthPercent * 0.5;
 
                                 return (
@@ -793,7 +792,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                                 {dangerLabel}
                                             </span>
                                             <span className="text-emerald-400">
-                                                TP Target
+                                                Take Profit Target
                                             </span>
                                         </div>
 
