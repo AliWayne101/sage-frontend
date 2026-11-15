@@ -95,13 +95,6 @@ const LoginPage = () => {
                         <p className="text-xs text-zinc-400 font-mono">
                             Private Binance Futures Bot Control Node
                         </p>
-
-                        {/* <div className="pt-2 flex items-center justify-center">
-                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/40 border border-emerald-900/60 text-[11px] font-mono text-emerald-400">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                <span>Express Backend: Online</span>
-                            </div>
-                        </div> */}
                         <div className="pt-2 flex items-center justify-center">
                             <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono transition-colors ${isOnline
                                 ? "bg-emerald-950/40 border-emerald-900/60 text-emerald-400"
@@ -175,12 +168,6 @@ const LoginPage = () => {
                             )}
                         </button>
                     </form>
-                    {/* <button
-                        onClick={() => handleSeed()}
-                        className="cursor-pointer w-full py-2.5 px-4 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-mono font-semibold tracking-wide transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2"
-                    >
-                        Seed
-                    </button> */}
                 </div>
 
                 <div className="mt-6 text-center text-xs font-mono text-zinc-600">
