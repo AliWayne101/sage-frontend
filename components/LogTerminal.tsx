@@ -53,19 +53,32 @@ const LogTerminal = ({ logs, onClear }: LogTerminalProps) => {
         }
     };
 
+    const getMessageColor = (level: string) => {
+        switch (level) {
+            case 'error':
+                return 'text-rose-300';
+            case 'system':
+                return 'text-amber-200';
+            case 'order':
+                return 'text-emerald-200';
+            default:
+                return 'text-zinc-300';
+        }
+    };
+
     return (
         <div className="flex flex-col bg-[#09090b] border border-[#27272a] rounded-lg overflow-hidden shadow-2xl">
             {/* Terminal Titlebar */}
             <div className="flex flex-wrap items-center justify-between px-4 py-2.5 bg-[#121214] border-b border-[#27272a] gap-2">
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 mr-2">
+                    <div className="hidden sm:flex items-center gap-1.5 mr-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block"></span>
                         <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block"></span>
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block"></span>
                     </div>
                     <Terminal className="w-4 h-4 text-zinc-400" />
                     <span className="text-xs font-mono font-medium text-zinc-300">Sage Bot Runtime Terminal</span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
+                    <span className="hidden sm:flex text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">
                         {filteredLogs.length} events
                     </span>
                 </div>
@@ -78,7 +91,7 @@ const LogTerminal = ({ logs, onClear }: LogTerminalProps) => {
                             <button
                                 key={tag}
                                 onClick={() => setActiveFilter(tag)}
-                                className={`text-[11px] font-mono px-2 py-0.5 rounded border transition-colors ${isActive
+                                className={`text-[8px] sm:text-[11px] font-mono px-2 py-0.5 rounded border transition-colors ${isActive
                                     ? 'bg-zinc-800 text-zinc-100 border-zinc-500 font-semibold'
                                     : 'bg-transparent text-zinc-400 border-[#27272a] hover:text-zinc-200 hover:border-zinc-700'
                                     }`}
@@ -88,7 +101,7 @@ const LogTerminal = ({ logs, onClear }: LogTerminalProps) => {
                         );
                     })}
 
-                    <div className="h-3.5 w-px bg-zinc-800 mx-1" />
+                    <div className="hidden sm: flex h-3.5 w-px bg-zinc-800 mx-1" />
 
                     <button
                         onClick={() => setAutoScroll(!autoScroll)}
@@ -127,7 +140,7 @@ const LogTerminal = ({ logs, onClear }: LogTerminalProps) => {
             {/* Terminal View Body */}
             <div
                 ref={terminalContainerRef}
-                className="h-64 sm:h-72 overflow-y-auto p-3 font-mono text-[11.5px] leading-relaxed text-zinc-300 space-y-1.5 selection:bg-zinc-800 selection:text-white"
+                className="h-64 sm:h-72 overflow-y-auto p-3 font-mono text-[11.5px] leading-relaxed text-zinc-300 space-y-2 selection:bg-zinc-800 selection:text-white"
                 style={{ scrollbarWidth: 'thin', scrollbarColor: '#27272a #09090b' }}
             >
                 {filteredLogs.length === 0 ? (
@@ -136,35 +149,52 @@ const LogTerminal = ({ logs, onClear }: LogTerminalProps) => {
                         <p>No log entries matching [{activeFilter}]</p>
                     </div>
                 ) : (
-                    filteredLogs.map((log) => (
-                        <div
-                            key={log.timestamp + log.message}
-                            className="flex items-start gap-2 hover:bg-zinc-900/50 px-1.5 py-0.5 rounded transition-colors group"
-                        >
-                            <span className="text-zinc-600 select-none shrink-0 text-[10.5px]">
-                                {(new Date(log.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                            </span>
-                            <span
-                                className={`text-[9.5px] px-1.5 py-0.2 rounded border font-semibold shrink-0 uppercase tracking-wide ${getBadgeColor(
-                                    log.type
-                                )}`}
-                            >
-                                {log.type}
-                            </span>
-                            <span
-                                className={`break-all ${log.type === 'error'
-                                    ? 'text-rose-300'
-                                    : log.type === 'system'
-                                        ? 'text-amber-200'
-                                        : log.type === 'order'
-                                            ? 'text-emerald-200'
-                                            : 'text-zinc-300'
-                                    }`}
-                            >
-                                {log.message}
-                            </span>
-                        </div>
-                    ))
+                    filteredLogs.map((log) => {
+                        const formattedTime = (new Date(log.timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        const badgeColorClass = getBadgeColor(log.type);
+                        const messageColorClass = getMessageColor(log.type);
+
+                        return (
+                            <React.Fragment key={log.timestamp + log.message}>
+                                {/* Desktop View (Exact Original Design Preserved) */}
+                                <div className="hidden sm:flex items-start gap-2 hover:bg-zinc-900/50 px-1.5 py-0.5 rounded transition-colors group">
+                                    <span className="text-zinc-600 select-none shrink-0 text-[10.5px]">
+                                        {formattedTime}
+                                    </span>
+                                    <span
+                                        className={`text-[9.5px] px-1.5 py-0.2 rounded border font-semibold shrink-0 uppercase tracking-wide ${badgeColorClass}`}
+                                    >
+                                        {log.type}
+                                    </span>
+                                    <span className={`break-words ${messageColorClass}`}>
+                                        {log.message}
+                                    </span>
+                                </div>
+
+                                {/* Mobile View (Event Details on far left, Time & Type on far right) */}
+                                <div className="sm:hidden flex flex-col gap-0.5 hover:bg-zinc-900/50 px-1.5 py-1 rounded transition-colors group">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-zinc-500 select-none text-[9px] uppercase tracking-wider font-semibold">
+                                            Event Details:
+                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-zinc-500 select-none text-[9px]">
+                                                {formattedTime}
+                                            </span>
+                                            <span
+                                                className={`text-[8.5px] px-1.5 py-0.2 rounded border font-semibold uppercase tracking-wide ${badgeColorClass}`}
+                                            >
+                                                {log.type}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <span className={`break-words text-[11px] ${messageColorClass}`}>
+                                        {log.message}
+                                    </span>
+                                </div>
+                            </React.Fragment>
+                        );
+                    })
                 )}
                 <div ref={terminalEndRef} />
             </div>

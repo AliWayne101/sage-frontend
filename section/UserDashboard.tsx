@@ -401,19 +401,9 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin text-blue-400' : ''}`} />
                     </button>
 
-                    {/* Account Balance Widget */}
-                    <div className="flex items-center gap-1.5 sm:gap-2 bg-zinc-900 border border-[#27272a] px-2 sm:px-3 py-1 sm:py-1.5 rounded">
-                        <div className="flex flex-col text-right">
-                            <span className="text-[9px] sm:text-[10px] font-mono uppercase text-zinc-500 leading-tight">USDT</span>
-                            <span className="text-xs sm:text-sm font-mono font-bold text-emerald-400 whitespace-nowrap">
-                                {formatCurrency(heartbeatData?.Balance ?? 0, 2)}
-                            </span>
-                        </div>
-                    </div>
-
                     {/* Read-Only Live / Demo Badge */}
                     <div
-                        className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[11px] sm:text-xs font-mono font-semibold border cursor-default select-none ${User?.Demo || User?.Sandbox
+                        className={`hidden sm:flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[11px] sm:text-xs font-mono font-semibold border cursor-default select-none ${User?.Demo || User?.Sandbox
                             ? 'bg-amber-950/50 text-amber-400 border-amber-800/80'
                             : 'bg-emerald-950/50 text-emerald-400 border-emerald-800/80'
                             }`}
@@ -423,6 +413,24 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                             className={`w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full ${User?.Demo || User?.Sandbox ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500 animate-pulse'}`}
                         />
                         <span className="hidden sm:inline">{User?.Sandbox ? 'SANDBOX' : User?.Demo ? 'DEMO' : 'LIVE'}</span>
+                    </div>
+
+                    {/* Account Balance Widget */}
+                    <div className="h-8 sm:h-9 relative flex items-center justify-end bg-zinc-900 border border-[#27272a] px-3 rounded shrink-0">
+                        {/* Mobile Left-Side 10px Indicator Rectangle (Green for Live, Amber for Demo/Sandbox) */}
+                        <div
+                            className={`absolute left-0 top-0 bottom-0 w-[10px] rounded-l sm:hidden animate-pulse ${User?.Demo || User?.Sandbox ? 'bg-amber-400' : 'bg-emerald-500'}`}
+                        />
+
+                        {/* Floating USDT Badge Straddling the Top Border */}
+                        <span className={`absolute -top-[7px] right-1 px-1 bg-zinc-900 border border-[#27272a] text-[8px] sm:text-[9px] font-mono uppercase ${User?.Demo || User?.Sandbox ? 'text-amber-500' : 'text-emerald-500'} rounded leading-none`}>
+                            USDT
+                        </span>
+
+                        {/* Balance Amount */}
+                        <span className="text-xs sm:text-sm font-mono font-bold text-emerald-400 whitespace-nowrap">
+                            {formatCurrency(heartbeatData?.Balance ?? 0, 2)}
+                        </span>
                     </div>
 
                     {/* User Profile Dropdown */}
