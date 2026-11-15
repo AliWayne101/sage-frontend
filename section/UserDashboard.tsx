@@ -822,7 +822,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-300 font-mono">
-                                                    {(((t.realizedProfit + t.commission) / (t.notional ?? t.isolatedWallet)) * 100) > 0 ? "+" : "-"}{((Math.abs(t.realizedProfit + t.commission) / (t.notional ?? t.isolatedWallet)) * 100).toFixed(2)}%
+                                                    {(((t.realizedProfit) / (t.notional ?? t.isolatedWallet)) * 100) > 0 ? "+" : "-"}{((Math.abs(t.realizedProfit) / (t.notional ?? t.isolatedWallet)) * 100).toFixed(2)}%
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-400 font-mono">
                                                     {t.quantity}
