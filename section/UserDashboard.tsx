@@ -349,9 +349,10 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                             S
                         </div>
                         <div>
-                            <div className="flex items-center gap-1.5 sm:gap-2">
+                            {/* Updated layout: stacks vertically on mobile, row on sm+ */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2">
                                 <span className="font-semibold text-xs sm:text-sm tracking-tight text-white whitespace-nowrap">Sage Terminal</span>
-                                <span className="text-[9px] sm:text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+                                <span className="text-[9px] sm:text-[10px] uppercase font-mono px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 self-start sm:self-auto">
                                     {TERMINAL_VER}
                                 </span>
                             </div>
@@ -421,7 +422,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         <span
                             className={`w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full ${User?.Demo || User?.Sandbox ? 'bg-amber-400 animate-pulse' : 'bg-emerald-500 animate-pulse'}`}
                         />
-                        <span>{User?.Sandbox ? 'SANDBOX' : User?.Demo ? 'DEMO' : 'LIVE'}</span>
+                        <span className="hidden sm:inline">{User?.Sandbox ? 'SANDBOX' : User?.Demo ? 'DEMO' : 'LIVE'}</span>
                     </div>
 
                     {/* User Profile Dropdown */}
@@ -594,7 +595,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                     </div>
 
                     <div className="flex items-center justify-between md:justify-start gap-2 bg-[#09090b] border border-[#27272a] px-3.5 py-1.5 rounded-full w-full md:w-auto">
-                        <span className="text-[11px] font-mono text-zinc-500 uppercase">Engine Status:</span>
+                        <span className="text-[11px] font-mono text-zinc-500 uppercase">Engine <span className="hidden sm:inline text-zinc-400">status</span>:</span>
                         <span className="text-xs font-mono font-semibold text-zinc-200 flex items-center gap-1.5">
                             <span
                                 className={`w-2 h-2 rounded-full shrink-0 ${heartbeatData?.ActiveTrade
