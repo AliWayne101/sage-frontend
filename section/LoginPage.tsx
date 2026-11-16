@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { AUTH_ERROR_MESSAGES, AuthErrorCode } from '@/constants';
 import { pingServer } from '@/app/actions/server.actions';
+import FullScreenLoading from './FullScreenLoading';
 
 const LoginPage = () => {
     const [isLoading, setIsLoading] = useState(false);
@@ -76,6 +77,10 @@ const LoginPage = () => {
     }, [])
 
     const isOnline = serverStatus === "Online";
+
+    if (isLoading) {
+        return <FullScreenLoading message='AUTHENTICATING..' />
+    }
 
     return (
         <div className="min-h-screen bg-[#09090b] flex flex-col justify-between items-center relative overflow-hidden font-sans">
