@@ -1,10 +1,10 @@
 "use client"
-import { History, AlertTriangle, ArrowLeft, Award, CheckCircle2, Zap, Layers, Activity, Sparkles, AlertOctagon, Calendar, ArrowRight, RotateCcw, Check, Database, TrendingUp, RefreshCw, FileDown, PieChartIcon } from 'lucide-react';
+import { History, AlertTriangle, ArrowLeft, Award, CheckCircle2, Zap, Layers, Activity, Sparkles, AlertOctagon, Calendar, ArrowRight, RotateCcw, Check, Database, TrendingUp, RefreshCw, FileDown, PieChartIcon, InfinityIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../AuthProvider';
 import { BotHeartbeat, Direction, IUserInfoRuntime, StrategyBacktestResult } from '@/interfaces';
 import { getUserByBotID, updateUser } from '../actions/user.actions';
-import { formatCurrency, formatTradeTimestamp } from '@/utils';
+import { ConstructAnalytics, formatCurrency, formatTradeTimestamp } from '@/utils';
 import Footer from '@/section/Footer';
 import ConfirmationModal, { ConfirmationModalDetail, ConfirmationVariant } from '@/components/ConfirmationModal';
 import { getRecentBacktestSummary } from '../actions/backtest.actions';
@@ -198,59 +198,8 @@ const BacktestPage = () => {
 
     const dayWiseChartData: CustomLineChartInsideData[] = useMemo(() => {
         if (!activeStrategy || !activeSummary) return [];
-
-        const now = new Date();
-        const startDate = new Date(now);
-        startDate.setDate(now.getDate() - (activeSummary.period.days - 1));
-        startDate.setHours(0, 0, 0, 0);
-        const dailyMap = new Map<string, { fee: number, grossPnl: number }>();
-        for (let i = 0; i < activeSummary.period.days; i++) {
-            const d = new Date(startDate);
-            d.setDate(d.getDate() + i);
-
-            const dataKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            dailyMap.set(dataKey, { fee: 0, grossPnl: 0 });
-        }
-
-        activeStrategy.recentTrades.forEach((t) => {
-            const tradeDate = new Date(t.entryTime);
-            const dateKey = `${tradeDate.getFullYear()}-${String(tradeDate.getMonth() + 1).padStart(2, '0')}-${String(tradeDate.getDate()).padStart(2, '0')}`;
-
-            const fee = t.commission;
-            const realizedProfit = (t.grossPnl - t.commission);
-
-            if (dailyMap.has(dateKey)) {
-                const current = dailyMap.get(dateKey)!;
-                dailyMap.set(dateKey, {
-                    fee: current.fee + fee,
-                    grossPnl: current.grossPnl + realizedProfit
-                });
-            }
-        });
-
-        let runningGrossPnl = 0;
-        let totalFees = 0;
-        const cumulativePnlData: CustomLineChartInsideData[] = [];
-
-        Array.from(dailyMap.entries()).forEach(([dateStr, metrics], idx) => {
-            runningGrossPnl += metrics.grossPnl;
-            totalFees += metrics.fee;
-
-            const [year, month, day] = dateStr.split('-').map(Number);
-            const formattedDate = new Date(year, month - 1, day).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-            });
-
-            cumulativePnlData.push({
-                id: idx + 1,
-                date: formattedDate,
-                value: parseFloat(runningGrossPnl.toFixed(2)),
-                value2: parseFloat(metrics.grossPnl.toFixed(2))
-            });
-        });
-
-        return cumulativePnlData;
+        const analytics = ConstructAnalytics(activeStrategy.recentTrades, activeSummary.period.days);
+        return analytics.cumulativePnlData;
     }, [activeStrategy, activeSummary])
 
     const handleExportPdf = async (targetStrategy?: StrategyBacktestResult | null, targetSummary?: IBacktestSummaryDocument | null) => {
@@ -385,7 +334,6 @@ const BacktestPage = () => {
                         </div>
                     </div>
                 </div>
-
             </header>
 
             {/* Main Container */}
@@ -442,14 +390,14 @@ const BacktestPage = () => {
                         </span>
                     </div>
                 ) : (
-                    <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg flex items-center justify-between gap-3 font-mono text-xs text-zinc-400">
+                    <div className="p-3 bg-zinc-900/60 border border-zinc-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs text-zinc-400">
                         <div className="flex items-center gap-2">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                             <span>
                                 <strong>Flat Market Exposure:</strong> No active positions open on bot {User?.BotID}. You can apply any benchmarked strategy directly to your bot profile in the database.
                             </span>
                         </div>
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800 text-emerald-400 shrink-0">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-800 text-emerald-400 shrink-0 self-start sm:self-auto">
                             Ready to Apply
                         </span>
                     </div>
@@ -482,7 +430,7 @@ const BacktestPage = () => {
                                         setSelectedStrategyIndex(0);
                                         setViewMode('detail');
                                     }}
-                                    className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                                    className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm w-full sm:w-auto justify-center"
                                 >
                                     <Award className="w-3.5 h-3.5" />
                                     <span>View Latest Result</span>
@@ -555,8 +503,8 @@ const BacktestPage = () => {
                                                 </div>
                                             </div>
 
-                                            <div className="flex flex-wrap items-center gap-3 sm:gap-6 self-start lg:self-auto">
-                                                <div className="space-y-0.5 min-w-[140px]">
+                                            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-3 sm:gap-6 self-start lg:self-auto w-full lg:w-auto">
+                                                <div className="space-y-0.5 sm:min-w-[140px]">
                                                     <span className="text-[10px] text-zinc-500 uppercase block">Capital Delta</span>
                                                     <div className="flex items-baseline gap-1.5">
                                                         <span className={`text-base font-bold ${profitPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -571,7 +519,7 @@ const BacktestPage = () => {
                                                     </span>
                                                 </div>
 
-                                                <div className="space-y-0.5 min-w-[120px]">
+                                                <div className="space-y-0.5 sm:min-w-[120px]">
                                                     <span className="text-[10px] text-zinc-500 uppercase block">Win Rate</span>
                                                     <span className="text-base font-bold text-blue-400 block">
                                                         {winRate.toFixed(1)}%
@@ -581,7 +529,7 @@ const BacktestPage = () => {
                                                     </span>
                                                 </div>
 
-                                                <div className="space-y-0.5 min-w-[110px] hidden sm:block">
+                                                <div className="space-y-0.5 sm:min-w-[110px] hidden sm:block">
                                                     <span className="text-[10px] text-zinc-500 uppercase block">Risk Profile</span>
                                                     <span className="text-xs font-semibold text-purple-400 block">
                                                         PF: {profitFactor.toFixed(2)}
@@ -597,7 +545,7 @@ const BacktestPage = () => {
                                                         e.stopPropagation();
                                                         handleSelectHistoryRun(idx);
                                                     }}
-                                                    className="px-3.5 py-2 rounded bg-zinc-900 border border-zinc-700 text-zinc-200 group-hover:bg-blue-600 group-hover:border-blue-500 group-hover:text-white transition-all text-xs font-semibold flex items-center gap-1.5 shadow-sm ml-auto"
+                                                    className="col-span-2 sm:col-span-1 px-3.5 py-2 rounded bg-zinc-900 border border-zinc-700 text-zinc-200 group-hover:bg-blue-600 group-hover:border-blue-500 group-hover:text-white transition-all text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm sm:ml-auto w-full sm:w-auto"
                                                 >
                                                     <span>Inspect Result</span>
                                                     <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -651,12 +599,12 @@ const BacktestPage = () => {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
                                 <button
                                     type="button"
                                     onClick={() => handleExportPdf(activeStrategy, activeSummary)}
                                     disabled={isExportingPdf || !activeStrategy}
-                                    className="px-3 py-1.5 rounded bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-700/80 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                                    className="flex-1 sm:flex-initial px-3 py-1.5 rounded bg-emerald-950/90 hover:bg-emerald-900 border border-emerald-700/80 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
                                     title="Download institutional audit PDF with performance charts and execution logs"
                                 >
                                     {isExportingPdf ? (
@@ -679,7 +627,7 @@ const BacktestPage = () => {
                                             setSelectedRunIndex(0);
                                             setSelectedStrategyIndex(0);
                                         }}
-                                        className="px-2.5 py-1.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                                        className="flex-1 sm:flex-initial px-2.5 py-1.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                                         title="Return to latest daily backtest"
                                     >
                                         <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
@@ -690,11 +638,11 @@ const BacktestPage = () => {
                                 <button
                                     type="button"
                                     onClick={() => setViewMode('history')}
-                                    className="px-3 py-1.5 rounded bg-blue-950/80 hover:bg-blue-900 border border-blue-700/80 text-blue-300 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                                    className="flex-1 sm:flex-initial cursor-pointer px-3 py-1.5 rounded bg-blue-950/80 hover:bg-blue-900 border border-blue-700/80 text-blue-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
                                     title="Open vertical list of all historical runs"
                                 >
-                                    <History className="w-3.5 h-3.5" />
-                                    <span>Check History</span>
+                                    <History className="h-3.5" />
+                                    <span>History</span>
                                     <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-900 text-blue-200 border border-blue-600">
                                         {dailyRuns.length}
                                     </span>
@@ -725,24 +673,17 @@ const BacktestPage = () => {
                                         </p>
                                     </div>
                                 </div>
-
-                                {/* <div className="flex items-center gap-2 self-start lg:self-center">
-                                    <div className="px-3 py-1.5 rounded bg-[#09090b] border border-zinc-800 text-xs text-zinc-300 flex items-center gap-2">
-                                        <Database className="w-3.5 h-3.5 text-purple-400" />
-                                        <span>Bot Profile: <strong className="text-white">{botID}</strong></span>
-                                    </div>
-                                </div> */}
                             </div>
 
                             {/* KPI Metrics Grid for Currently Inspected Strategy */}
                             {activeStrategy && (
                                 <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs text-zinc-400 gap-1">
                                         <span className="font-semibold uppercase text-[10.5px] text-zinc-300">
                                             Inspecting Metrics: <strong className="text-white">{activeStrategy.strategyName}</strong>
                                         </span>
                                         <span className="text-[11px] text-zinc-500">
-                                            Baseline Virtual Capital: <small>USDT</small> {formatCurrency(activeStrategy.startingBalance, 2)} USDT
+                                            Baseline Virtual Capital: <span className='text-emerald-400'>{formatCurrency(activeStrategy.startingBalance, 2)} USDT</span>
                                         </span>
                                     </div>
 
@@ -772,8 +713,12 @@ const BacktestPage = () => {
                                         {/* Profit Factor */}
                                         <div className="bg-[#09090b] border border-[#27272a] p-3 rounded space-y-1">
                                             <span className="text-[10px] text-zinc-500 uppercase block">Profit Factor</span>
-                                            <span className="text-base sm:text-lg font-bold text-purple-400 block">
-                                                {activeStrategy.metrics.profitFactor.toFixed(2)}
+                                            <span className="text-base sm:text-lg font-bold text-purple-400 block flex items-center">
+                                                {activeStrategy.metrics.profitFactor < 0 || !isFinite(activeStrategy.metrics.profitFactor) ? (
+                                                    <InfinityIcon className="w-5 h-5 text-purple-400" />
+                                                ) : (
+                                                    activeStrategy.metrics.profitFactor.toFixed(2)
+                                                )}
                                             </span>
                                             <span className="text-[10px] text-zinc-400 block">
                                                 Gross Win / Loss ratio
@@ -832,7 +777,7 @@ const BacktestPage = () => {
                             </div>
 
                             <div className="overflow-x-auto">
-                                <table className="w-full text-left text-xs">
+                                <table className="w-full text-left text-xs whitespace-nowrap sm:whitespace-normal">
                                     <thead>
                                         <tr className="border-b border-zinc-800 text-zinc-400 text-[10.5px] uppercase">
                                             <th className="py-2.5 px-3">Rank</th>
@@ -896,12 +841,12 @@ const BacktestPage = () => {
 
                                                     {/* Net Profit */}
                                                     <td className={`py-3 px-3 font-bold ${strat.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        {strat.netProfit >= 0 ? '' : '-'}{formatCurrency(strat.netProfit, 2)}<small> USDT</small>
+                                                        {strat.netProfit >= 0 ? '+' : ''}{formatCurrency(strat.netProfit, 2)}<small> USDT</small>
                                                     </td>
 
                                                     {/* ROI % */}
                                                     <td className={`py-3 px-3 font-bold ${strat.netProfitPercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                        {strat.netProfitPercent >= 0 ? '+' : '-'}{strat.netProfitPercent.toFixed(2)}%
+                                                        {strat.netProfitPercent >= 0 ? '+' : ''}{strat.netProfitPercent.toFixed(2)}%
                                                     </td>
 
                                                     {/* Win Rate */}
@@ -916,7 +861,11 @@ const BacktestPage = () => {
 
                                                     {/* Profit Factor */}
                                                     <td className="py-3 px-3 text-purple-400 font-semibold">
-                                                        {strat.metrics.profitFactor.toFixed(2)}
+                                                        {strat.metrics.profitFactor < 0 || !isFinite(strat.metrics.profitFactor) ? (
+                                                            <InfinityIcon className="w-5 h-5 text-purple-400" />
+                                                        ) : (
+                                                            strat.metrics.profitFactor.toFixed(2)
+                                                        )}
                                                     </td>
 
                                                     {/* Max Drawdown */}
@@ -930,7 +879,7 @@ const BacktestPage = () => {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setSelectedStrategyIndex(idx)}
-                                                                className={`px-2 py-1 rounded text-[10px] font-semibold transition-colors ${isSelected
+                                                                className={`cursor-pointer px-2 py-1 rounded text-[10px] font-semibold transition-colors ${isSelected
                                                                     ? 'bg-zinc-800 text-white border border-zinc-700'
                                                                     : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 border border-zinc-800'
                                                                     }`}
@@ -941,7 +890,8 @@ const BacktestPage = () => {
                                                             <button
                                                                 type="button"
                                                                 onClick={() => handleInitiateApplyStrategy(strat)}
-                                                                className={`px-2.5 py-1 rounded text-[10px] font-semibold flex items-center gap-1 transition-all shadow-sm ${isCurrentBotStrategy
+                                                                disabled={isCurrentBotStrategy}
+                                                                className={`disabled:opacity-50 cursor-pointer px-2.5 py-1 rounded text-[10px] font-semibold flex items-center gap-1 transition-all shadow-sm ${isCurrentBotStrategy
                                                                     ? 'bg-emerald-950/80 border border-emerald-700 text-emerald-300 hover:bg-emerald-900/90'
                                                                     : isTop
                                                                         ? 'bg-blue-600 hover:bg-blue-500 text-white font-bold'
@@ -950,7 +900,7 @@ const BacktestPage = () => {
                                                                 title={`Apply ${strat.strategyName} to bot profile in database`}
                                                             >
                                                                 <Database className="w-3 h-3" />
-                                                                <span>{isCurrentBotStrategy ? 'Applied' : 'Apply Strategy'}</span>
+                                                                <span>{isCurrentBotStrategy ? 'Applied' : 'Apply'}</span>
                                                             </button>
                                                         </div>
                                                     </td>
@@ -991,12 +941,12 @@ const BacktestPage = () => {
                                     </div>
 
                                     {/* Apply Strategy Button from Deep-Dive */}
-                                    <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+                                    <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                                         <button
                                             type="button"
                                             onClick={() => handleExportPdf(activeStrategy, activeSummary)}
                                             disabled={isExportingPdf}
-                                            className="px-3 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-750 text-zinc-200 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                                            className="flex-1 md:flex-initial px-3 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-750 text-zinc-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
                                             title="Export high-resolution institutional audit PDF for this strategy"
                                         >
                                             {isExportingPdf ? (
@@ -1010,7 +960,7 @@ const BacktestPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => handleInitiateApplyStrategy(activeStrategy)}
-                                            className="px-3.5 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                                            className="flex-1 md:flex-initial px-3.5 py-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
                                         >
                                             <Database className="w-3.5 h-3.5" />
                                             <span>
@@ -1061,18 +1011,18 @@ const BacktestPage = () => {
                                             {activeStrategy.breakdown.short.winRatePercent.toFixed(1)}% win rate)
                                         </span>
                                     </div>
-                                    <div className="ml-auto text-[11px] text-zinc-500">
+                                    <div className="w-full sm:w-auto sm:ml-auto text-[11px] text-zinc-500">
                                         Largest Win: <strong className="text-emerald-400"><small>USDT</small> {activeStrategy.metrics.largestWin.toFixed(2)}</strong> • Largest Loss:{' '}
                                         <strong className="text-rose-400"><small>USDT</small> {activeStrategy.metrics.largestLoss.toFixed(2)}</strong>
                                     </div>
                                 </div>
 
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-zinc-800/80">
-                                    <div className="flex items-center gap-1.5 p-1 bg-[#09090b] border border-zinc-800 rounded-lg">
+                                    <div className="grid grid-cols-1 sm:flex sm:items-center gap-1.5 p-1 bg-[#09090b] border border-zinc-800 rounded-lg w-full sm:w-auto">
                                         <button
                                             type="button"
                                             onClick={() => setStrategyViewMode('chart')}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${strategyViewMode === 'chart'
+                                            className={`flex items-center justify-center sm:justify-start gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${strategyViewMode === 'chart'
                                                 ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/70 font-semibold shadow-sm'
                                                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                                                 }`}
@@ -1084,7 +1034,7 @@ const BacktestPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setStrategyViewMode('analytics')}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${strategyViewMode === 'analytics'
+                                            className={`flex items-center justify-center sm:justify-start gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${strategyViewMode === 'analytics'
                                                 ? 'bg-blue-950/80 text-blue-300 border border-blue-700/80 font-semibold shadow-sm'
                                                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                                                 }`}
@@ -1096,7 +1046,7 @@ const BacktestPage = () => {
                                         <button
                                             type="button"
                                             onClick={() => setStrategyViewMode('trades')}
-                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${strategyViewMode === 'trades'
+                                            className={`flex items-center justify-center sm:justify-start gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${strategyViewMode === 'trades'
                                                 ? 'bg-zinc-800 text-zinc-100 border border-zinc-700 font-semibold shadow-sm'
                                                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                                                 }`}
@@ -1109,7 +1059,7 @@ const BacktestPage = () => {
                                         </button>
                                     </div>
 
-                                    <div className="text-xs text-zinc-500 font-mono flex items-center gap-2">
+                                    <div className="text-xs text-zinc-500 font-mono hidden sm:flex items-center gap-2">
                                         <span>Rank #{selectedStrategyIndex + 1}</span>
                                         <span>•</span>
                                         <span className="text-zinc-400">{activeStrategy.strategyName}</span>
@@ -1122,10 +1072,10 @@ const BacktestPage = () => {
                                             title={`${activeStrategy.strategyName} • 30-Day Cumulative PnL`}
                                             description={`Day-wise net profit trajectory across ${activeSummary.period.days || 30} backtested days`}
                                             overviewTitle="Total Strategy PnL:"
-                                            overviewData={`${activeStrategy.netProfit >= 0 ? '+' : '-'}${formatCurrency(activeStrategy.netProfit, 2)} USDT (${activeStrategy.netProfitPercent >= 0 ? '+' : '-'}${activeStrategy.netProfitPercent.toFixed(2)}%)`}
+                                            overviewData={`${activeStrategy.netProfit >= 0 ? '+' : ''}${formatCurrency(activeStrategy.netProfit, 2)} USDT (${activeStrategy.netProfitPercent >= 0 ? '+' : '-'}${activeStrategy.netProfitPercent.toFixed(2)}%)`}
                                             data={dayWiseChartData}
                                             valueLabel="Cumulative PnL"
-                                            valueFormatter={(val) => `${val >= 0 ? '+' : '-'}${formatCurrency(val, 2)} USDT`}
+                                            valueFormatter={(val) => `${val >= 0 ? '+' : ''}${formatCurrency(val, 2)} USDT`}
                                         />
                                     </div>
                                 ) : strategyViewMode === 'analytics' ? (
@@ -1183,7 +1133,7 @@ const BacktestPage = () => {
                                             </div>
                                         ) : (
                                             <div className="overflow-x-auto border border-zinc-800/80 rounded">
-                                                <table className="w-full text-left text-xs">
+                                                <table className="w-full text-left text-xs whitespace-nowrap">
                                                     <thead>
                                                         <tr className="border-b border-zinc-800 bg-[#09090b] text-zinc-400 text-[10px] uppercase">
                                                             <th className="py-2 px-3">Side</th>
@@ -1266,17 +1216,16 @@ const BacktestPage = () => {
                                             </div>
                                         )}
                                     </div>
-                                )
-                                }
+                                )}
 
-                            </section >
+                            </section>
                         )}
-                    </div >
+                    </div>
                 )}
-            </main >
+            </main>
 
             {/* Confirmation Modal (Handles both Active Position Liquidation and Flat Exposure Confirmation) */}
-            < ConfirmationModal
+            <ConfirmationModal
                 isOpen={confirmModal.isOpen}
                 title={confirmModal.title}
                 message={confirmModal.message}
@@ -1292,7 +1241,7 @@ const BacktestPage = () => {
 
             {/* Footer */}
             <Footer />
-        </div >
+        </div>
     )
 }
 

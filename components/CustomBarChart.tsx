@@ -96,7 +96,7 @@ const CustomBarChart = ({
 
                         {/* Metric Toggle Buttons */}
                         {metrics.length > 0 && (
-                            <div className="inline-flex items-center p-0.5 rounded-md bg-[#09090b] border border-[#27272a]">
+                            <div className="flex flex-col sm:inline-flex sm:flex-row items-stretch sm:items-center p-0.5 rounded-md bg-[#09090b] border border-[#27272a] gap-1 sm:gap-0 w-full sm:w-auto">
 
                                 {metrics.map((metric) => {
                                     const Icon = metric.icon
@@ -107,7 +107,7 @@ const CustomBarChart = ({
                                             key={metric.key}
                                             type="button"
                                             onClick={() => setSelectedMetric(metric.key)}
-                                            className={`px-3 py-1 rounded text-xs font-mono font-semibold transition-all flex items-center gap-1.5 ${isActive
+                                            className={`px-3 py-1.5 sm:py-1 rounded text-xs font-mono font-semibold transition-all flex items-center justify-center sm:justify-start gap-1.5 w-full sm:w-auto ${isActive
                                                     ? 'text-white shadow-sm'
                                                     : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
                                                 }`}

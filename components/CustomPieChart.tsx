@@ -2,7 +2,6 @@ import { formatCurrency } from '@/utils';
 import React from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
-
 export interface PieChartSlice {
     name: string;
     value: number;
@@ -51,11 +50,10 @@ const CustomPieChart: React.FC<CustomPieChartProps> = ({
                 </div>
             </div>
 
-            {/* Chart & Legend Container */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 h-56 sm:h-64">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 h-auto sm:h-64">
                 {data.length > 0 && totalValue > 0 ? (
                     <>
-                        <div className="w-full sm:w-1/2 h-full relative flex items-center justify-center">
+                        <div className="w-full sm:w-1/2 h-56 sm:h-full relative flex items-center justify-center">
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Tooltip

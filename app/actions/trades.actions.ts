@@ -5,6 +5,7 @@ import { SUPER_USER_ROLE } from "@/constants";
 import { Exchange, TradeAnalytics, TradesStatsResults } from "@/interfaces";
 import { connectDB } from "@/lib/mongoose";
 import { getSession } from "@/lib/nextauth"
+import { ConstructAnalytics } from "@/utils";
 import TradesModel, { ITrades } from "@/schema/trades";
 import UserModel from "@/schema/users";
 
@@ -83,74 +84,8 @@ export const generateDailyTradeAnalytics = async (
         Timestamp: { $gte: startDate }
     }).sort({ Timestamp: 1 }).lean();
 
-    const dailyMap = new Map<string, { fee: number; netPnl: number; grossPnl: number }>();
-
-    for (let i = 0; i < days; i++) {
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + i);
-
-        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        dailyMap.set(dateKey, { fee: 0, netPnl: 0, grossPnl: 0 });
-    }
-
-    trades.forEach((t) => {
-        const tradeDate = new Date(t.Timestamp);
-        const dateKey = `${tradeDate.getFullYear()}-${String(tradeDate.getMonth() + 1).padStart(2, '0')}-${String(tradeDate.getDate()).padStart(2, '0')}`;
-
-        const feeVal = (t.commission || 0) + (t.serviceFee || 0);
-        const realizedProfit = t.realizedProfit || 0;
-        const netProfit = realizedProfit - feeVal;
-
-        if (dailyMap.has(dateKey)) {
-            const current = dailyMap.get(dateKey)!;
-            dailyMap.set(dateKey, {
-                fee: current.fee + feeVal,
-                netPnl: current.netPnl + netProfit,
-                grossPnl: current.grossPnl + realizedProfit
-            });
-        }
-    });
-
-    let runningGrossPnl = 0;
-    let totalFees = 0;
-
-    const cumulativePnlData: CustomLineChartInsideData[] = [];
-    const breakdownChartData: { day: string; fee: number; pnl: number }[] = [];
-
-    Array.from(dailyMap.entries()).forEach(([dateStr, metrics], idx) => {
-        runningGrossPnl += metrics.grossPnl;
-        totalFees += metrics.fee;
-
-        const [year, month, day] = dateStr.split('-').map(Number);
-        const formattedDate = new Date(year, month - 1, day).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-        });
-
-        cumulativePnlData.push({
-            id: idx + 1,
-            date: formattedDate,
-            value: parseFloat(runningGrossPnl.toFixed(2)),
-            value2: parseFloat(metrics.grossPnl.toFixed(2))
-        });
-
-        breakdownChartData.push({
-            day: formattedDate,
-            fee: parseFloat(metrics.fee.toFixed(3)),
-            pnl: parseFloat(metrics.netPnl.toFixed(2))
-        });
-    });
-
-    const totalNetPnl = runningGrossPnl - totalFees;
-
-    return {
-        cumulativePnlData,
-        breakdownData: {
-            chartData: breakdownChartData,
-            totalNetPnl: parseFloat(totalNetPnl.toFixed(2)),
-            totalFees: parseFloat(totalFees.toFixed(3))
-        }
-    };
+    const analytics = ConstructAnalytics(trades, days);
+    return analytics;
 };
 
 export const getUserTrades = async (botID: string, targetDates: { fromDate: string, toDate: string }): Promise<ITrades[]> => {
