@@ -19,6 +19,7 @@ import { server } from '@/app/actions/server.actions';
 import { getUserByBotID } from '@/app/actions/user.actions';
 import { useAuth } from '@/app/AuthProvider';
 import TradingViewChart from '@/components/TradingViewChart';
+import FullScreenLoading from './FullScreenLoading';
 
 export interface UserDashboardProps {
     BotID: string;
@@ -251,6 +252,10 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         if (!actionNotice) return;
         setTimeout(() => setActionNotice(null), 3500);
     }, [actionNotice])
+
+    if (User === null) {
+        return <FullScreenLoading />;
+    }
 
     return (
         <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans">
