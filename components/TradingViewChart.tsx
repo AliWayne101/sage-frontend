@@ -592,7 +592,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
 
             {/* 2. TradingView Interactive OHLCV Floating HUD */}
             <div className="px-3.5 py-1.5 bg-[#0c0c0e]/90 border-b border-[#1c1c1f] flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-zinc-400 select-none">
-                <div className="flex items-center gap-1.5">
+                <div className="hidden sm:flex items-center gap-1.5">
                     <span className="font-semibold text-zinc-200">{symbol}</span>
                     <span className="text-zinc-500">·</span>
                     <span className="text-blue-400">{interval}</span>
@@ -694,7 +694,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
 
             {/* 4. Chart Footer Info Bar */}
             <div className="flex flex-wrap items-center justify-between px-3.5 py-1.5 sm:px-4 bg-[#0c0c0e] border-t border-[#1c1c1f] font-mono text-[10px] text-zinc-500">
-                <div className="flex items-center gap-2">
+                <div className="hidden sm:flex items-center gap-2">
                     <span>Engine: <span className="text-zinc-300">TradingView HTML5 Canvas</span></span>
                     <span>·</span>
                     <span>Feed: <span className="text-zinc-300">Completed Filled Candles (Stopped on Last Closed Bar)</span></span>
