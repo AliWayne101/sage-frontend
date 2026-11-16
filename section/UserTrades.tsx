@@ -42,8 +42,8 @@ const Trades = ({ targetUser }: UserTradesProps) => {
 
         return {
             totalCommission: totalCommission,
-            totalGrossProfit: (GrossProfit + totalCommission),
-            totalNetProfit: (GrossProfit - totalFee),
+            totalGrossProfit: GrossProfit,
+            totalNetProfit: (GrossProfit - totalFee - totalCommission),
             winRate: winRate,
             totalFees: totalFee
         }
@@ -325,7 +325,7 @@ const Trades = ({ targetUser }: UserTradesProps) => {
                             className={`text-base sm:text-lg font-mono font-bold block ${metrics.totalGrossProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
                                 }`}
                         >
-                            {metrics.totalGrossProfit >= 0 ? '+' : ''}${formatCurrency(metrics.totalGrossProfit, 2)}
+                            {metrics.totalGrossProfit >= 0 ? '+' : ''}{formatCurrency(metrics.totalGrossProfit, 2)}<small> USDT</small>
                         </span>
                         <span className="text-[10px] font-mono text-zinc-500">Before exchange & fees</span>
                     </div>
@@ -334,7 +334,7 @@ const Trades = ({ targetUser }: UserTradesProps) => {
                     <div className="bg-[#121214] border border-[#27272a] p-3 sm:p-3.5 rounded-lg space-y-1">
                         <span className="text-[10px] font-mono uppercase text-zinc-500 block">Sage Service Fee</span>
                         <span className="text-base sm:text-lg font-mono font-bold text-amber-400 block">
-                            ${formatCurrency(metrics.totalFees, 2)}
+                            {formatCurrency(metrics.totalFees, 2)}<small> USDT</small>
                         </span>
                         <span className="text-[10px] font-mono text-zinc-500">Computing Commission</span>
                     </div>
@@ -343,7 +343,7 @@ const Trades = ({ targetUser }: UserTradesProps) => {
                     <div className="bg-[#121214] border border-[#27272a] p-3 sm:p-3.5 rounded-lg space-y-1">
                         <span className="text-[10px] font-mono uppercase text-zinc-500 block">Binance Commission</span>
                         <span className="text-base sm:text-lg font-mono font-bold text-blue-400 block">
-                            ${formatCurrency(metrics.totalCommission, 2)}
+                            {formatCurrency(metrics.totalCommission, 2)}<small> USDT</small>
                         </span>
                         <span className="text-[10px] font-mono text-zinc-500">Exchange fees</span>
                     </div>
@@ -366,7 +366,7 @@ const Trades = ({ targetUser }: UserTradesProps) => {
                                 className={`text-lg sm:text-xl font-mono font-bold ${metrics.totalNetProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
                                     }`}
                             >
-                                {metrics.totalNetProfit >= 0 ? '+' : ''}${formatCurrency(metrics.totalNetProfit, 2)} USDT
+                                {metrics.totalNetProfit >= 0 ? '+' : ''}{formatCurrency(metrics.totalNetProfit, 2)}<small> USDT</small>
                             </span>
                         </div>
                         <span className="text-[10px] sm:text-[10.5px] font-mono text-zinc-500">
@@ -421,9 +421,9 @@ const Trades = ({ targetUser }: UserTradesProps) => {
                                     userTrades.map((t) => {
                                         const isLong = t.side === Direction.Long;
                                         const gross = t.realizedProfit ?? 0;
-                                        const fee = t.serviceFee ?? (gross > 0 ? gross * 0.20 : 0);
+                                        const fee = t.serviceFee ?? 0;
                                         const comm = t.commission ?? 0;
-                                        const net = (t.realizedProfit - fee) || (gross - fee - comm);
+                                        const net = (t.realizedProfit - fee - comm) || 0;
                                         const isNetPositive = net >= 0;
 
                                         const formattedDate = t.Timestamp
@@ -451,25 +451,25 @@ const Trades = ({ targetUser }: UserTradesProps) => {
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-300 font-mono">
-                                                    {(((t.realizedProfit + t.commission) / t.notional) * 100) > 0 ? "+" : "-"}{((Math.abs(t.realizedProfit + t.commission) / t.notional) * 100).toFixed(2)}%
+                                                    {(((t.realizedProfit) / t.notional) * 100) > 0 ? "+" : ""}{((Math.abs(t.realizedProfit) / t.notional) * 100).toFixed(2)}%
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-zinc-400 font-mono">
                                                     {t.quantity}
                                                 </td>
                                                 <td className="py-3 px-3 text-right font-semibold font-mono">
                                                     <span className={gross >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                                        {gross >= 0 ? '+' : ''}${formatCurrency(gross, 2)}
+                                                        {gross >= 0 ? '+' : ''}{formatCurrency(gross, 2)}<small> USDT</small>
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-amber-400 font-mono">
-                                                    ${formatCurrency(fee, 2)}
+                                                    {formatCurrency(fee, 2)}<small> USDT</small>
                                                 </td>
                                                 <td className="py-3 px-3 text-right text-blue-400 font-mono">
-                                                    ${formatCurrency(comm, 2)}
+                                                    {formatCurrency(comm, 2)}<small> USDT</small>
                                                 </td>
                                                 <td className="py-3 px-3 text-right font-bold font-mono">
                                                     <span className={isNetPositive ? 'text-emerald-400' : 'text-rose-400'}>
-                                                        {isNetPositive ? '+' : ''}${formatCurrency(net, 2)}
+                                                        {isNetPositive ? '+' : ''}{formatCurrency(net, 2)}<small> USDT</small>
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-3">
