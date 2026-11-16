@@ -15,6 +15,16 @@ export interface TradingViewChartInterface {
     strategy: Strategy | undefined
 }
 
+const parseIntervalToMs = (intervalStr: string): number => {
+    if (!intervalStr) return 60000; // default 1m
+    const num = parseInt(intervalStr, 10) || 1;
+    if (intervalStr.includes('s')) return num * 1000;
+    if (intervalStr.includes('m')) return num * 60 * 1000;
+    if (intervalStr.includes('h')) return num * 60 * 60 * 1000;
+    if (intervalStr.includes('d')) return num * 24 * 60 * 60 * 1000;
+    return 60000;
+};
+
 const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trades, strategy }: TradingViewChartInterface) => {
 
     const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -32,6 +42,9 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
     const [isExpanded, setIsExpanded] = useState(false);
     const [hoveredCandle, setHoveredCandle] = useState<Candle | null>(null);
 
+    const [candleProgress, setCandleProgress] = useState(0);
+    const prevOpenTimeRef = useRef<number | null>(null);
+
 
     // Reset fit flag on symbol or interval switch
     useEffect(() => {
@@ -41,6 +54,36 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
     const latestCandle = useMemo(() => {
         return candles.length > 0 ? candles[candles.length - 1] : null;
     }, [candles]);
+
+    // Step-based incremental timer effect for the slim progress bar
+    useEffect(() => {
+        if (!latestCandle) {
+            setCandleProgress(0);
+            return;
+        }
+
+        const rawOpenTime = latestCandle.open_time;
+        const openTimeMs = rawOpenTime < 1e12 ? rawOpenTime * 1000 : rawOpenTime;
+
+        // If a new candle arrives, reset progress to 0
+        if (prevOpenTimeRef.current !== openTimeMs) {
+            prevOpenTimeRef.current = openTimeMs;
+            setCandleProgress(0);
+        }
+
+        const intervalMs = parseIntervalToMs(interval);
+        const totalTicks = intervalMs / 250; // Number of 250ms chunks in the timeframe
+        const incrementPerTick = 100 / totalTicks;
+
+        const timer = setInterval(() => {
+            setCandleProgress((prev) => {
+                if (prev >= 100) return 100;
+                return Math.min(prev + incrementPerTick, 100);
+            });
+        }, 250);
+
+        return () => clearInterval(timer);
+    }, [latestCandle?.open_time, interval]);
 
 
     const activeDisplayCandle = hoveredCandle || latestCandle;
@@ -537,6 +580,14 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                         {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                     </button>
                 </div>
+            </div>
+
+            {/* Slim Progress Bar positioned directly below HUD, right above the chart */}
+            <div className="w-full bg-[#1c1c1f] h-[3px] overflow-hidden relative z-20">
+                <div
+                    className="h-full bg-blue-500 transition-all duration-300 ease-linear"
+                    style={{ width: `${candleProgress}%` }}
+                />
             </div>
 
             {/* 2. TradingView Interactive OHLCV Floating HUD */}
