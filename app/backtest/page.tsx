@@ -16,6 +16,7 @@ import CustomLineChart, { CustomLineChartInsideData } from '@/components/CustomL
 import { exportBacktestPdf } from '@/lib/pdfGenerator/backtest';
 import CustomPieChart, { PieChartSlice } from '@/components/CustomPieChart';
 import CustomBarChart, { CustomBarChartData, CustomBarChartMetric } from '@/components/CustomBarChart';
+import FullScreenLoading from '@/section/FullScreenLoading';
 
 const BacktestPage = () => {
     const router = useRouter();
@@ -50,8 +51,11 @@ const BacktestPage = () => {
 
     const updateUserStrategy = async (strategy: StrategyBacktestResult) => {
         if (!User) return;
-        setUser((prev) => prev ? { ...prev, StrategyName: strategy.strategyName } : prev);
-        await updateUser(User);
+        const updatedUser = await updateUser({
+            ...User,
+            StrategyName: strategy.strategyName
+        });
+        setUser(updatedUser);
 
         await server({ request: "restart", targetBot: User.BotID });
         fetchData();
@@ -133,6 +137,7 @@ const BacktestPage = () => {
                     setConfirmModal((prev) => ({ ...prev, isLoading: true }));
                     try {
                         await updateUserStrategy(strategy);
+                        await loadUser();
                         showToast(
                             `Strategy "${strategy.strategyName}" successfully applied to your bot profile in database!`,
                             'success'
@@ -161,16 +166,17 @@ const BacktestPage = () => {
         }, 6000);
     };
 
-    useEffect(() => {
+    const loadUser = async () => {
         if (!user || !user.uid) return;
-        const loadUser = async () => {
-            const _user = await getUserByBotID(user.uid);
-            if (!_user) return;
-            setUser(_user);
+        const _user = await getUserByBotID(user.uid);
+        if (!_user) return;
+        setUser(_user);
 
-            const summaries = await getRecentBacktestSummary();
-            setDailyRuns(summaries);
-        }
+        const summaries = await getRecentBacktestSummary();
+        setDailyRuns(summaries);
+    }
+
+    useEffect(() => {
         loadUser();
     }, [user])
 
@@ -299,6 +305,10 @@ const BacktestPage = () => {
             description: 'Total number of profitable trade setups triggered by direction',
         },
     ], []);
+
+    if (confirmModal.isLoading) {
+        return <FullScreenLoading message='Working..' />
+    }
 
     return (
         <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans">
