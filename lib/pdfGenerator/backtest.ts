@@ -14,7 +14,6 @@ export interface ExportPdfOptions {
     strategy: StrategyBacktestResult;
     dayWiseData: Array<{ id: number; date: string; value: number }>;
 }
-
 export async function exportBacktestPdf({
     summary,
     strategy,
@@ -142,6 +141,9 @@ export async function exportBacktestPdf({
     const gridW = (contentWidth - 6) / 3;
     const gridH = 15;
 
+    const isInfinitePF = strategy.metrics.profitFactor < 0;
+    const infinityIconImg = isInfinitePF ? generateLucideInfinityImage() : '';
+
     const kpis = [
         {
             label: 'NET PROFIT (USDT)',
@@ -157,9 +159,10 @@ export async function exportBacktestPdf({
         },
         {
             label: 'PROFIT FACTOR',
-            val: strategy.metrics.profitFactor.toFixed(2),
-            sub: strategy.metrics.profitFactor >= 1.5 ? 'Strong Yield' : 'Moderate',
-            isPositive: strategy.metrics.profitFactor >= 1.2,
+            val: isInfinitePF ? '' : strategy.metrics.profitFactor.toFixed(2),
+            sub: isInfinitePF || strategy.metrics.profitFactor >= 80 ? 'Strong Yield' : 'Moderate',
+            isPositive: isInfinitePF,
+            isInfinity: isInfinitePF,
         },
         {
             label: 'MAX DRAWDOWN',
@@ -196,12 +199,17 @@ export async function exportBacktestPdf({
 
         doc.setFont(PDF_HEADING_FONT, 'bold');
         doc.setFontSize(10);
-        if (idx === 0) {
-            doc.setTextColor(kpi.isPositive ? emeraldColor[0] : roseColor[0], kpi.isPositive ? emeraldColor[1] : roseColor[1], kpi.isPositive ? emeraldColor[2] : roseColor[2]);
+
+        if (kpi.isInfinity && infinityIconImg) {
+            doc.addImage(infinityIconImg, 'PNG', xPos + 4, yPos + 5, 6.5, 6.5);
         } else {
-            doc.setTextColor(textWhite[0], textWhite[1], textWhite[2]);
+            if (idx === 0) {
+                doc.setTextColor(kpi.isPositive ? emeraldColor[0] : roseColor[0], kpi.isPositive ? emeraldColor[1] : roseColor[1], kpi.isPositive ? emeraldColor[2] : roseColor[2]);
+            } else {
+                doc.setTextColor(textWhite[0], textWhite[1], textWhite[2]);
+            }
+            doc.text(kpi.val, xPos + 4, yPos + 9.5);
         }
-        doc.text(kpi.val, xPos + 4, yPos + 9.5);
 
         doc.setFont(PDF_BODY_FONT, 'normal');
         doc.setFontSize(6.5);
@@ -940,4 +948,33 @@ function formatPdfTime(timestamp?: number | string): string {
     const h = String(d.getHours()).padStart(2, '0');
     const min = String(d.getMinutes()).padStart(2, '0');
     return `${m}/${day} ${h}:${min}`;
+}
+
+function generateLucideInfinityImage(): string {
+    // High-res 96x96 canvas (4x scale of Lucide's 24x24 grid) for crisp PDF printing
+    const size = 96;
+    const scale = size / 24;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return '';
+
+    ctx.scale(scale, scale);
+
+    // Exact SVG path data from lucide-react's <Infinity /> icon
+    const path = new Path2D(
+        'M12 12c-2-2.67-4-4-6-4a4 4 0 1 0 0 8c2 0 4-1.33 6-4Zm0 0c2 2.67 4 4 6 4a4 4 0 0 0 0-8c-2 0-4 1.33-6 4Z'
+    );
+
+    // Match Tailwind's text-purple-400 (#c084fc) & Lucide's default stroke settings
+    ctx.strokeStyle = '#c084fc';
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    ctx.stroke(path);
+
+    return canvas.toDataURL('image/png');
 }

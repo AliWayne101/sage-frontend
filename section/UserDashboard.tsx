@@ -27,6 +27,7 @@ export interface UserDashboardProps {
 
 const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const [actionNotice, setActionNotice] = useState<string | null>(null);
+    const [errorNotice, setErrorNotice] = useState<string | null>(null);
     const [User, setUser] = useState<IUserInfoRuntime | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [heartbeatData, setHeartbeatData] = useState<BotHeartbeat | undefined>(undefined);
@@ -59,12 +60,12 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         try {
             const _hData = await server<BotHeartbeat>({ request: "heartbeat", targetBot: BotID });
             if (!_hData) {
-                setActionNotice("Unable to load the heartbeat data");
+                setErrorNotice("Unable to load the heartbeat data");
             } else {
                 setHeartbeatData(_hData);
             }
         } catch (error) {
-            setActionNotice("Seems to be an error refreshing");
+            setErrorNotice("Seems to be an error refreshing");
             console.log(error);
         } finally {
             setRefreshing(false);
@@ -80,7 +81,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         if (!User) return;
         const trades = await getRecentTrades(User.Email, 10);
         if (!trades)
-            setActionNotice("There seems to be an issue loading user trades");
+            setErrorNotice("There seems to be an issue loading user trades");
         else
             setLastTrades(trades);
 
@@ -179,18 +180,18 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             const serverResponse = await server({ request: actionState, targetBot: BotID });
 
             if (!serverResponse || typeof serverResponse.success === 'undefined') {
-                setActionNotice("Error: Invalid response from server");
+                setErrorNotice("Error: Invalid response from server");
                 return;
             }
 
             if (!serverResponse.success) {
-                setActionNotice("Unknown server error");
+                setErrorNotice("Unknown server error");
                 return;
             }
 
             setActionNotice(`${actionState} executed successfully!`);
         } catch (error: any) {
-            setActionNotice("Error: Unable to send request to server");
+            setErrorNotice("Error: Unable to send request to server");
         } finally {
             setLoadingAction("null");
         }
@@ -216,9 +217,9 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                     ["IsHalted"]: newTradingState
                 });
             } else
-                setActionNotice(serverResponse.message!);
+                setErrorNotice(serverResponse.message!);
         } catch (error) {
-            setActionNotice("Error: Unable to send request to server");
+            setErrorNotice("Error: Unable to send request to server");
         } finally {
             setLoadingAction("null");
         }
@@ -249,9 +250,10 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     }, [fetchData])
 
     useEffect(() => {
-        if (!actionNotice) return;
+        if (!actionNotice && !errorNotice) return;
         setTimeout(() => setActionNotice(null), 3500);
-    }, [actionNotice])
+        setTimeout(() => setErrorNotice(null), 3500);
+    }, [actionNotice, errorNotice])
 
     if (User === null) {
         return <FullScreenLoading />;
@@ -259,11 +261,15 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
     return (
         <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col font-sans">
-            {/* Action Notification Banner */}
-            {actionNotice && (
-                <div className="fixed bottom-5 right-5 z-50 bg-[#18181b] border border-blue-500/50 shadow-2xl px-4 py-2.5 rounded-md flex items-center gap-2.5 text-xs font-mono text-white animate-in fade-in slide-in-from-bottom-2 duration-200">
-                    <CheckCircle className="w-4 h-4 text-emerald-400" />
-                    <span>{actionNotice}</span>
+            {(actionNotice || errorNotice) && (
+                <div className={`fixed bottom-5 right-5 z-50 bg-[#18181b] border shadow-2xl px-4 py-2.5 rounded-md flex items-center gap-2.5 text-xs font-mono text-white animate-in fade-in slide-in-from-bottom-2 duration-200 ${errorNotice ? 'border-rose-500/50' : 'border-blue-500/50'
+                    }`}>
+                    {errorNotice ? (
+                        <XCircle className="w-4 h-4 text-rose-400" />
+                    ) : (
+                        <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    )}
+                    <span>{errorNotice || actionNotice}</span>
                 </div>
             )}
 
