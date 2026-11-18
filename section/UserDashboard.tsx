@@ -855,7 +855,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                 </p>
                                 {!User?.IsHalted && (
                                     <p className="text-xs text-zinc-500 font-mono mt-0.5">
-                                        Listening to Binance {User?.Symbol || 'BTCUSDT'} candles.
+                                        Listening to Binance {User?.Symbol || 'BTCUSDT'} candles.<br />
                                         {User?.StrategyName && (
                                             <>Strategy: {User?.StrategyName}</>
                                         )}
