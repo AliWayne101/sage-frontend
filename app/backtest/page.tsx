@@ -1207,7 +1207,7 @@ const BacktestPage = () => {
                                                                         {t.durationBars} bars
                                                                     </td>
                                                                     <td className={`py-2.5 px-3 font-bold font-mono align-middle ${isWin ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                                        {isWin ? '' : '-'}{formatCurrency(t.netPnl, 2)} <small>USDT</small>
+                                                                        {isWin ? '+' : ''}{formatCurrency(t.netPnl, 2)} <small>USDT</small>
                                                                     </td>
                                                                     <td className={`py-2.5 px-3 font-mono align-middle ${t.roePercent >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                                                         {t.roePercent >= 0 ? '+' : ''}{t.roePercent.toFixed(2)}%
