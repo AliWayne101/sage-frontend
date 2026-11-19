@@ -66,7 +66,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 setHeartbeatData(_hData);
 
                 const latestCandle = _hData.LatestCandle;
-                if (latestCandle && latestCandle.barIndex !== undefined) {
+                if (latestCandle && latestCandle.barIndex !== undefined && historicalCandles.length > 0) {
                     setHistoricalCandles((prev) => {
                         const lastCandle = prev[prev.length - 1];
                         if (lastCandle && latestCandle.barIndex! <= lastCandle.barIndex!) return prev;
