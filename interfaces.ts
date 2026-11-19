@@ -36,7 +36,7 @@ export interface BotHeartbeat {
     Demo: boolean;
     Status: string;
     Logs: Log[];
-    Candles: Candle[];
+    LatestCandle: Candle;
     Trades: Position[];
     ActiveTrade?: HeartbeatActiveTrade
 }

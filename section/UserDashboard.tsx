@@ -7,7 +7,7 @@ import CustomLineChart from '@/components/CustomLineChart';
 import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
 import { TERMINAL_VER } from '@/configs';
-import { BotHeartbeat, ConfirmModalProps, Direction, IUserInfoRuntime, Log, SLCondition, Strategy, TradeAnalytics } from '@/interfaces';
+import { BotHeartbeat, Candle, ConfirmModalProps, Direction, IUserInfoRuntime, Log, SLCondition, Strategy, TradeAnalytics } from '@/interfaces';
 import { useRouter } from 'next/navigation';
 import { ITrades } from '@/schema/trades';
 import LogTerminal from '@/components/LogTerminal';
@@ -31,6 +31,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const [User, setUser] = useState<IUserInfoRuntime | null>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [heartbeatData, setHeartbeatData] = useState<BotHeartbeat | undefined>(undefined);
+    const [historicalCandles, setHistoricalCandles] = useState<Candle[]>([]);
     const [userStrategy, setUserStrategy] = useState<Strategy | undefined>(undefined);
     const [userDropdownOpen, setUserDropdownOpen] = useState(false);
     const [stratDrawerOpen, setStratDrawerOpen] = useState(false);
@@ -63,6 +64,17 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 setErrorNotice("Unable to load the heartbeat data");
             } else {
                 setHeartbeatData(_hData);
+
+                const latestCandle = _hData.LatestCandle;
+                if (latestCandle && latestCandle.barIndex !== undefined) {
+                    setHistoricalCandles((prev) => {
+                        const lastCandle = prev[prev.length - 1];
+                        if (lastCandle && latestCandle.barIndex! <= lastCandle.barIndex!) return prev;
+
+                        const firstDropped = prev.length > 0 ? prev.slice(1) : [];
+                        return [...firstDropped, latestCandle];
+                    });
+                }
             }
         } catch (error) {
             setErrorNotice("Seems to be an error refreshing");
@@ -90,14 +102,11 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             setTradeAnalytics(_tradeAnalytics);
     }
 
-    useEffect(() => {
-        loadAnalyticsAndTrades();
-    }, [User])
-
     // Audio Alert Hook when active position closes
     useEffect(() => {
         const hasActiveNow = heartbeatData?.ActiveTrade !== null && heartbeatData?.ActiveTrade !== undefined;
         if (prevTradeRef.current && !hasActiveNow) {
+            loadAnalyticsAndTrades();
             try {
                 const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
                 const osc = ctx.createOscillator();
@@ -239,8 +248,12 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
             const _strategy = await server<Strategy | undefined>({ request: "getStrategy", targetBot: BotID });
             setUserStrategy(_strategy);
+
+            const _candles = await server<Candle[]>({ request: "getHistoricalCandles", targetBot: BotID });
+            setHistoricalCandles(_candles);
         }
         loadUser();
+        loadAnalyticsAndTrades();
     }, [BotID])
 
     useEffect(() => {
@@ -251,8 +264,8 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
     useEffect(() => {
         if (!actionNotice && !errorNotice) return;
-        setTimeout(() => setActionNotice(null), 3500);
-        setTimeout(() => setErrorNotice(null), 3500);
+        setTimeout(() => setActionNotice(null), (LOAD_INTERVAL * 1.5));
+        setTimeout(() => setErrorNotice(null), (LOAD_INTERVAL * 1.5));
     }, [actionNotice, errorNotice])
 
     if (User === null) {
@@ -630,11 +643,11 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 {/* Real-time TradingView Candlestick Chart */}
                 <section className="w-full">
                     <TradingViewChart
-                        candles={heartbeatData?.Candles || []}
+                        candles={historicalCandles}
                         position={heartbeatData?.ActiveTrade}
                         trades={heartbeatData?.Trades || []}
-                        symbol={User?.Symbol || heartbeatData?.Candles?.[0]?.symbol || "undefined"}
-                        interval={heartbeatData && heartbeatData.Candles?.length > 0 ? heartbeatData.Candles[0].interval : "undefined"}
+                        symbol={User?.Symbol || heartbeatData?.LatestCandle.symbol || "undefined"}
+                        interval={heartbeatData && heartbeatData.LatestCandle.interval || "1m"}
                         isLoading={heartbeatData === undefined}
                         strategy={userStrategy}
                     />
