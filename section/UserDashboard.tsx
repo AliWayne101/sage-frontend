@@ -64,6 +64,14 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 setErrorNotice("Unable to load the heartbeat data");
             } else {
                 setHeartbeatData(_hData);
+
+                const candleDifference = _hData.LatestCandle.barIndex! - historicalCandlesState[historicalCandlesState.length - 1].barIndex!;
+                if (candleDifference > 1) {
+                    //Candle is missing something in the middle
+                    //We must fetch all the candles because visually it might glitch on chart
+                    const _candles = await server<Candle[]>({ request: "getHistoricalCandles", targetBot: BotID });
+                    setHistoricalCandlesState(_candles);
+                }
             }
         } catch (error) {
             setErrorNotice("Seems to be an error refreshing");
