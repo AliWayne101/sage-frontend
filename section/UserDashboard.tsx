@@ -253,8 +253,11 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             setHistoricalCandles(_candles);
         }
         loadUser();
-        loadAnalyticsAndTrades();
     }, [BotID])
+
+    useEffect(() => {
+        loadAnalyticsAndTrades();
+    }, [User])
 
     useEffect(() => {
         fetchData();
