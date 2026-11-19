@@ -207,6 +207,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         if (lastCandle && lastCandle.barIndex !== undefined && latestCandle.barIndex <= lastCandle.barIndex) {
             return historicalCandlesState;
         }
+        if (historicalCandlesState.length === 0) return historicalCandlesState;
         return [...historicalCandlesState.slice(1), latestCandle];
     }, [heartbeatData?.LatestCandle, historicalCandlesState])
 
