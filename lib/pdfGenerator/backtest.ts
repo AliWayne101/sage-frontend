@@ -147,8 +147,8 @@ export async function exportBacktestPdf({
     const kpis = [
         {
             label: 'NET PROFIT (USDT)',
-            val: `${strategy.netProfit >= 0 ? '+' : '-'}${formatCurrency(strategy.netProfit, 2)} USDT`,
-            sub: `${strategy.netProfitPercent >= 0 ? '+' : '-'}${strategy.netProfitPercent.toFixed(2)}% ROI`,
+            val: `${strategy.netProfit >= 0 ? '+' : ''}${formatCurrency(strategy.netProfit, 2)} USDT`,
+            sub: `${strategy.netProfitPercent >= 0 ? '+' : ''}${strategy.netProfitPercent.toFixed(2)}% ROI`,
             isPositive: strategy.netProfit >= 0,
         },
         {
@@ -262,7 +262,7 @@ export async function exportBacktestPdf({
     doc.setFontSize(7.8);
     doc.setTextColor(isNetPositive ? emeraldColor[0] : roseColor[0], isNetPositive ? emeraldColor[1] : roseColor[1], isNetPositive ? emeraldColor[2] : roseColor[2]);
     doc.text(
-        `Net Performance Delta: ${isNetPositive ? '+' : '-'}${formatCurrency(strategy.netProfit, 2)} USDT (${isNetPositive ? '+' : ''}${strategy.netProfitPercent.toFixed(2)}% ROI)`,
+        `Net Performance Delta: ${isNetPositive ? '+' : ''}${formatCurrency(strategy.netProfit, 2)} USDT (${isNetPositive ? '+' : ''}${strategy.netProfitPercent.toFixed(2)}% ROI)`,
         margin + 5,
         curY + 17.5
     );
@@ -432,7 +432,7 @@ export async function exportBacktestPdf({
             } else {
                 doc.setTextColor(roseColor[0], roseColor[1], roseColor[2]);
             }
-            doc.text(`${isWin ? '+' : '-'}${formatCurrency(trade.netPnl, 2)}`, cellX, p2Y + 6);
+            doc.text(`${isWin ? '+' : ''}${formatCurrency(trade.netPnl, 2)}`, cellX, p2Y + 6);
             cellX += colWidths[6];
 
             // Col 7: ROE %
@@ -546,7 +546,7 @@ function generateEquityChartImage(
     ctx.fillText(`Strategy: ${strategyName.toUpperCase()}`, padLeft, 60);
 
     const isPos = totalNetPnl >= 0;
-    const badgeText = `TOTAL PnL: ${isPos ? '+' : '-'}${formatCurrency(totalNetPnl, 2)} ${currency}`;
+    const badgeText = `TOTAL PnL: ${isPos ? '+' : ''}${formatCurrency(totalNetPnl, 2)} ${currency}`;
     ctx.font = `bold 18px ${PDF_CANVAS_FONT}`;
     const badgeW = ctx.measureText(badgeText).width + 30;
     ctx.fillStyle = isPos ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)';
