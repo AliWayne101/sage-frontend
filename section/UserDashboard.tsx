@@ -196,8 +196,8 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     }
 
     const HistoricalCandles = useMemo(() => {
-        if (!heartbeatData) return historicalCandlesState;
-        
+        if (!heartbeatData || historicalCandlesState.length === 0) return historicalCandlesState;
+
         const latestCandle = heartbeatData.LatestCandle;
         if (!latestCandle || latestCandle.barIndex === undefined) {
             return historicalCandlesState;
@@ -207,7 +207,6 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         if (lastCandle && lastCandle.barIndex !== undefined && latestCandle.barIndex <= lastCandle.barIndex) {
             return historicalCandlesState;
         }
-        if (historicalCandlesState.length === 0) return historicalCandlesState;
         return [...historicalCandlesState.slice(1), latestCandle];
     }, [heartbeatData?.LatestCandle, historicalCandlesState])
 
