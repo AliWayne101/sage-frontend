@@ -56,6 +56,9 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const { user } = useAuth();
     const prevTradeRef = useRef<boolean>(false);
 
+    //Under development
+    //It must reset the timer of progressBar whenever it trade exits
+
     const fetchData = useCallback(async () => {
         setRefreshing(true);
         try {
