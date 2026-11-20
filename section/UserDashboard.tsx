@@ -68,6 +68,8 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 setErrorNotice("Unable to load the heartbeat data");
             } else {
                 setHeartbeatData(_hData);
+                //Debugging
+                if (_hData.LatestCandle.barIndex === undefined  || _hData.LatestCandle.barIndex === 0) console.log(_hData.LatestCandle);
 
                 if (historicalCandlesState.length > 0) {
                     const historicalCandle = historicalCandlesState[historicalCandlesState.length - 1];
