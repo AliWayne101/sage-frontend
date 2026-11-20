@@ -37,6 +37,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const [stratDrawerOpen, setStratDrawerOpen] = useState(false);
     const [loadingAction, setLoadingAction] = useState("null");
     const [lastTrades, setLastTrades] = useState<ITrades[]>([]);
+    const candlesRef = useRef<Candle[]>([]);
     const [tradeAnalytics, setTradeAnalytics] = useState<TradeAnalytics>({
         cumulativePnlData: [],
         breakdownData: {
@@ -56,30 +57,40 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
     const { user } = useAuth();
     const prevTradeRef = useRef<boolean>(false);
 
-    //Under development
-    //It must reset the timer of progressBar whenever it trade exits
-    //Somehow candles still have different or not being rendered properly
-
     const fetchData = useCallback(async () => {
         setRefreshing(true);
         try {
             const _hData = await server<BotHeartbeat>({ request: "heartbeat", targetBot: BotID });
             if (!_hData) {
                 setErrorNotice("Unable to load the heartbeat data");
-            } else {
-                setHeartbeatData(_hData);
-                //Debugging
-                if (_hData.LatestCandle?.barIndex === undefined  || _hData.LatestCandle?.barIndex === 0) console.log(_hData.LatestCandle);
+                return;
+            }
 
-                if (historicalCandlesState.length > 0) {
-                    const historicalCandle = historicalCandlesState[historicalCandlesState.length - 1];
-                    if (_hData.LatestCandle.barIndex !== undefined && historicalCandle.barIndex !== undefined) {
-                        const candleDifference = _hData.LatestCandle.barIndex - historicalCandle.barIndex;
-                        if (candleDifference > 1) {
-                            //Candle is missing something in the middle
-                            //We must fetch all the candles because visually it might glitch on chart
-                            const _candles = await server<Candle[]>({ request: "getHistoricalCandles", targetBot: BotID });
+            setHeartbeatData(_hData);
+
+            const currentCandles = candlesRef.current;
+            const latest = _hData.LatestCandle;
+            if (currentCandles.length > 0) {
+                const lastHist = currentCandles[currentCandles.length - 1];
+                if (latest?.barIndex === undefined || latest?.barIndex === 0) {
+                    console.log(latest);
+                }
+
+                if (latest?.barIndex !== undefined && lastHist?.barIndex !== undefined) {
+                    const gap = latest.barIndex - lastHist.barIndex;
+
+                    if (gap > 1) {
+                        console.log("Force fetching the historical data");
+                        const _candles = await server<Candle[]>({ request: "getHistoricalCandles", targetBot: BotID });
+                        if (Array.isArray(_candles) && _candles.length > 0) {
+                            candlesRef.current = _candles;
                             setHistoricalCandlesState(_candles);
+                        }
+                    } else {
+                        if (lastHist.barIndex < latest.barIndex) {
+                            const nextCandles = [...currentCandles.slice(1), latest];
+                            candlesRef.current = nextCandles;
+                            setHistoricalCandlesState(nextCandles);
                         }
                     }
                 }
@@ -90,7 +101,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         } finally {
             setRefreshing(false);
         }
-    }, [User, BotID])
+    }, [BotID])
 
     const manualRefresh = async () => {
         await fetchData();
@@ -214,21 +225,6 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         }
     }
 
-    const HistoricalCandles = useMemo(() => {
-        if (!heartbeatData || historicalCandlesState.length === 0) return historicalCandlesState;
-
-        const latestCandle = heartbeatData.LatestCandle;
-        if (!latestCandle || latestCandle.barIndex === undefined) {
-            return historicalCandlesState;
-        }
-
-        const lastCandle = historicalCandlesState[historicalCandlesState.length - 1];
-        if (lastCandle && lastCandle.barIndex !== undefined && latestCandle.barIndex <= lastCandle.barIndex) {
-            return historicalCandlesState;
-        }
-        return [...historicalCandlesState.slice(1), latestCandle];
-    }, [heartbeatData?.LatestCandle, historicalCandlesState])
-
     const botLogs = useMemo(() => {
         if (!heartbeatData) return [];
         const newLogs = heartbeatData.Logs.filter(
@@ -293,6 +289,10 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         setTimeout(() => setActionNotice(null), (LOAD_INTERVAL * 1.5));
         setTimeout(() => setErrorNotice(null), (LOAD_INTERVAL * 1.5));
     }, [actionNotice, errorNotice])
+
+    useEffect(() => {
+        candlesRef.current = historicalCandlesState;
+    }, [historicalCandlesState]);
 
     if (User === null) {
         return <FullScreenLoading />;
@@ -669,7 +669,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 {/* Real-time TradingView Candlestick Chart */}
                 <section className="w-full">
                     <TradingViewChart
-                        candles={HistoricalCandles}
+                        candles={historicalCandlesState}
                         position={heartbeatData?.ActiveTrade}
                         trades={heartbeatData?.Trades || []}
                         symbol={User?.Symbol || heartbeatData?.LatestCandle?.symbol || "undefined"}
