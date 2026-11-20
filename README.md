@@ -159,12 +159,13 @@ Before running the project locally, make sure you have:
 
 ## Environment Variables
 
-Create a `.env.local` file in the project root with values similar to the following:
+Create a `.env` file in the project root with values similar to the following:
 
 ```env
 MONGODB_ACCESS=mongodb+srv://<username>:<password>@<cluster>/<database>
 NEXTAUTH_SECRET=your-nextauth-secret
 NEXTAUTH_URL=http://localhost:3000
+TZ="Asia/Karachi"
 ENCRYPTION_KEY=64_hexadecimal_characters
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret

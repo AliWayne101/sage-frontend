@@ -25,6 +25,9 @@ const parseIntervalToMs = (intervalStr: string): number => {
     return 60000;
 };
 
+const TZ_OFFSET_SEC = 5 * 60 * 60; // +05:00
+const toLocalTs = (ms: number): UTCTimestamp => (Math.floor(ms / 1000) + TZ_OFFSET_SEC) as UTCTimestamp;
+
 const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trades, strategy }: TradingViewChartInterface) => {
 
     const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -116,7 +119,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
             const candle = barIndexToCandleMap.get(openBar);
             if (candle) {
                 markers.push({
-                    time: Math.floor(candle.open_time / 1000) as UTCTimestamp,
+                    time: toLocalTs(candle.open_time) as UTCTimestamp,
                     position: isLong ? 'belowBar' : 'aboveBar',
                     color: isOpen
                         ? (isLong ? '#2dd4bf' : '#f472b6')
@@ -136,7 +139,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
                 if (exitCandle) {
                     const isWin = (trade.realizedPnl ?? 0) >= 0;
                     markers.push({
-                        time: Math.floor(exitCandle.open_time / 1000) as UTCTimestamp,
+                        time: toLocalTs(exitCandle.open_time) as UTCTimestamp,
                         position: isLong ? 'aboveBar' : 'belowBar',
                         color: isWin ? '#059669' : '#e11d48',
                         shape: isLong ? 'arrowDown' : 'arrowUp',
@@ -155,7 +158,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
             if (candle) {
                 const isLong = position.side === Direction.Long;
                 markers.push({
-                    time: Math.floor(candle.open_time / 1000) as UTCTimestamp,
+                    time: toLocalTs(candle.open_time) as UTCTimestamp,
                     position: isLong ? 'belowBar' : 'aboveBar',
                     color: isLong ? '#2dd4bf' : '#f472b6', // Open active color
                     shape: isLong ? 'arrowUp' : 'arrowDown',
@@ -297,7 +300,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
             const candlePoint = param.seriesData.get(candleSeries) as any;
             if (candlePoint) {
                 // Find corresponding candle from input dataset to display exact barIndex
-                const matched = candlesRef.current.find((c) => Math.floor(c.open_time / 1000) === (param.time as number));
+                const matched = candlesRef.current.find((c) => toLocalTs(c.open_time) === (param.time as number));
                 if (matched) {
                     setHoveredCandle(matched);
                 } else {
@@ -357,7 +360,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
 
         // Format candlestick data with UTC timestamp in seconds and guarantee valid OHLC
         const formattedCandles = candles.map((c) => ({
-            time: Math.floor(c.open_time / 1000) as UTCTimestamp,
+            time: toLocalTs(c.open_time) as UTCTimestamp,
             open: c.open,
             high: Math.max(c.open, c.close, c.high),
             low: Math.min(c.open, c.close, c.low),
@@ -377,7 +380,7 @@ const TradingViewChart = ({ candles, interval, isLoading, position, symbol, trad
             const formattedVolume = candles.map((c) => {
                 const isBull = c.close >= c.open;
                 return {
-                    time: Math.floor(c.open_time / 1000) as UTCTimestamp,
+                    time: toLocalTs(c.open_time) as UTCTimestamp,
                     value: c.volume,
                     color: isBull ? 'rgba(16, 185, 129, 0.28)' : 'rgba(244, 63, 94, 0.28)',
                 };

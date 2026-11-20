@@ -1,6 +1,5 @@
 "use server"
 
-import { CustomLineChartInsideData } from "@/components/CustomLineChart";
 import { SUPER_USER_ROLE } from "@/constants";
 import { Exchange, TradeAnalytics, TradesStatsResults } from "@/interfaces";
 import { connectDB } from "@/lib/mongoose";
@@ -112,14 +111,14 @@ export const getUserTrades = async (botID: string, targetDates: { fromDate: stri
 
     const _timestamp: Record<string, number> = {};
     if (targetDates?.fromDate?.trim()) {
-        const startTimestamp = new Date(`${targetDates.fromDate.trim()}T00:00:00.000Z`).getTime();
+        const startTimestamp = new Date(`${targetDates.fromDate.trim().slice(0, 10)}T00:00:00.000+05:00`).getTime();
         if (!isNaN(startTimestamp)) {
             _timestamp.$gte = startTimestamp;
         }
     }
 
     if (targetDates?.toDate?.trim()) {
-        const endTimestamp = new Date(`${targetDates.toDate.trim()}T23:59:59.999Z`).getTime();
+        const endTimestamp = new Date(`${targetDates.toDate.trim().slice(0, 10)}T23:59:59.999+05:00`).getTime();
         if (!isNaN(endTimestamp)) {
             _timestamp.$lte = endTimestamp;
         }

@@ -16,11 +16,11 @@ export const getTransactionsByTimeRange = async (botId: string, from: string, to
     if (botId !== session.user.uid && session.user.accountType !== SUPER_USER_ROLE)
         return null;
 
-    const startDate = new Date(from);
-    startDate.setUTCHours(0, 0, 0, 0);
+    const startDate = new Date(`${from.trim().slice(0, 10)}T00:00:00`);
+    startDate.setHours(0, 0, 0, 0);
 
-    const endDate = new Date(to);
-    endDate.setUTCHours(23, 59, 59, 999);
+    const endDate = new Date(`${to.trim().slice(0, 10)}T00:00:00`);
+    endDate.setHours(23, 59, 59, 999);
 
     const transactions = await TransactionModel.find({
         BotID: botId,
