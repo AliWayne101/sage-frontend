@@ -69,7 +69,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             } else {
                 setHeartbeatData(_hData);
                 //Debugging
-                if (_hData.LatestCandle.barIndex === undefined  || _hData.LatestCandle.barIndex === 0) console.log(_hData.LatestCandle);
+                if (_hData.LatestCandle?.barIndex === undefined  || _hData.LatestCandle?.barIndex === 0) console.log(_hData.LatestCandle);
 
                 if (historicalCandlesState.length > 0) {
                     const historicalCandle = historicalCandlesState[historicalCandlesState.length - 1];
@@ -672,8 +672,8 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         candles={HistoricalCandles}
                         position={heartbeatData?.ActiveTrade}
                         trades={heartbeatData?.Trades || []}
-                        symbol={User?.Symbol || heartbeatData?.LatestCandle.symbol || "undefined"}
-                        interval={heartbeatData && heartbeatData.LatestCandle.interval || "1m"}
+                        symbol={User?.Symbol || heartbeatData?.LatestCandle?.symbol || "undefined"}
+                        interval={heartbeatData && heartbeatData.LatestCandle?.interval || "1m"}
                         isLoading={heartbeatData === undefined}
                         strategy={userStrategy}
                     />
