@@ -58,7 +58,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
     //Under development
     //It must reset the timer of progressBar whenever it trade exits
-    //TradingViewChart is showing data based upon 00:00 meanwhile Pakistani time is +05:00 fix it
+    //Somehow candles still have different or not being rendered properly
 
     const fetchData = useCallback(async () => {
         setRefreshing(true);
