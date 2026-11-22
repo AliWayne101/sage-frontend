@@ -742,56 +742,51 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                 const isPos = pos.unrealizedPnl > 0;
                                 const isRoePos = pos.roe > 0;
 
+                                const tpPerc = userStrategy?.risk?.tpPerc || 0.02;
+                                const tpPrice = isLong
+                                    ? pos.entryPrice * (1 + tpPerc)
+                                    : pos.entryPrice * (1 - tpPerc);
+
+                                const isDynamicSL = userStrategy?.risk?.slCondition === SLCondition.DynamicSL;
+                                const slPerc = userStrategy?.risk?.slPerc || 0.01;
+
+                                const dangerPrice = isDynamicSL
+                                    ? (isLong ? pos.entryPrice * (1 - slPerc) : pos.entryPrice * (1 + slPerc))
+                                    : pos.liqPrice;
+
+                                const dangerLabel = isDynamicSL ? 'Stop Loss' : 'Liquidation';
+
+                                // 3. Calculate Directional Progress (0% to 100% of respective half)
+                                const priceDelta = isLong
+                                    ? (pos.markPrice - pos.entryPrice)
+                                    : (pos.entryPrice - pos.markPrice);
+
+                                const isWinning = priceDelta >= 0;
+
+                                let halfWidthPercent = 0;
+                                if (isWinning) {
+                                    const maxRewardDist = Math.abs(tpPrice - pos.entryPrice);
+                                    halfWidthPercent = maxRewardDist > 0
+                                        ? Math.min((priceDelta / maxRewardDist) * 100, 100)
+                                        : 0;
+                                } else {
+                                    const maxRiskDist = Math.abs(dangerPrice - pos.entryPrice);
+                                    halfWidthPercent = maxRiskDist > 0
+                                        ? Math.min((Math.abs(priceDelta) / maxRiskDist) * 100, 100)
+                                        : 0;
+                                }
+
+                                const trackFillWidth = halfWidthPercent * 0.5;
                                 return (
-                                    <div
-                                        key={`${pos.symbol}_${pos.orderId}`}
-                                        className={`bg-[#09090b] border rounded-lg p-3 sm:p-4 transition-colors border-[#27272a]`}
-                                    >
-                                        {/* Position Card Sub-Header */}
-                                        <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-zinc-800/80">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span className="font-bold text-sm font-mono text-white">{pos.symbol}</span>
-                                                <span
-                                                    className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${isLong
-                                                        ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
-                                                        : 'text-rose-400 bg-rose-950/60 border-rose-800'
-                                                        }`}
-                                                >
-                                                    {isLong ? 'LONG' : 'SHORT'}
-                                                </span>
-                                                {isPrimarySymbol && (
-                                                    <span className="text-[9.5px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-950/60 text-blue-300 border border-blue-800/80">
-                                                        PRIMARY
-                                                    </span>
-                                                )}
-                                                {!isPrimarySymbol && (
-                                                    <span className="text-[9.5px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/80">
-                                                        SECONDARY
-                                                    </span>
-                                                )}
-                                                <span className="text-[10.5px] font-mono text-zinc-500">
-                                                    Order ID: {pos.orderId}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleForceClose(pos)}
-                                                    disabled={loadingAction === 'forceClose'}
-                                                    className="px-2.5 py-1 rounded bg-rose-950/60 border border-rose-800 text-rose-300 hover:bg-rose-900/80 text-[10px] font-mono transition-colors"
-                                                >
-                                                    Close Position
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Position Metrics 8-Column Grid */}
-                                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-4">
-                                            {/* Pair & Side */}
-                                            <div className="space-y-1">
-                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Side</span>
-                                                <div className="flex items-center gap-1.5">
+                                    <>
+                                        <div
+                                            key={`${pos.symbol}_${pos.orderId}`}
+                                            className={`bg-[#09090b] border rounded-lg p-3 sm:p-4 transition-colors border-[#27272a]`}
+                                        >
+                                            {/* Position Card Sub-Header */}
+                                            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-zinc-800/80">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="font-bold text-sm font-mono text-white">{pos.symbol}</span>
                                                     <span
                                                         className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${isLong
                                                             ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
@@ -800,85 +795,164 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                                     >
                                                         {isLong ? 'LONG' : 'SHORT'}
                                                     </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Entry Price */}
-                                            <div className="space-y-1">
-                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Entry Price</span>
-                                                <span className="font-mono text-sm font-semibold text-zinc-200">
-                                                    ${formatCurrency(pos.entryPrice, 2)}
-                                                </span>
-                                            </div>
-
-                                            {/* Mark Price */}
-                                            <div className="space-y-1">
-                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Mark Price</span>
-                                                <span className="font-mono text-sm font-semibold text-zinc-200">
-                                                    ${formatCurrency(pos.markPrice, 2)}
-                                                </span>
-                                            </div>
-
-                                            {/* Size / Notional */}
-                                            <div className="space-y-1">
-                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Size (Notional)</span>
-                                                <div className="flex flex-col">
-                                                    <span className="font-mono text-sm font-semibold text-zinc-200">
-                                                        {pos.size}
-                                                    </span>
-                                                    <span className="font-mono text-[10.5px] text-zinc-500">
-                                                        ≈ ${formatCurrency(pos.notional, 2)}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Liquidation Price */}
-                                            <div className="space-y-1">
-                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Liq. Price</span>
-                                                <span className="font-mono text-sm font-semibold text-amber-400">
-                                                    ${formatCurrency(pos.liqPrice, 2)}
-                                                </span>
-                                            </div>
-
-                                            {/* Margin Buffer */}
-                                            <div className="space-y-1">
-                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Margin Buffer</span>
-                                                <div className="flex items-center gap-1">
-                                                    <span className="font-mono text-sm font-semibold text-emerald-400">
-                                                        {pos.marginBuffer.toFixed(2)}<small> USDT</small>
-                                                    </span>
-                                                    {User?.AvoidLiquidation && (
-                                                        <span className="text-[7px] px-1 bg-blue-950 text-blue-400 border border-blue-800 rounded">
-                                                            AUTO-ADD
+                                                    {isPrimarySymbol && (
+                                                        <span className="text-[9.5px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-950/60 text-blue-300 border border-blue-800/80">
+                                                            PRIMARY
                                                         </span>
                                                     )}
+                                                    {!isPrimarySymbol && (
+                                                        <span className="text-[9.5px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/80">
+                                                            SECONDARY
+                                                        </span>
+                                                    )}
+                                                    <span className="text-[10.5px] font-mono text-zinc-500">
+                                                        Order ID: {pos.orderId}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleForceClose(pos)}
+                                                        disabled={loadingAction === 'forceClose'}
+                                                        className="px-2.5 py-1 rounded bg-rose-950/60 border border-rose-800 text-rose-300 hover:bg-rose-900/80 text-[10px] font-mono transition-colors"
+                                                    >
+                                                        Close Position
+                                                    </button>
                                                 </div>
                                             </div>
 
-                                            {/* Un-realized PnL (USDT) */}
-                                            <div className="space-y-1">
-                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Unrealized PnL</span>
-                                                <span
-                                                    className={`font-mono text-sm font-bold flex items-center gap-0.5 ${isPos ? 'text-emerald-400' : 'text-rose-400'
-                                                        }`}
-                                                >
-                                                    {isPos ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                                                    {isPos ? '+' : ''}{formatCurrency(pos.unrealizedPnl, 2)}<small> USDT</small>
+                                            {/* Position Metrics 8-Column Grid */}
+                                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-4">
+                                                {/* Pair & Side */}
+                                                <div className="space-y-1">
+                                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Side</span>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span
+                                                            className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${isLong
+                                                                ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
+                                                                : 'text-rose-400 bg-rose-950/60 border-rose-800'
+                                                                }`}
+                                                        >
+                                                            {isLong ? 'LONG' : 'SHORT'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Entry Price */}
+                                                <div className="space-y-1">
+                                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Entry Price</span>
+                                                    <span className="font-mono text-sm font-semibold text-zinc-200">
+                                                        ${formatCurrency(pos.entryPrice, 2)}
+                                                    </span>
+                                                </div>
+
+                                                {/* Mark Price */}
+                                                <div className="space-y-1">
+                                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Mark Price</span>
+                                                    <span className="font-mono text-sm font-semibold text-zinc-200">
+                                                        ${formatCurrency(pos.markPrice, 2)}
+                                                    </span>
+                                                </div>
+
+                                                {/* Size / Notional */}
+                                                <div className="space-y-1">
+                                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Size (Notional)</span>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-mono text-sm font-semibold text-zinc-200">
+                                                            {pos.size}
+                                                        </span>
+                                                        <span className="font-mono text-[10.5px] text-zinc-500">
+                                                            ≈ ${formatCurrency(pos.notional, 2)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Liquidation Price */}
+                                                <div className="space-y-1">
+                                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Liq. Price</span>
+                                                    <span className="font-mono text-sm font-semibold text-amber-400">
+                                                        ${formatCurrency(pos.liqPrice, 2)}
+                                                    </span>
+                                                </div>
+
+                                                {/* Margin Buffer */}
+                                                <div className="space-y-1">
+                                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Margin Buffer</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="font-mono text-sm font-semibold text-emerald-400">
+                                                            {pos.marginBuffer.toFixed(2)}<small> USDT</small>
+                                                        </span>
+                                                        {User?.AvoidLiquidation && (
+                                                            <span className="text-[7px] px-1 bg-blue-950 text-blue-400 border border-blue-800 rounded">
+                                                                AUTO-ADD
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Un-realized PnL (USDT) */}
+                                                <div className="space-y-1">
+                                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Unrealized PnL</span>
+                                                    <span
+                                                        className={`font-mono text-sm font-bold flex items-center gap-0.5 ${isPos ? 'text-emerald-400' : 'text-rose-400'
+                                                            }`}
+                                                    >
+                                                        {isPos ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                                                        {isPos ? '+' : ''}{formatCurrency(pos.unrealizedPnl, 2)}<small> USDT</small>
+                                                    </span>
+                                                </div>
+
+                                                {/* ROE % */}
+                                                <div className="space-y-1">
+                                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">ROE %</span>
+                                                    <span
+                                                        className={`font-mono text-sm font-bold ${isRoePos ? 'text-emerald-400' : 'text-rose-400'
+                                                            }`}
+                                                    >
+                                                        {pos.roe.toFixed(2)}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-3 pt-3 border-t border-[#27272a]/60 space-y-1.5">
+                                            {/* Top Labels */}
+                                            <div className="flex justify-between items-center text-[10px] font-mono text-zinc-400">
+                                                <span className="text-rose-400">
+                                                    {dangerLabel}
+                                                </span>
+                                                <span className="text-emerald-400">
+                                                    Take Profit Target
                                                 </span>
                                             </div>
 
-                                            {/* ROE % */}
-                                            <div className="space-y-1">
-                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">ROE %</span>
-                                                <span
-                                                    className={`font-mono text-sm font-bold ${isRoePos ? 'text-emerald-400' : 'text-rose-400'
-                                                        }`}
-                                                >
-                                                    {pos.roe.toFixed(2)}%
-                                                </span>
+                                            {/* Center-Anchored Track */}
+                                            <div className="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden border border-zinc-800 relative flex items-center">
+                                                {/* Center Entry Anchor Marker */}
+                                                <div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-zinc-400 z-10 -translate-x-1/2" />
+
+                                                {isWinning ? (
+                                                    /* Expands Right from 50% -> 100% (Green) */
+                                                    <div
+                                                        className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500 rounded-r-full"
+                                                        style={{
+                                                            marginLeft: '50%',
+                                                            width: `${trackFillWidth}%`,
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div
+                                                        className="h-full bg-gradient-to-l from-rose-600 to-rose-400 transition-all duration-500 rounded-l-full"
+                                                        style={{
+                                                            marginLeft: `${50 - trackFillWidth}%`,
+                                                            width: `${trackFillWidth}%`,
+                                                        }}
+                                                    />
+                                                )}
                                             </div>
                                         </div>
-                                    </div>
+                                    </>
                                 );
                             })}
                         </div>
