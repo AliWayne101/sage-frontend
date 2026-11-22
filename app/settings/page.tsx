@@ -599,6 +599,7 @@ const Settings = () => {
                                             }
                                             className="w-full bg-[#121214] border border-[#27272a] focus:border-emerald-500 rounded px-3 py-2 text-xs font-mono text-zinc-200 outline-none cursor-pointer"
                                         >
+                                            <option key={''} value={''}>Select a trading pair..</option>
                                             {DEFAULT_SECONDARY_PAIRS.map((opt) => (
                                                 <option key={opt} value={opt} disabled={opt === userData?.Symbol}>
                                                     {opt} {opt === userData?.Symbol ? '— (Primary Selected)' : ''}
