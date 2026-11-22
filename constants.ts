@@ -30,3 +30,7 @@ export const DEFAULT_ASSET_PAIRS = [
     'XRPUSDT',
     'DOGEUSDT',
 ];
+
+export const DEFAULT_SECONDARY_PAIRS = [
+    'BTCUSDT',
+]

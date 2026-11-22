@@ -64,7 +64,8 @@ export interface IUserInfo {
     AccountType: string;
     StrategyName?: string;
     Leverage: number;
-    Symbol?: string;
+    Symbol?: string
+    SecondarySymbol: string;
     IsActive: boolean;
     LiveStats: IAccountPerformance;
     DemoStats: IAccountPerformance;
@@ -91,6 +92,7 @@ const User = new Schema<IUserInfo>({
     StrategyName: { type: String, default: "" },
     Leverage: { type: Number, default: 1 },
     Symbol: { type: String, default: '' },
+    SecondarySymbol: {type: String, default: ''},
     IsActive: { type: Boolean, default: true },
     LiveStats: {
         type: AccountPerformanceSchema,

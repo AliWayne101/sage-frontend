@@ -38,7 +38,7 @@ export interface BotHeartbeat {
     Logs: Log[];
     LatestCandle: Candle;
     Trades: Position[];
-    ActiveTrade?: HeartbeatActiveTrade
+    ActiveTrades: HeartbeatActiveTrade[]
 }
 
 export interface Log {

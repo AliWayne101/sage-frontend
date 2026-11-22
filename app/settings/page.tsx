@@ -1,5 +1,5 @@
 "use client"
-import { Lock, AlertTriangle, ArrowLeft, CheckCircle2, Compass, Key, Radio, Scale, Shield, Sliders, DollarSign, RefreshCw, Save, AlertOctagon, Plus, Activity, Tag, CheckCircle, Check, Copy, X, Box, Globe, Zap } from 'lucide-react'
+import { Lock, AlertTriangle, ArrowLeft, CheckCircle2, Compass, Key, Radio, Scale, Shield, Sliders, DollarSign, RefreshCw, Save, AlertOctagon, Plus, Activity, Tag, CheckCircle, Check, Copy, X, Box, Globe, Zap, LayersIcon, User } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../AuthProvider';
@@ -9,9 +9,11 @@ import { formatCurrency, getTradingSymbols } from '@/utils';
 import { getUserByEmail, updateUser, updateUserDemoMode } from '../actions/user.actions';
 import { server } from '../actions/server.actions';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import { DEFAULT_SECONDARY_PAIRS } from '@/constants';
 
 const Settings = () => {
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [secondarySymbolEnabled, setSecondarySymbolEnabled] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [userData, setUserData] = useState<IUserInfoRuntime | undefined>(undefined);
@@ -93,6 +95,7 @@ const Settings = () => {
                     setErrorMessage("Unable to load the user data");
                     return;
                 }
+                if (data.SecondarySymbol.length > 0) setSecondarySymbolEnabled(true);
                 setUserData(data);
             } catch (error) {
                 console.error("Failed to load user:", error);
@@ -511,7 +514,7 @@ const Settings = () => {
                         <div className="space-y-4 sm:space-y-5">
                             {/* Symbol Selection */}
                             <div className="space-y-1.5">
-                                <label className="text-xs font-mono text-zinc-400">Target Trading Pair</label>
+                                <label className="text-xs font-mono text-zinc-400">Target Trading Pair (Primary Symbol)</label>
                                 <select
                                     value={userData?.Symbol}
                                     name={"Symbol"}
@@ -530,6 +533,79 @@ const Settings = () => {
                                         </option>
                                     ))}
                                 </select>
+                            </div>
+
+                            {/* Secondary Symbol Utilization Slider / Toggle */}
+                            <div className="p-3.5 bg-[#09090b] border border-[#27272a] rounded space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="space-y-1 sm:pr-4">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <LayersIcon
+                                                className={`w-3.5 h-3.5 shrink-0 ${secondarySymbolEnabled ? 'text-emerald-400' : 'text-zinc-500'
+                                                    }`}
+                                            />
+                                            <span className="text-xs font-mono font-medium text-zinc-200">
+                                                Secondary Symbol Balance Utilization
+                                            </span>
+                                            <span
+                                                className={`text-[9.5px] font-mono font-bold px-1.5 py-0.5 rounded border ${secondarySymbolEnabled
+                                                    ? 'bg-emerald-950/60 text-emerald-400 border-emerald-800'
+                                                    : 'bg-zinc-900 text-zinc-400 border-zinc-700'
+                                                    }`}
+                                            >
+                                                {secondarySymbolEnabled ? 'ON' : 'OFF'}
+                                            </span>
+                                        </div>
+                                        <p className="text-[10.5px] sm:text-[11px] text-zinc-500 font-mono leading-relaxed">
+                                            Utilizes idle free USDT balance on a secondary symbol whenever your primary pair ({userData?.Symbol}) is
+                                            stuck in an open position, generating additional profit instead of leaving capital unused.
+                                        </p>
+                                    </div>
+
+                                    {/* Interactive Toggle Slider */}
+                                    <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={secondarySymbolEnabled}
+                                        onClick={() => setSecondarySymbolEnabled(!secondarySymbolEnabled)}
+                                        className={`w-11 h-6 rounded-full transition-colors relative p-0.5 border shrink-0 cursor-pointer ${secondarySymbolEnabled
+                                            ? 'bg-emerald-600 border-emerald-500'
+                                            : 'bg-zinc-800 border-zinc-700'
+                                            }`}
+                                        title={`Toggle Secondary Symbol ${secondarySymbolEnabled ? 'OFF' : 'ON'}`}
+                                    >
+                                        <span
+                                            className={`block w-4.5 h-4.5 rounded-full bg-white transition-transform ${secondarySymbolEnabled ? 'translate-x-5' : 'translate-x-0.5'
+                                                }`}
+                                        />
+                                    </button>
+                                </div>
+
+                                {secondarySymbolEnabled && (
+                                    <div className="pt-2.5 border-t border-zinc-800/80 space-y-1.5">
+                                        <label className="text-[11px] font-mono text-zinc-400 flex items-center justify-between">
+                                            <span>Secondary Trading Pair</span>
+                                            <span className="text-[10px] text-emerald-400">Active Fallback Pair</span>
+                                        </label>
+                                        <select
+                                            value={userData?.SecondarySymbol}
+                                            name="SecondarySymbol"
+                                            onChange={(e) =>
+                                                setUserData({
+                                                    ...userData!,
+                                                    [e.target.name]: e.target.value
+                                                })
+                                            }
+                                            className="w-full bg-[#121214] border border-[#27272a] focus:border-emerald-500 rounded px-3 py-2 text-xs font-mono text-zinc-200 outline-none cursor-pointer"
+                                        >
+                                            {DEFAULT_SECONDARY_PAIRS.map((opt) => (
+                                                <option key={opt} value={opt} disabled={opt === userData?.Symbol}>
+                                                    {opt} {opt === userData?.Symbol ? '— (Primary Selected)' : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Leverage Slider */}

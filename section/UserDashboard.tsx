@@ -7,7 +7,7 @@ import CustomLineChart from '@/components/CustomLineChart';
 import CustomBarChart from '@/components/CustomBarChart';
 import { formatCurrency } from '@/utils';
 import { TERMINAL_VER } from '@/configs';
-import { BotHeartbeat, Candle, ConfirmModalProps, Direction, IUserInfoRuntime, Log, SLCondition, Strategy, TradeAnalytics } from '@/interfaces';
+import { BotHeartbeat, Candle, ConfirmModalProps, Direction, HeartbeatActiveTrade, IUserInfoRuntime, Log, SLCondition, Strategy, TradeAnalytics } from '@/interfaces';
 import { useRouter } from 'next/navigation';
 import { ITrades } from '@/schema/trades';
 import LogTerminal from '@/components/LogTerminal';
@@ -121,9 +121,21 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             setTradeAnalytics(_tradeAnalytics);
     }
 
+    const primaryActiveTrade = useMemo(() => {
+        if (!heartbeatData || !User || heartbeatData?.ActiveTrades.length === 0) return undefined;
+        return heartbeatData.ActiveTrades.find((t) => t.symbol === User.Symbol);
+    }, [heartbeatData?.ActiveTrades, User?.Symbol]);
+
+
+    const activeTrades = useMemo(
+        () => heartbeatData?.ActiveTrades ?? [],
+        [heartbeatData?.ActiveTrades]
+    );
+
     // Audio Alert Hook when active position closes
     useEffect(() => {
-        const hasActiveNow = heartbeatData?.ActiveTrade !== null && heartbeatData?.ActiveTrade !== undefined;
+        const tradesLength = heartbeatData?.ActiveTrades.length || 0;
+        const hasActiveNow = tradesLength > 0;
         if (prevTradeRef.current && !hasActiveNow) {
             loadAnalyticsAndTrades();
             try {
@@ -143,15 +155,17 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             }
         }
         prevTradeRef.current = hasActiveNow;
-    }, [heartbeatData?.ActiveTrade]);
+    }, [heartbeatData?.ActiveTrades]);
 
     const closeConfirmModal = () => {
         setConfirmModal({ isOpen: false, message: "", onConfirm: () => { } });
     };
 
-    const handleForceClose = () => {
-        if (!heartbeatData?.ActiveTrade) return;
-        const position = heartbeatData.ActiveTrade;
+    const handleForceClose = (targetTrade?: HeartbeatActiveTrade) => {
+        if (heartbeatData?.ActiveTrades.length === 0) return;
+        const position = targetTrade ?? primaryActiveTrade;
+        if (!position) return;
+
         setConfirmModal({
             isOpen: true,
             title: 'Force Close Position',
@@ -193,13 +207,32 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                     ),
                 },
             ],
-            onConfirm: executeForceClosePosition,
+            onConfirm: async () => executeForceClosePosition(position.symbol),
         });
     }
 
-    const executeForceClosePosition = () => {
+    const executeForceClosePosition = async (symbol: string) => {
         setConfirmModal((prev) => ({ ...prev, isLoading: true }));
-        handleButtonEvents("forceClose");
+        setLoadingAction("forceClose");
+        try {
+            const serverResponse = await server({ request: "forceClose", symbol: symbol, targetBot: BotID });
+
+            if (!serverResponse || typeof serverResponse.success === 'undefined') {
+                setErrorNotice("Error: Invalid response from server");
+                return;
+            }
+
+            if (!serverResponse.success) {
+                setErrorNotice("Unknown server error");
+                return;
+            }
+
+            setActionNotice(`Force Close executed successfully!`);
+        } catch (error: any) {
+            setErrorNotice("Error: Unable to send request to server");
+        } finally {
+            setLoadingAction("null");
+        }
     }
 
     const handleButtonEvents = async (actionState: string) => {
@@ -629,13 +662,13 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         </button>
 
                         <button
-                            onClick={handleForceClose}
-                            disabled={loadingAction === "forceClose" || heartbeatData?.ActiveTrade === null}
-                            className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md font-mono text-xs border transition-all ${heartbeatData?.ActiveTrade !== null
+                            onClick={() => handleForceClose()}
+                            disabled={loadingAction === "forceClose" || primaryActiveTrade === undefined}
+                            className={`flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-md font-mono text-xs border transition-all ${primaryActiveTrade !== undefined
                                 ? 'bg-rose-950/40 text-rose-300 border-rose-800/80 hover:bg-rose-900/50 hover:text-white'
                                 : 'bg-zinc-900/50 text-zinc-500 border-zinc-800 cursor-not-allowed opacity-60'
                                 }`}
-                            title={heartbeatData?.ActiveTrade !== null ? 'Immediately market-close current position' : 'No active position to close'}
+                            title={primaryActiveTrade !== undefined ? 'Immediately market-close current position' : 'No active position to close'}
                         >
                             <XCircle className={`w-3.5 h-3.5 shrink-0 ${loadingAction === 'forceClose' ? 'animate-spin' : 'text-rose-400'}`} />
                             <span>Force Close</span>
@@ -656,7 +689,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                         <span className="text-[11px] font-mono text-zinc-500 uppercase">Engine <span className="hidden sm:inline text-zinc-400">status</span>:</span>
                         <span className="text-xs font-mono font-semibold text-zinc-200 flex items-center gap-1.5">
                             <span
-                                className={`w-2 h-2 rounded-full shrink-0 ${heartbeatData?.ActiveTrade
+                                className={`w-2 h-2 rounded-full shrink-0 ${primaryActiveTrade !== undefined
                                     ? 'bg-emerald-400'
                                     : 'bg-blue-400 animate-pulse'}
                                 `}
@@ -670,7 +703,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                 <section className="w-full">
                     <TradingViewChart
                         candles={historicalCandlesState}
-                        position={heartbeatData?.ActiveTrade}
+                        position={primaryActiveTrade}
                         trades={heartbeatData?.Trades || []}
                         symbol={User?.Symbol || heartbeatData?.LatestCandle?.symbol || "undefined"}
                         interval={heartbeatData && heartbeatData.LatestCandle?.interval || "1m"}
@@ -688,200 +721,167 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                 Active Futures Position
                             </h2>
                         </div>
-                        {heartbeatData?.ActiveTrade && (
-                            <div className="flex items-center gap-2 sm:gap-3">
-                                <span className="text-[10.5px] sm:text-[11px] font-mono text-zinc-500">
-                                    Order ID: {heartbeatData.ActiveTrade.orderId}
-                                </span>
-                                <button
-                                    onClick={handleForceClose}
-                                    disabled={loadingAction === 'forceClose'}
-                                    className="px-2.5 py-1 rounded bg-rose-950/60 border border-rose-800 text-rose-300 hover:bg-rose-900/80 text-[10px] font-mono transition-colors"
+                        {activeTrades.length > 0 && (
+                            <div className="flex items-center gap-3 font-mono text-xs">
+                                <span className="text-zinc-500 hidden sm:inline">Total Unrealized PnL:</span>
+                                <span
+                                    className={`font-bold ${activeTrades.reduce((total, trades) => total + trades.unrealizedPnl, 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                                        }`}
                                 >
-                                    Close Position
-                                </button>
+                                    {activeTrades.reduce((total, trades) => total + trades.unrealizedPnl, 0) >= 0 ? '+' : ''}{formatCurrency(activeTrades.reduce((total, trades) => total + trades.unrealizedPnl, 0), 2)} USDT
+                                </span>
                             </div>
                         )}
                     </div>
 
-                    {heartbeatData?.ActiveTrade ? (
-                        <div className="space-y-3">
-                            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-4 pt-1">
-                                <div className="space-y-1">
-                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Symbol / Side</span>
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="font-bold text-sm font-mono text-white">{heartbeatData.ActiveTrade.symbol}</span>
-                                        <span
-                                            className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${heartbeatData?.ActiveTrade.side === Direction.Long
-                                                ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
-                                                : 'text-rose-400 bg-rose-950/60 border-rose-800'
-                                                }`}
-                                        >
-                                            {heartbeatData.ActiveTrade.side === Direction.Long ? 'LONG' : 'SHORT'}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Entry Price</span>
-                                    <span className="font-mono text-sm font-semibold text-zinc-200">
-                                        ${formatCurrency(heartbeatData.ActiveTrade.entryPrice, 2)}
-                                    </span>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Mark Price</span>
-                                    <span className="font-mono text-sm font-semibold text-zinc-200">
-                                        ${formatCurrency(heartbeatData.ActiveTrade.markPrice, 2)}
-                                    </span>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Size (Notional)</span>
-                                    <div className="flex flex-col">
-                                        <span className="font-mono text-sm font-semibold text-zinc-200">
-                                            {heartbeatData.ActiveTrade.size}
-                                        </span>
-                                        <span className="font-mono text-[10.5px] text-zinc-500">
-                                            ≈ ${formatCurrency(heartbeatData.ActiveTrade.notional, 2)}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Liq. Price</span>
-                                    <span className="font-mono text-sm font-semibold text-amber-400">
-                                        ${formatCurrency(heartbeatData.ActiveTrade.liqPrice, 2)}
-                                    </span>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Margin Buffer</span>
-                                    <div className="flex items-center gap-1">
-                                        <span className="font-mono text-sm font-semibold text-emerald-400">
-                                            {`${(heartbeatData.ActiveTrade.marginBuffer ?? 0).toFixed(3)}`}<small> USDT</small>
-                                        </span>
-                                        {User?.AvoidLiquidation && (
-                                            <span className="text-[9px] px-1 bg-blue-950 text-blue-400 border border-blue-800 rounded">
-                                                AUTO-ADD
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Unrealized PnL</span>
-                                    {(() => {
-                                        const unPnl = heartbeatData.ActiveTrade.unrealizedPnl;
-                                        const isPos = unPnl >= 0;
-                                        return (
-                                            <span
-                                                className={`font-mono text-sm font-bold flex items-center gap-0.5 ${isPos ? 'text-emerald-400' : 'text-rose-400'}`}
-                                            >
-                                                {isPos ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
-                                                {isPos ? '+' : ''}{formatCurrency(unPnl, 3)}<small> USDT</small>
-                                            </span>
-                                        );
-                                    })()}
-                                </div>
-
-                                <div className="space-y-1">
-                                    <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">ROE %</span>
-                                    {(() => {
-                                        const roe = heartbeatData.ActiveTrade.roe;
-                                        const isPos = roe >= 0;
-                                        return (
-                                            <span
-                                                className={`font-mono text-sm font-bold ${isPos ? 'text-emerald-400' : 'text-rose-400'
-                                                    }`}
-                                            >
-                                                {heartbeatData.ActiveTrade.roe.toFixed(2)}%
-                                            </span>
-                                        );
-                                    })()}
-                                </div>
-                            </div>
-
-                            {/* QOL Enhancement: Center-Anchored Bi-Directional Risk / Reward Bar */}
-                            {(() => {
-                                const pos = heartbeatData.ActiveTrade;
+                    {activeTrades.length > 0 ? (
+                        <div className="space-y-3 pt-1">
+                            {activeTrades.map((pos) => {
                                 const isLong = pos.side === Direction.Long;
-
-                                const tpPerc = userStrategy?.risk?.tpPerc || 0.02;
-                                const tpPrice = isLong
-                                    ? pos.entryPrice * (1 + tpPerc)
-                                    : pos.entryPrice * (1 - tpPerc);
-
-                                const isDynamicSL = userStrategy?.risk?.slCondition === SLCondition.DynamicSL;
-                                const slPerc = userStrategy?.risk?.slPerc || 0.01;
-
-                                const dangerPrice = isDynamicSL
-                                    ? (isLong ? pos.entryPrice * (1 - slPerc) : pos.entryPrice * (1 + slPerc))
-                                    : pos.liqPrice;
-
-                                const dangerLabel = isDynamicSL ? 'Stop Loss' : 'Liquidation';
-
-                                // 3. Calculate Directional Progress (0% to 100% of respective half)
-                                const priceDelta = isLong
-                                    ? (pos.markPrice - pos.entryPrice)
-                                    : (pos.entryPrice - pos.markPrice);
-
-                                const isWinning = priceDelta >= 0;
-
-                                let halfWidthPercent = 0;
-                                if (isWinning) {
-                                    const maxRewardDist = Math.abs(tpPrice - pos.entryPrice);
-                                    halfWidthPercent = maxRewardDist > 0
-                                        ? Math.min((priceDelta / maxRewardDist) * 100, 100)
-                                        : 0;
-                                } else {
-                                    const maxRiskDist = Math.abs(dangerPrice - pos.entryPrice);
-                                    halfWidthPercent = maxRiskDist > 0
-                                        ? Math.min((Math.abs(priceDelta) / maxRiskDist) * 100, 100)
-                                        : 0;
-                                }
-
-                                const trackFillWidth = halfWidthPercent * 0.5;
+                                const isPrimarySymbol = pos.symbol === (User?.Symbol || '');
+                                const isPos = pos.unrealizedPnl > 0;
+                                const isRoePos = pos.roe > 0;
 
                                 return (
-                                    <div className="mt-3 pt-3 border-t border-[#27272a]/60 space-y-1.5">
-                                        {/* Top Labels */}
-                                        <div className="flex justify-between items-center text-[10px] font-mono text-zinc-400">
-                                            <span className="text-rose-400">
-                                                {dangerLabel}
-                                            </span>
-                                            <span className="text-emerald-400">
-                                                Take Profit Target
-                                            </span>
+                                    <div
+                                        key={`${pos.symbol}_${pos.orderId}`}
+                                        className={`bg-[#09090b] border rounded-lg p-3 sm:p-4 transition-colors border-[#27272a]`}
+                                    >
+                                        {/* Position Card Sub-Header */}
+                                        <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 mb-2.5 border-b border-zinc-800/80">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="font-bold text-sm font-mono text-white">{pos.symbol}</span>
+                                                <span
+                                                    className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${isLong
+                                                        ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
+                                                        : 'text-rose-400 bg-rose-950/60 border-rose-800'
+                                                        }`}
+                                                >
+                                                    {isLong ? 'LONG' : 'SHORT'}
+                                                </span>
+                                                {isPrimarySymbol && (
+                                                    <span className="text-[9.5px] font-mono font-semibold px-1.5 py-0.5 rounded bg-blue-950/60 text-blue-300 border border-blue-800/80">
+                                                        PRIMARY
+                                                    </span>
+                                                )}
+                                                {!isPrimarySymbol && (
+                                                    <span className="text-[9.5px] font-mono font-semibold px-1.5 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/80">
+                                                        SECONDARY
+                                                    </span>
+                                                )}
+                                                <span className="text-[10.5px] font-mono text-zinc-500">
+                                                    Order ID: {pos.orderId}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleForceClose(pos)}
+                                                    disabled={loadingAction === 'forceClose'}
+                                                    className="px-2.5 py-1 rounded bg-rose-950/60 border border-rose-800 text-rose-300 hover:bg-rose-900/80 text-[10px] font-mono transition-colors"
+                                                >
+                                                    Close Position
+                                                </button>
+                                            </div>
                                         </div>
 
-                                        {/* Center-Anchored Track */}
-                                        <div className="w-full bg-zinc-900 h-2.5 rounded-full overflow-hidden border border-zinc-800 relative flex items-center">
-                                            {/* Center Entry Anchor Marker */}
-                                            <div className="absolute left-1/2 top-0 bottom-0 w-[2px] bg-zinc-400 z-10 -translate-x-1/2" />
+                                        {/* Position Metrics 8-Column Grid */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-4">
+                                            {/* Pair & Side */}
+                                            <div className="space-y-1">
+                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Symbol / Side</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-bold text-sm font-mono text-white">{pos.symbol}</span>
+                                                    <span
+                                                        className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${isLong
+                                                            ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
+                                                            : 'text-rose-400 bg-rose-950/60 border-rose-800'
+                                                            }`}
+                                                    >
+                                                        {isLong ? 'LONG' : 'SHORT'}
+                                                    </span>
+                                                </div>
+                                            </div>
 
-                                            {isWinning ? (
-                                                /* Expands Right from 50% -> 100% (Green) */
-                                                <div
-                                                    className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-500 rounded-r-full"
-                                                    style={{
-                                                        marginLeft: '50%',
-                                                        width: `${trackFillWidth}%`,
-                                                    }}
-                                                />
-                                            ) : (
-                                                <div
-                                                    className="h-full bg-gradient-to-l from-rose-600 to-rose-400 transition-all duration-500 rounded-l-full"
-                                                    style={{
-                                                        marginLeft: `${50 - trackFillWidth}%`,
-                                                        width: `${trackFillWidth}%`,
-                                                    }}
-                                                />
-                                            )}
+                                            {/* Entry Price */}
+                                            <div className="space-y-1">
+                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Entry Price</span>
+                                                <span className="font-mono text-sm font-semibold text-zinc-200">
+                                                    ${formatCurrency(pos.entryPrice, 2)}
+                                                </span>
+                                            </div>
+
+                                            {/* Mark Price */}
+                                            <div className="space-y-1">
+                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Mark Price</span>
+                                                <span className="font-mono text-sm font-semibold text-zinc-200">
+                                                    ${formatCurrency(pos.markPrice, 2)}
+                                                </span>
+                                            </div>
+
+                                            {/* Size / Notional */}
+                                            <div className="space-y-1">
+                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Size (Notional)</span>
+                                                <div className="flex flex-col">
+                                                    <span className="font-mono text-sm font-semibold text-zinc-200">
+                                                        {pos.size}
+                                                    </span>
+                                                    <span className="font-mono text-[10.5px] text-zinc-500">
+                                                        ≈ ${formatCurrency(pos.notional, 2)}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Liquidation Price */}
+                                            <div className="space-y-1">
+                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Liq. Price</span>
+                                                <span className="font-mono text-sm font-semibold text-amber-400">
+                                                    ${formatCurrency(pos.liqPrice, 2)}
+                                                </span>
+                                            </div>
+
+                                            {/* Margin Buffer */}
+                                            <div className="space-y-1">
+                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Margin Buffer</span>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="font-mono text-sm font-semibold text-emerald-400">
+                                                        {pos.marginBuffer}<small> USDT</small>
+                                                    </span>
+                                                    {User?.AvoidLiquidation && (
+                                                        <span className="text-[9px] px-1 bg-blue-950 text-blue-400 border border-blue-800 rounded">
+                                                            AUTO-ADD
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Un-realized PnL (USDT) */}
+                                            <div className="space-y-1">
+                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Unrealized PnL</span>
+                                                <span
+                                                    className={`font-mono text-sm font-bold flex items-center gap-0.5 ${isPos ? 'text-emerald-400' : 'text-rose-400'
+                                                        }`}
+                                                >
+                                                    {isPos ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                                                    {isPos ? '+' : ''}{formatCurrency(pos.unrealizedPnl, 2)}<small> USDT</small>
+                                                </span>
+                                            </div>
+
+                                            {/* ROE % */}
+                                            <div className="space-y-1">
+                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">ROE %</span>
+                                                <span
+                                                    className={`font-mono text-sm font-bold ${isRoePos ? 'text-emerald-400' : 'text-rose-400'
+                                                        }`}
+                                                >
+                                                    {pos.roe.toFixed(2)}%
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 );
-                            })()}
+                            })}
                         </div>
                     ) : (
                         <div className="py-8 flex flex-col items-center justify-center text-center space-y-2">
