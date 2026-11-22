@@ -54,6 +54,7 @@ const Settings = () => {
 
         try {
             if (!userData) return;
+            console.log(userData);
             const updatedUser = await updateUser(userData);
             if (!updatedUser) {
                 setErrorMessage('Failed to save settings to backend');
