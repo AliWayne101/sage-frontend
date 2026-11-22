@@ -790,9 +790,8 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-4">
                                             {/* Pair & Side */}
                                             <div className="space-y-1">
-                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Symbol / Side</span>
+                                                <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Side</span>
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="font-bold text-sm font-mono text-white">{pos.symbol}</span>
                                                     <span
                                                         className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${isLong
                                                             ? 'text-emerald-400 bg-emerald-950/60 border-emerald-800'
@@ -846,10 +845,10 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
                                                 <span className="text-[10.5px] font-mono text-zinc-500 uppercase block">Margin Buffer</span>
                                                 <div className="flex items-center gap-1">
                                                     <span className="font-mono text-sm font-semibold text-emerald-400">
-                                                        {pos.marginBuffer}<small> USDT</small>
+                                                        {pos.marginBuffer.toFixed(2)}<small> USDT</small>
                                                     </span>
                                                     {User?.AvoidLiquidation && (
-                                                        <span className="text-[9px] px-1 bg-blue-950 text-blue-400 border border-blue-800 rounded">
+                                                        <span className="text-[7px] px-1 bg-blue-950 text-blue-400 border border-blue-800 rounded">
                                                             AUTO-ADD
                                                         </span>
                                                     )}
