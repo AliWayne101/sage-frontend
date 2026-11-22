@@ -81,7 +81,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
 
                     if (gap > 1) {
                         console.log("Force fetching the historical data");
-                        const _candles = await server<Candle[]>({ request: "getHistoricalCandles", targetBot: BotID });
+                        const _candles = await server<Candle[]>({ request: "getHistoricalCandles", value: User?.Symbol, targetBot: BotID });
                         if (Array.isArray(_candles) && _candles.length > 0) {
                             candlesRef.current = _candles;
                             setHistoricalCandlesState(_candles);
@@ -215,7 +215,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
         setConfirmModal((prev) => ({ ...prev, isLoading: true }));
         setLoadingAction("forceClose");
         try {
-            const serverResponse = await server({ request: "forceClose", symbol: symbol, targetBot: BotID });
+            const serverResponse = await server({ request: "forceClose", value: symbol, targetBot: BotID });
 
             if (!serverResponse || typeof serverResponse.success === 'undefined') {
                 setErrorNotice("Error: Invalid response from server");
@@ -301,7 +301,7 @@ const UserDashboard = ({ BotID }: UserDashboardProps) => {
             const _strategy = await server<Strategy | undefined>({ request: "getStrategy", targetBot: BotID });
             setUserStrategy(_strategy);
 
-            const _candles = await server<Candle[]>({ request: "getHistoricalCandles", targetBot: BotID });
+            const _candles = await server<Candle[]>({ request: "getHistoricalCandles", value: _user.Symbol, targetBot: BotID });
             setHistoricalCandlesState(_candles);
         }
         loadUser();

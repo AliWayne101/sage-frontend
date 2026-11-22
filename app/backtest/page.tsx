@@ -76,24 +76,24 @@ const BacktestPage = () => {
     const handleInitiateApplyStrategy = async (strategy: StrategyBacktestResult) => {
         const isCurrentActive = User?.StrategyName === strategy.strategyName;
         if (isCurrentActive || !heartBeat || !User) return;
-
-        if (heartBeat.ActiveTrade) {
-            const sideText = (heartBeat.ActiveTrade.side === Direction.Long) ? 'LONG' : 'SHORT';
-            const pnlValue = heartBeat.ActiveTrade.unrealizedPnl ?? 0;
+        if (heartBeat.ActiveTrades.length > 0) {
+            const ActiveTrade = heartBeat.ActiveTrades[0];
+            const sideText = (ActiveTrade.side === Direction.Long) ? 'LONG' : 'SHORT';
+            const pnlValue = ActiveTrade.unrealizedPnl ?? 0;
             const pnlFormatted = `${pnlValue >= 0 ? '+' : ''} USDT ${formatCurrency(pnlValue, 2)}`;
 
             setConfirmModal({
                 isOpen: true,
                 title: 'Active Position Detected — Liquidate to Apply',
-                message: `Liquidate open ${heartBeat.ActiveTrade.symbol} position and apply "${strategy.strategyName}"?`,
-                description: `An active position in ${heartBeat.ActiveTrade.symbol} is currently open. Applying a new strategy requires a completely flat market exposure to prevent indicator or margin conflicts. Confirming will liquidate this position at current market price before saving "${strategy.strategyName}" to your bot profile in the database.`,
+                message: `Liquidate open ${ActiveTrade.symbol} position and apply "${strategy.strategyName}"?`,
+                description: `An active position in ${ActiveTrade.symbol} is currently open. Applying a new strategy requires a completely flat market exposure to prevent indicator or margin conflicts. Confirming will liquidate this position at current market price before saving "${strategy.strategyName}" to your bot profile in the database.`,
                 variant: 'danger',
                 confirmText: 'Liquidate Position & Apply Strategy',
                 cancelText: 'Cancel',
                 details: [
-                    { label: 'Current Position', value: `${heartBeat.ActiveTrade.symbol} (${sideText})` },
-                    { label: 'Entry Price', value: `USDT ${formatCurrency(heartBeat.ActiveTrade.entryPrice, 2)}` },
-                    { label: 'Mark Price', value: `USDT ${formatCurrency(heartBeat.ActiveTrade.markPrice || heartBeat.ActiveTrade.entryPrice, 2)}` },
+                    { label: 'Current Position', value: `${ActiveTrade.symbol} (${sideText})` },
+                    { label: 'Entry Price', value: `USDT ${formatCurrency(ActiveTrade.entryPrice, 2)}` },
+                    { label: 'Mark Price', value: `USDT ${formatCurrency(ActiveTrade.markPrice || ActiveTrade.entryPrice, 2)}` },
                     { label: 'Unrealized PnL', value: pnlFormatted },
                     { label: 'Target Strategy', value: strategy.strategyName },
                     { label: 'Trailing Ratchet', value: strategy.riskConfig.isTrailing ? 'Step-Ratchet ON' : 'Standard' },
@@ -101,7 +101,7 @@ const BacktestPage = () => {
                 onConfirm: async () => {
                     setConfirmModal((prev) => ({ ...prev, isLoading: true }));
                     try {
-                        await server({ request: "forceClose", targetBot: User.BotID });
+                        await server({ request: "forceClose", value: "all", targetBot: User.BotID });
                         await updateUserStrategy(strategy);
                         showToast(
                             `Active position liquidated and strategy "${strategy.strategyName}" successfully applied to your bot profile in the database!`,
@@ -378,16 +378,16 @@ const BacktestPage = () => {
                 )}
 
                 {/* Live Active Position Warning / Status Indicator */}
-                {heartBeat?.ActiveTrade ? (
+                {(heartBeat?.ActiveTrades.length ?? 0) > 0 ? (
                     <div className="p-3.5 sm:p-4 bg-amber-950/30 border border-amber-800/80 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs">
                         <div className="flex items-start sm:items-center gap-2.5">
                             <AlertOctagon className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
                             <div>
                                 <span className="font-semibold text-amber-300 block sm:inline">Active Trade in Progress: </span>
                                 <span className="text-zinc-300">
-                                    {heartBeat.ActiveTrade.symbol} ({(heartBeat.ActiveTrade.side === Direction.Long) ? 'LONG' : 'SHORT'}) @ {formatCurrency(heartBeat.ActiveTrade.entryPrice, 2)}<small> USDT  </small>
-                                    <strong className={(heartBeat.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
-                                        ({(heartBeat.ActiveTrade.unrealizedPnl ?? 0) >= 0 ? '+' : ''}{formatCurrency(heartBeat.ActiveTrade.unrealizedPnl ?? 0, 2)}<small> USDT</small>)
+                                    {heartBeat?.ActiveTrades[0].symbol} ({(heartBeat?.ActiveTrades[0].side === Direction.Long) ? 'LONG' : 'SHORT'}) @ {formatCurrency(heartBeat?.ActiveTrades[0].entryPrice ?? 0, 2)}<small> USDT  </small>
+                                    <strong className={(heartBeat?.ActiveTrades[0].unrealizedPnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
+                                        ({(heartBeat?.ActiveTrades[0].unrealizedPnl ?? 0) >= 0 ? '+' : ''}{formatCurrency(heartBeat?.ActiveTrades[0].unrealizedPnl ?? 0, 2)}<small> USDT</small>)
                                     </strong>
                                 </span>
                                 <p className="text-[11px] text-zinc-400 mt-0.5">

@@ -408,7 +408,7 @@ const Fleet = () => {
                             <div className="flex flex-wrap gap-1 text-[10px] font-mono">
                                 {[
                                     { key: 'all', label: 'All' },
-                                    { key: 'sandbox', label: 'Sandbox'},
+                                    { key: 'sandbox', label: 'Sandbox' },
                                     { key: 'live', label: 'Live' },
                                     { key: 'demo', label: 'Demo' },
                                     { key: 'inactive', label: 'Inacive' },
@@ -485,15 +485,20 @@ const Fleet = () => {
 
                                                 {/* Right: PnL and Pair */}
                                                 <div className="text-right shrink-0 space-y-1">
-                                                    {heartbeat && heartbeat.ActiveTrade ? (
-                                                        <div
-                                                            className={`font-bold text-xs ${heartbeat.ActiveTrade.unrealizedPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                                                                }`}
-                                                        >
-                                                            {heartbeat.ActiveTrade.unrealizedPnl >= 0 ? '+' : ''}{formatCurrency(heartbeat.ActiveTrade.unrealizedPnl)} USDT
-                                                        </div>
-
-                                                    ) : (
+                                                    {heartbeat && heartbeat.ActiveTrades.length > 0 ? (() => {
+                                                        const totalUnrealizedPnl = heartbeat.ActiveTrades.reduce(
+                                                            (sum, trade) => sum + (trade.unrealizedPnl || 0),
+                                                            0
+                                                        );
+                                                        const isPositive = totalUnrealizedPnl >= 0;
+                                                        return (
+                                                            <div
+                                                                className={`font-bold text-xs ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}
+                                                            >
+                                                                {isPositive ? '+' : ''}{formatCurrency(totalUnrealizedPnl)} USDT
+                                                            </div>
+                                                        )
+                                                    })() : (
                                                         <div className={`font-bold text-xs text-emerald-400`}>
                                                             0.00 USDT
                                                         </div>
@@ -937,7 +942,7 @@ const Fleet = () => {
                                     <div className="flex items-center gap-2">
                                         <Activity className="w-4 h-4 text-purple-400 shrink-0" />
                                         <span className="text-zinc-400">Active Position State:</span>
-                                        <span className="font-bold text-zinc-200">{heartBeats.find((e) => e.BotID === selectedBot.BotID)?.ActiveTrade?.side.toString() || 'No open position'}</span>
+                                        <span className="font-bold text-zinc-200">{heartBeats.find((e) => e.BotID === selectedBot.BotID)?.ActiveTrades[0].side.toString() || 'No open position'}</span>
                                     </div>
                                     <button
                                         onClick={() => router.push(`/inspect/${selectedBot.BotID}`)}

@@ -245,7 +245,7 @@ export const updateUserDemoMode = async (targetEmail: string, isDemo: boolean): 
 
     if (!updatedUser) return null;
 
-    const response = await server({ request: "forceClose", targetBot: updatedUser.BotID });
+    const response = await server({ request: "forceClose", value: "all", targetBot: updatedUser.BotID });
     await server({ request: "restart", targetBot: updatedUser.BotID });
     if (!response.success) {
         await UserModel.findOneAndUpdate(
@@ -275,7 +275,7 @@ export const deleteAPIKey = async (BotID: string, keyID: string): Promise<IUserI
     if (!targetAPI) return null;
 
     if (targetAPI.isDemo === targetUser.Demo)
-        await server({ request: "forceClose", targetBot: targetUser.BotID });
+        await server({ request: "forceClose", value: "all", targetBot: targetUser.BotID });
 
     const restAPIs = targetUser.APIKeys!.filter((e) => e.id !== keyID);
     targetUser.APIKeys = restAPIs;
